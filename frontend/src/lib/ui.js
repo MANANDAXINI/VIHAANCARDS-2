@@ -1,0 +1,108 @@
+export const ui = {
+  page: "min-h-screen bg-slate-50 pt-28 pb-12 text-slate-900",
+  pageNarrow: "mx-auto grid w-full max-w-3xl gap-4 px-4",
+  pageAdmin: "mx-auto grid w-full max-w-6xl gap-3 px-4 md:px-6",
+  adminH1: "text-xl font-semibold tracking-tight text-slate-900",
+  adminH3: "text-sm font-semibold text-slate-900",
+  adminCard: "grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm",
+  container: "mx-auto w-full max-w-6xl px-4",
+  card: "grid gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm",
+  cardFlat: "rounded-xl border border-slate-200 bg-white shadow-sm",
+  muted: "text-slate-500",
+  small: "text-sm",
+  h1: "text-2xl font-bold tracking-tight text-slate-900",
+  h3: "text-base font-semibold text-slate-900",
+  btn:
+    "inline-flex min-h-[42px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55",
+  field: "grid gap-1.5",
+  label: "text-sm font-semibold text-slate-900",
+  input:
+    "min-h-[42px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100",
+  inputError: "border-red-500 focus:border-red-500 focus:ring-red-100",
+  fieldError: "text-xs font-medium text-red-600",
+  grid2: "grid gap-4 md:grid-cols-2",
+  tableWrap: "overflow-x-auto rounded-lg border border-slate-200 bg-white",
+  table: "w-full border-collapse text-sm",
+  th: "border-b border-slate-200 bg-slate-50 px-3.5 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-slate-500",
+  td: "border-b border-slate-200 px-3.5 py-3 text-left text-slate-800",
+  pill: "inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.72rem] font-semibold",
+  statGrid: "grid gap-3 sm:grid-cols-3",
+  statCard: "rounded-lg border border-slate-200 bg-white px-4 py-4",
+  navTabs: "flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1",
+  priceBox: "flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3.5 font-semibold text-slate-900",
+  divider:
+    "flex items-center gap-3 text-xs text-slate-500 before:h-px before:flex-1 before:bg-slate-200 after:h-px after:flex-1 after:bg-slate-200",
+};
+
+export function btnClass(variant = "primary", small = false) {
+  const size = small ? "min-h-9 px-3 text-xs" : "";
+  if (variant === "ghost") {
+    return `${ui.btn} ${size} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900`;
+  }
+  if (variant === "secondary") {
+    return `${ui.btn} ${size} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50`;
+  }
+  return `${ui.btn} ${size} bg-blue-600 text-white hover:bg-blue-700`;
+}
+
+/** Mutually exclusive — avoids text-color class conflicts */
+export function chipClass(active) {
+  if (active) {
+    return "rounded-md border border-blue-700 bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+  }
+  return "rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
+}
+
+export function tabClass(active) {
+  if (active) {
+    return "inline-flex min-h-9 items-center rounded-md bg-white px-3.5 text-sm font-semibold text-blue-700 shadow-sm ring-1 ring-slate-200";
+  }
+  return "inline-flex min-h-9 items-center rounded-md px-3.5 text-sm font-medium text-slate-600 hover:bg-white/70 hover:text-slate-900";
+}
+
+export function heroBtnPrimary() {
+  return `${ui.btn} bg-white text-blue-700 shadow-sm hover:bg-blue-50`;
+}
+
+export function heroBtnSecondary() {
+  return `${ui.btn} border border-white/60 bg-white/15 text-white hover:bg-white/25`;
+}
+
+export function accountStatusClass(status) {
+  const s = String(status || "").toUpperCase();
+  if (s === "APPROVED") return `${ui.pill} bg-emerald-100 text-emerald-800`;
+  if (s === "REJECTED") return `${ui.pill} bg-red-100 text-red-800`;
+  return `${ui.pill} bg-amber-100 text-amber-800`;
+}
+
+export function pendingCountClass() {
+  return "font-semibold text-red-600";
+}
+
+export function pendingSectionTitleClass(hasPending) {
+  return hasPending ? "text-sm font-semibold text-red-600" : ui.adminH3;
+}
+
+export function pendingRowClass(isPending) {
+  return isPending ? "bg-red-50/80" : "";
+}
+
+export function orderStatusClass(status) {
+  const s = String(status || "").toUpperCase();
+  if (s === "DISPATCHED") return `${ui.pill} bg-indigo-100 text-indigo-800`;
+  if (s === "COMPLETED") return `${ui.pill} bg-emerald-100 text-emerald-800`;
+  if (s === "PAYMENT_VERIFIED" || s === "IN_PRINTING") return `${ui.pill} bg-blue-100 text-blue-800`;
+  if (s === "PAYMENT_SUBMITTED" || s === "ORDER_CREATED") return `${ui.pill} bg-amber-100 text-amber-800`;
+  if (s === "REJECTED") return `${ui.pill} bg-red-100 text-red-800`;
+  return `${ui.pill} bg-slate-100 text-slate-700`;
+}
+
+export function formatOrderStatus(status) {
+  const s = String(status || "").toUpperCase();
+  if (s === "COMPLETED") return "Delivered";
+  return String(status || "").replace(/_/g, " ");
+}
+
+export function isOrderPending(status) {
+  return String(status || "").toUpperCase() !== "COMPLETED";
+}

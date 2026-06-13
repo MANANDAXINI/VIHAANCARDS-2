@@ -1,0 +1,42 @@
+"use client";
+
+import { tabClass, pendingCountClass, ui } from "@/lib/ui";
+
+const ADMIN_TABS = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "accounts", label: "Users & Accounts", countKey: "accounts" },
+  { id: "paper-types", label: "Paper Types" },
+  { id: "sizes", label: "Sizes" },
+  { id: "printing-sides", label: "Printing Sides" },
+  { id: "payments", label: "Payments", countKey: "payments" },
+  { id: "orders", label: "Orders", countKey: "orders" },
+  { id: "qr", label: "Payment QR" },
+];
+
+export default function AdminNav({ active, onChange, counts = {} }) {
+  return (
+    <nav className="sticky top-[72px] z-20 -mx-1 border-b border-slate-200 bg-slate-50 py-2" aria-label="Admin sections">
+      <div className={`${ui.navTabs} w-full max-w-full flex-wrap`}>
+        {ADMIN_TABS.map((tab) => {
+          const count = tab.countKey ? counts[tab.countKey] : null;
+          const hasPending = count != null && count > 0;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={tabClass(active === tab.id)}
+              onClick={() => onChange(tab.id)}
+            >
+              {tab.label}
+              {hasPending && (
+                <span className={`ml-1.5 ${pendingCountClass()}`}>({count})</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+export { ADMIN_TABS };

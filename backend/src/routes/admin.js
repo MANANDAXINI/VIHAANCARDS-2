@@ -254,12 +254,26 @@ router.put("/orders/:id/status", authAdmin, async (req, res) => {
 
 router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
   const { lrNumber, transportDetails, dispatchDate } = req.body;
+  const lr = String(lrNumber || "").trim();
+  if (!lr) {
+    return res.status(400).json({ error: "LR number is required to dispatch." });
+  }
+
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found." });
+  if (existing.status === "DISPATCHED") {
+    return res.status(400).json({ error: "Order is already dispatched." });
+  }
+  if (existing.status === "COMPLETED") {
+    return res.status(400).json({ error: "Completed orders cannot be dispatched again." });
+  }
+
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: {
-      lrNumber: lrNumber || "",
+      lrNumber: lr,
       transportDetails: transportDetails || "",
-      dispatchDate: dispatchDate ? new Date(dispatchDate) : null,
+      dispatchDate: dispatchDate ? new Date(dispatchDate) : new Date(),
       status: "DISPATCHED",
     },
   });

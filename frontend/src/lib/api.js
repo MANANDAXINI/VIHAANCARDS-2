@@ -85,8 +85,8 @@ export const adminApi = {
   approveWallet: (id) => api(`/api/admin/wallet-requests/${id}/approve`, { method: "PUT" }),
   rejectWallet: (id) => api(`/api/admin/wallet-requests/${id}/reject`, { method: "PUT" }),
   orders: () => api("/api/admin/orders"),
-  dispatch: (id, body) => api(`/api/admin/orders/${id}/dispatch`, { method: "PUT", body }),
-  deliver: (id) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT" }),
+  dispatch: (id, body, options) => api(`/api/admin/orders/${id}/dispatch`, { method: "PUT", body, ...options }),
+  deliver: (id, options) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT", ...options }),
 };
 
 export const catalogApi = {

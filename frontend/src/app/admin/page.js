@@ -56,6 +56,7 @@ export default function AdminPage() {
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
   const [approvingId, setApprovingId] = useState(null);
+  const [orderActionId, setOrderActionId] = useState(null);
 
   useAdminTableState(pendingSearch, setPendingPage);
   useAdminTableState(accountsSearch, setAccountsPage);
@@ -152,6 +153,43 @@ export default function AdminPage() {
       toast.error(error.message || "Could not approve account.");
     } finally {
       setApprovingId(null);
+    }
+  }
+
+  async function dispatchOrder(orderId) {
+    const lr = prompt("Enter LR number");
+    if (!lr?.trim()) return;
+    if (orderActionId) return;
+
+    setOrderActionId(`dispatch-${orderId}`);
+    try {
+      await adminApi.dispatch(orderId, {
+        lrNumber: lr.trim(),
+        transportDetails: "",
+        dispatchDate: new Date().toISOString().slice(0, 10),
+      }, { silent: true });
+      toast.success("Order dispatched. Click Delivered when the customer receives it.");
+      await load();
+    } catch (error) {
+      toast.error(error.message || "Could not dispatch order.");
+    } finally {
+      setOrderActionId(null);
+    }
+  }
+
+  async function deliverOrder(orderId) {
+    if (orderActionId) return;
+    if (!window.confirm("Mark this order as delivered?")) return;
+
+    setOrderActionId(`deliver-${orderId}`);
+    try {
+      await adminApi.deliver(orderId, { silent: true });
+      toast.success("Order marked as delivered.");
+      await load();
+    } catch (error) {
+      toast.error(error.message || "Could not mark order as delivered.");
+    } finally {
+      setOrderActionId(null);
     }
   }
 
@@ -463,6 +501,8 @@ export default function AdminPage() {
                       const canDispatch = status !== "DISPATCHED" && status !== "COMPLETED";
                       const canDeliver = status === "DISPATCHED";
                       const isPending = isOrderPending(o.status);
+                      const isDispatching = orderActionId === `dispatch-${o.id}`;
+                      const isDelivering = orderActionId === `deliver-${o.id}`;
 
                       return (
                         <tr key={o.id} className={pendingRowClass(isPending)}>
@@ -472,35 +512,34 @@ export default function AdminPage() {
                           <td className={ui.td}>{formatRupees(o.amount)}</td>
                           <td className={ui.td}>
                             <span className={orderStatusClass(o.status)}>{formatOrderStatus(o.status)}</span>
+                            {o.lrNumber ? (
+                              <span className={`mt-1 block ${ui.small} ${ui.muted}`}>LR: {o.lrNumber}</span>
+                            ) : null}
                           </td>
                           <td className={ui.td}>{o.artworkUrl ? <a href={`${API_URL}${o.artworkUrl}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Download</a> : "—"}</td>
                           <td className={ui.td}>
-                            <div className="flex flex-wrap gap-2">
-                              {canDispatch && (
-                                <button className={btnClass("primary", true)} type="button" onClick={async () => {
-                                  const lr = prompt("Enter LR number");
-                                  if (!lr) return;
-                                  try {
-                                    await adminApi.dispatch(o.id, { lrNumber: lr, transportDetails: "", dispatchDate: new Date().toISOString().slice(0, 10) });
-                                    toast.success("Order dispatched.");
-                                    load();
-                                  } catch (error) {
-                                    toast.error(error.message);
-                                  }
-                                }}>Dispatch</button>
-                              )}
-                              {canDeliver && (
-                                <button className={btnClass("secondary", true)} type="button" onClick={async () => {
-                                  try {
-                                    await adminApi.deliver(o.id);
-                                    toast.success("Order marked as delivered.");
-                                    load();
-                                  } catch (error) {
-                                    toast.error(error.message);
-                                  }
-                                }}>Delivered</button>
-                              )}
-                            </div>
+                            {status === "COMPLETED" ? (
+                              <span className={ui.muted}>Done</span>
+                            ) : (
+                              <div className="flex min-w-[11rem] flex-col gap-2 sm:min-w-0 sm:flex-row sm:flex-wrap">
+                                <button
+                                  className={btnClass(canDispatch ? "primary" : "ghost", true)}
+                                  type="button"
+                                  disabled={!canDispatch || isDispatching || isDelivering}
+                                  onClick={() => dispatchOrder(o.id)}
+                                >
+                                  {isDispatching ? "Dispatching..." : "Dispatch"}
+                                </button>
+                                <button
+                                  className={btnClass(canDeliver ? "secondary" : "ghost", true)}
+                                  type="button"
+                                  disabled={!canDeliver || isDispatching || isDelivering}
+                                  onClick={() => deliverOrder(o.id)}
+                                >
+                                  {isDelivering ? "Saving..." : "Delivered"}
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

@@ -31,7 +31,15 @@ async function api(path, options = {}) {
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
   };
 
-  const response = await fetch(`${API_URL}${path}`, config);
+  const response = await fetch(`${API_URL}${path}`, config).catch((error) => {
+    const networkError = new Error(
+      API_URL.includes("localhost")
+        ? "Cannot reach API. Set NEXT_PUBLIC_API_URL on Vercel to your Render backend URL."
+        : `Cannot reach API at ${API_URL}. Check Render is running and CORS allows your site.`
+    );
+    networkError.cause = error;
+    throw networkError;
+  });
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {

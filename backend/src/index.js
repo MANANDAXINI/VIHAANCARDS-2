@@ -14,7 +14,37 @@ const adminCatalogRoutes = require("./routes/admin-catalog");
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, "../uploads");
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
+function getAllowedOrigins() {
+  const defaults = ["http://localhost:3000", "http://127.0.0.1:3000"];
+  const fromEnv = (process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const extra = (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return [...new Set([...defaults, ...fromEnv, ...extra])];
+}
+
+const allowedOrigins = getAllowedOrigins();
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+
+  try {
+    const { hostname, protocol } = new URL(origin);
+    if (protocol !== "http:" && protocol !== "https:") return false;
+    if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+    if (hostname.endsWith(".vercel.app") || hostname.endsWith(".vercel.dev")) return true;
+  } catch {
+    return false;
+  }
+
+  return false;
+}
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -22,7 +52,14 @@ if (!fs.existsSync(uploadDir)) {
 
 app.use(
   cors({
-    origin: [frontendUrl, "http://localhost:3000", "http://127.0.0.1:3000"],
+    origin(origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(null, false);
+    },
     credentials: true,
   })
 );

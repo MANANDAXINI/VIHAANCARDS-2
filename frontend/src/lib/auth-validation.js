@@ -61,6 +61,8 @@ export function validateRegister({ name, business, phone, password }) {
 
 export function getFirebaseAuthErrorMessage(error) {
   const code = error?.code || "";
+  const host =
+    typeof window !== "undefined" ? window.location.hostname : "your-vercel-domain.vercel.app";
   const map = {
     "auth/popup-closed-by-user": "Google sign-in was cancelled. Please try again.",
     "auth/popup-blocked": "Popup was blocked. Allow popups for this site and try again.",
@@ -69,7 +71,7 @@ export function getFirebaseAuthErrorMessage(error) {
     "auth/account-exists-with-different-credential": "This email is linked to another sign-in method.",
     "auth/invalid-credential": "Google sign-in failed. Please try again.",
     "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase. Enable Google provider.",
-    "auth/unauthorized-domain": "This site is not authorized for Google sign-in. Add your Vercel domain in Firebase → Authentication → Settings → Authorized domains.",
+    "auth/unauthorized-domain": `Add "${host}" in Firebase Console → Authentication → Settings → Authorized domains.`,
     "auth/internal-error": "Google sign-in failed. Check Firebase authorized domains and OAuth settings.",
   };
   return map[code] || error?.message || "Google sign-in failed. Please try again.";

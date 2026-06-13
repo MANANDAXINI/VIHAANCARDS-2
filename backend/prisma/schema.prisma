@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  ORDER_CREATED
+  PAYMENT_SUBMITTED
+  PAYMENT_VERIFIED
+  IN_PRINTING
+  DISPATCHED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+enum WalletRequestType {
+  WALLET_TOPUP
+  OUTSTANDING_PAYMENT
+  ORDER_PAYMENT
+}
+
+enum WalletRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AuthProvider {
+  PHONE
+  GOOGLE
+}
+
+enum AccountRole {
+  CUSTOMER
+  ADMIN
+  BOTH
+}
+
+model Account {
+  id                  String        @id @default(cuid())
+  name                String
+  business            String
+  phone               String
+  email               String        @default("")
+  address             String        @default("")
+  passwordHash        String
+  googleId            String?       @unique
+  authProvider        AuthProvider  @default(PHONE)
+  role                AccountRole   @default(CUSTOMER)
+  status              AccountStatus @default(PENDING)
+  balance             Float         @default(0)
+  creditLimit         Float         @default(0)
+  usedCredit          Float         @default(0)
+  previousOutstanding Float         @default(0)
+  oldOutstanding      Float         @default(0)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  sessions        Session[]
+  orders          Order[]
+  walletRequests  WalletRequest[]
+  ledgerEntries   LedgerEntry[]
+
+  @@unique([phone, business])
+  @@index([phone])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id               String        @id @default(cuid())
+  accountId        String
+  account          Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  orderNumber      String?       @unique
+  orderDate        DateTime      @default(now())
+  title            String        @default("")
+  product          String        @default("LEAFLET / PAMPLET")
+  paperGsm         String
+  size             String
+  quantity         String
+  finish           String        @default("")
+  printingSide     String
+  amount           Float
+  notes            String        @default("")
+  artworkName      String?
+  artworkPath      String?
+  artworkMime      String?
+  status           OrderStatus   @default(ORDER_CREATED)
+  paymentStatus    PaymentStatus @default(PENDING)
+  lrNumber         String        @default("")
+  transportDetails String        @default("")
+  dispatchDate     DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  walletRequests WalletRequest[]
+}
+
+model WalletRequest {
+  id              String              @id @default(cuid())
+  accountId       String
+  account         Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount          Float
+  type            WalletRequestType
+  status          WalletRequestStatus @default(PENDING)
+  pendingOrderId  String?
+  pendingOrder    Order?              @relation(fields: [pendingOrderId], references: [id])
+  pendingOrderData Json?
+  note            String              @default("")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model LedgerEntry {
+  id                   String   @id @default(cuid())
+  accountId            String
+  account              Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  label                String
+  amount               Float
+  debit                Float    @default(0)
+  credit               Float    @default(0)
+  oldOutstandingBefore Float    @default(0)
+  outstandingAfter     Float    @default(0)
+  balanceAfter         Float    @default(0)
+  receiptNumber        String?
+  entryDate            DateTime @default(now())
+  createdAt            DateTime @default(now())
+}
+
+model OrderCounter {
+  id    Int @id @default(1)
+  value Int @default(1)
+}
+
+model ReceiptCounter {
+  id    Int @id @default(1)
+  value Int @default(1)
+}
+
+model PaperType {
+  id                String      @id @default(cuid())
+  name              String      @unique
+  availableQuantity Int         @default(0)
+  ratePerThousand   Float       @default(0)
+  active            Boolean     @default(true)
+  sortOrder         Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  priceRules        PriceRule[]
+}
+
+model PaperSize {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  active     Boolean     @default(true)
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  priceRules PriceRule[]
+}
+
+model PrintingSideOption {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  active     Boolean     @default(true)
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  priceRules PriceRule[]
+}
+
+model PriceRule {
+  id             String             @id @default(cuid())
+  paperTypeId    String
+  paperType      PaperType          @relation(fields: [paperTypeId], references: [id], onDelete: Cascade)
+  sizeId         String
+  size           PaperSize          @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  printingSideId String
+  printingSide   PrintingSideOption @relation(fields: [printingSideId], references: [id], onDelete: Cascade)
+  ratePerThousand Float             @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([paperTypeId, sizeId, printingSideId])
+}
+
+model PaymentQr {
+  id        Int      @id @default(1)
+  imagePath String   @default("")
+  updatedAt DateTime @updatedAt
+}

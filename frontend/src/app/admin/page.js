@@ -55,6 +55,7 @@ export default function AdminPage() {
   const [accountsPage, setAccountsPage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
+  const [approvingId, setApprovingId] = useState(null);
 
   useAdminTableState(pendingSearch, setPendingPage);
   useAdminTableState(accountsSearch, setAccountsPage);
@@ -137,6 +138,20 @@ export default function AdminPage() {
       load();
     } catch (error) {
       toast.error(error.message);
+    }
+  }
+
+  async function approveAccount(accountId) {
+    if (approvingId) return;
+    setApprovingId(accountId);
+    try {
+      await adminApi.approveAccount(accountId, { silent: true });
+      toast.success("Account approved.");
+      await load();
+    } catch (error) {
+      toast.error(error.message || "Could not approve account.");
+    } finally {
+      setApprovingId(null);
     }
   }
 
@@ -242,6 +257,8 @@ export default function AdminPage() {
               orders={orders}
               counts={navCounts}
               onNavigate={setActiveTab}
+              onApproveAccount={approveAccount}
+              approvingId={approvingId}
             />
           )}
 
@@ -256,38 +273,69 @@ export default function AdminPage() {
                     <AdminSearchBar value={pendingSearch} onChange={setPendingSearch} placeholder="Search pending users..." />
                   </div>
                 </div>
-                <div className={ui.tableWrap}>
-                  <table className={ui.table}>
-                    <thead><tr><th className={ui.th}>Name</th><th className={ui.th}>Business</th><th className={ui.th}>Phone</th><th className={ui.th}>Role</th><th className={ui.th}></th></tr></thead>
-                    <tbody>
-                      {pendingPaged.items.length === 0 ? <tr><td className={ui.td} colSpan="5">No pending users</td></tr> : pendingPaged.items.map((a) => (
-                        <tr key={a.id} className={pendingRowClass(true)}>
-                          <td className={ui.td}>{a.name}</td>
-                          <td className={ui.td}>{a.business}</td>
-                          <td className={ui.td}>{formatPhone(a.phone)}</td>
-                          <td className={ui.td}>
-                            <select className={ui.input} value={a.role || "CUSTOMER"} onChange={(e) => changeRole(a.id, e.target.value)}>
-                              <option value="CUSTOMER">Customer</option>
-                              <option value="ADMIN">Admin</option>
-                              <option value="BOTH">Customer + Admin</option>
-                            </select>
-                          </td>
-                          <td className={ui.td}>
-                            <button className={btnClass("primary", true)} type="button" onClick={async () => {
-                              try {
-                                await adminApi.approveAccount(a.id);
-                                toast.success("Account approved.");
-                                load();
-                              } catch (error) {
-                                toast.error(error.message);
-                              }
-                            }}>Approve</button>
-                          </td>
-                        </tr>
+                {pendingPaged.items.length === 0 ? (
+                  <p className={ui.muted}>No pending users</p>
+                ) : (
+                  <>
+                    <div className={ui.mobileCardList}>
+                      {pendingPaged.items.map((a) => (
+                        <article key={a.id} className={`${ui.mobileCard} border-red-100 bg-red-50/40`}>
+                          <div className={ui.mobileCardRow}>
+                            <strong>{a.business}</strong>
+                            <span className={accountStatusClass("PENDING")}>PENDING</span>
+                          </div>
+                          <p>{a.name}</p>
+                          <p className={ui.muted}>{formatPhone(a.phone)}</p>
+                          <select className={ui.input} value={a.role || "CUSTOMER"} onChange={(e) => changeRole(a.id, e.target.value)}>
+                            <option value="CUSTOMER">Customer</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="BOTH">Customer + Admin</option>
+                          </select>
+                          <button
+                            className={`${btnClass("primary")} w-full`}
+                            type="button"
+                            disabled={approvingId === a.id}
+                            onClick={() => approveAccount(a.id)}
+                          >
+                            {approvingId === a.id ? "Approving..." : "Approve Account"}
+                          </button>
+                        </article>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+
+                    <div className={`${ui.tableWrap} hidden md:block`}>
+                      <table className={ui.table}>
+                        <thead><tr><th className={ui.th}>Name</th><th className={ui.th}>Business</th><th className={ui.th}>Phone</th><th className={ui.th}>Role</th><th className={ui.th}>Action</th></tr></thead>
+                        <tbody>
+                          {pendingPaged.items.map((a) => (
+                            <tr key={a.id} className={pendingRowClass(true)}>
+                              <td className={ui.td}>{a.name}</td>
+                              <td className={ui.td}>{a.business}</td>
+                              <td className={ui.td}>{formatPhone(a.phone)}</td>
+                              <td className={ui.td}>
+                                <select className={ui.input} value={a.role || "CUSTOMER"} onChange={(e) => changeRole(a.id, e.target.value)}>
+                                  <option value="CUSTOMER">Customer</option>
+                                  <option value="ADMIN">Admin</option>
+                                  <option value="BOTH">Customer + Admin</option>
+                                </select>
+                              </td>
+                              <td className={ui.td}>
+                                <button
+                                  className={btnClass("primary", true)}
+                                  type="button"
+                                  disabled={approvingId === a.id}
+                                  onClick={() => approveAccount(a.id)}
+                                >
+                                  {approvingId === a.id ? "..." : "Approve"}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
                 <AdminPagination page={pendingPaged.page} totalPages={pendingPaged.totalPages} total={pendingPaged.total} onPageChange={setPendingPage} />
               </section>
 
@@ -300,9 +348,9 @@ export default function AdminPage() {
                 </div>
                 <div className={ui.tableWrap}>
                   <table className={ui.table}>
-                    <thead><tr><th className={ui.th}>Business</th><th className={ui.th}>Phone</th><th className={ui.th}>Status</th><th className={ui.th}>Role</th></tr></thead>
+                    <thead><tr><th className={ui.th}>Business</th><th className={ui.th}>Phone</th><th className={ui.th}>Status</th><th className={ui.th}>Role</th><th className={ui.th}>Action</th></tr></thead>
                     <tbody>
-                      {accountsPaged.items.length === 0 ? <tr><td className={ui.td} colSpan="4">No accounts</td></tr> : accountsPaged.items.map((a) => (
+                      {accountsPaged.items.length === 0 ? <tr><td className={ui.td} colSpan="5">No accounts</td></tr> : accountsPaged.items.map((a) => (
                         <tr key={a.id} className={pendingRowClass(a.status === "PENDING")}>
                           <td className={ui.td}>{a.business}</td>
                           <td className={ui.td}>{formatPhone(a.phone)}</td>
@@ -315,6 +363,20 @@ export default function AdminPage() {
                               <option value="ADMIN">Admin</option>
                               <option value="BOTH">Customer + Admin</option>
                             </select>
+                          </td>
+                          <td className={ui.td}>
+                            {a.status === "PENDING" ? (
+                              <button
+                                className={btnClass("primary", true)}
+                                type="button"
+                                disabled={approvingId === a.id}
+                                onClick={() => approveAccount(a.id)}
+                              >
+                                {approvingId === a.id ? "..." : "Approve"}
+                              </button>
+                            ) : (
+                              <span className={ui.muted}>—</span>
+                            )}
                           </td>
                         </tr>
                       ))}

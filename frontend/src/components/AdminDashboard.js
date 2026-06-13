@@ -1,7 +1,7 @@
 "use client";
 
 import { formatRupees } from "@/lib/api";
-import { formatOrderStatus, orderStatusClass, pendingCountClass, ui } from "@/lib/ui";
+import { btnClass, formatOrderStatus, orderStatusClass, pendingCountClass, ui } from "@/lib/ui";
 
 const QUICK_LINKS = [
   { id: "accounts", label: "Users & Accounts", desc: "Approve registrations and manage roles", countKey: "accounts" },
@@ -21,6 +21,8 @@ export default function AdminDashboard({
   orders,
   counts,
   onNavigate,
+  onApproveAccount,
+  approvingId,
 }) {
   const hasAlerts = counts.accounts > 0 || counts.payments > 0 || counts.orders > 0;
   const recentOrders = orders.slice(0, 5);
@@ -150,9 +152,20 @@ export default function AdminDashboard({
           </div>
           <ul className="grid gap-2">
             {pending.slice(0, 5).map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-100 bg-red-50/50 px-3 py-2 text-sm">
-                <span><strong>{a.business}</strong> · {a.name}</span>
-                <span className={ui.muted}>{a.phone}</span>
+              <li key={a.id} className="grid gap-2 rounded-lg border border-red-100 bg-red-50/50 px-3 py-3 text-sm sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+                <div>
+                  <strong>{a.business}</strong>
+                  <span className={`ml-2 ${ui.muted}`}>{a.name}</span>
+                  <p className={`mt-0.5 ${ui.muted}`}>{a.phone}</p>
+                </div>
+                <button
+                  type="button"
+                  className={`${btnClass("primary", true)} w-full sm:w-auto`}
+                  disabled={approvingId === a.id}
+                  onClick={() => onApproveAccount?.(a.id)}
+                >
+                  {approvingId === a.id ? "Approving..." : "Approve"}
+                </button>
               </li>
             ))}
           </ul>

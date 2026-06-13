@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get("/accounts/pending", authAdmin, async (_req, res) => {
   const accounts = await prisma.account.findMany({
-    where: { status: "PENDING", role: "CUSTOMER" },
+    where: { status: "PENDING" },
     orderBy: { createdAt: "desc" },
   });
   res.json({ accounts: accounts.map(publicAccount) });

@@ -41,7 +41,7 @@ export const ui = {
 };
 
 export function btnClass(variant = "primary", small = false) {
-  const size = small ? "min-h-9 px-3 text-xs" : "";
+  const size = small ? "px-3 text-xs" : "";
   if (variant === "ghost") {
     return `${ui.btn} ${size} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900`;
   }

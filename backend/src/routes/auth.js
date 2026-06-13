@@ -249,7 +249,16 @@ router.post("/google", async (req, res) => {
     res.json(sessionResponse(account, token));
   } catch (error) {
     console.error("Google auth error:", error);
-    res.status(401).json({ error: "Google sign-in failed." });
+    const message = error?.message || "";
+    if (message.includes("FIREBASE_SERVICE_ACCOUNT_JSON") || message.includes("FIREBASE_PROJECT_ID")) {
+      return res.status(503).json({
+        error: "Google sign-in is not configured on the server. Set Firebase env vars on Render.",
+      });
+    }
+    if (message.includes("Decoding Firebase ID token failed") || message.includes("verifyIdToken")) {
+      return res.status(401).json({ error: "Google sign-in verification failed. Try again." });
+    }
+    res.status(401).json({ error: message || "Google sign-in failed." });
   }
 });
 

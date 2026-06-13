@@ -68,7 +68,9 @@ export function getFirebaseAuthErrorMessage(error) {
     "auth/network-request-failed": "Network error. Check your connection and try again.",
     "auth/account-exists-with-different-credential": "This email is linked to another sign-in method.",
     "auth/invalid-credential": "Google sign-in failed. Please try again.",
-    "auth/operation-not-allowed": "Google sign-in is not enabled. Contact support.",
+    "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase. Enable Google provider.",
+    "auth/unauthorized-domain": "This site is not authorized for Google sign-in. Add your Vercel domain in Firebase → Authentication → Settings → Authorized domains.",
+    "auth/internal-error": "Google sign-in failed. Check Firebase authorized domains and OAuth settings.",
   };
   return map[code] || error?.message || "Google sign-in failed. Please try again.";
 }

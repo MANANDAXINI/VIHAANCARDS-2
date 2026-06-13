@@ -18,10 +18,18 @@ async function getFirebaseAdmin() {
 
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (serviceAccountJson) {
+    let credentials;
+    try {
+      credentials = JSON.parse(serviceAccountJson);
+    } catch {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is invalid JSON.");
+    }
     initializeApp({
-      credential: cert(JSON.parse(serviceAccountJson)),
+      credential: cert(credentials),
       projectId,
     });
+  } else if (process.env.NODE_ENV === "production") {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required on the server for Google sign-in.");
   } else {
     initializeApp({ projectId });
   }

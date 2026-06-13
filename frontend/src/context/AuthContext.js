@@ -66,7 +66,11 @@ export function AuthProvider({ children }) {
       return data;
     } catch (error) {
       await firebaseSignOut(auth).catch(() => {});
-      throw error;
+      const apiMessage = error?.message;
+      if (apiMessage && apiMessage !== "Request failed") {
+        throw new Error(apiMessage);
+      }
+      throw new Error("Google sign-in failed while contacting the server. Check API URL and Render Firebase settings.");
     }
   }, []);
 

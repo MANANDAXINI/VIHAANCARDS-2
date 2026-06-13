@@ -15,8 +15,8 @@ const ADMIN_TABS = [
 
 export default function AdminNav({ active, onChange, counts = {} }) {
   return (
-    <nav className="sticky top-[72px] z-20 -mx-1 border-b border-slate-200 bg-slate-50 py-2" aria-label="Admin sections">
-      <div className={`${ui.navTabs} w-full max-w-full flex-wrap`}>
+    <nav className="sticky top-[60px] z-20 -mx-1 border-b border-slate-200 bg-slate-50 py-2 sm:top-[72px]" aria-label="Admin sections">
+      <div className={`${ui.navTabsScroll} w-full`}>
         {ADMIN_TABS.map((tab) => {
           const count = tab.countKey ? counts[tab.countKey] : null;
           const hasPending = count != null && count > 0;

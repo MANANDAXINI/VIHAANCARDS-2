@@ -1,35 +1,41 @@
 export const ui = {
-  page: "min-h-screen bg-slate-50 pt-28 pb-12 text-slate-900",
-  pageNarrow: "mx-auto grid w-full max-w-3xl gap-4 px-4",
+  page: "min-h-screen bg-slate-50 pt-32 pb-safe text-slate-900 max-[900px]:pt-40 max-[560px]:pt-[11rem]",
+  pageAdminShell: "min-h-screen bg-slate-50 pt-28 pb-safe text-slate-900 sm:pt-32",
+  pageNarrow: "mx-auto grid w-full max-w-3xl gap-4 px-4 sm:px-5",
   pageAdmin: "mx-auto grid w-full max-w-6xl gap-3 px-4 md:px-6",
   adminH1: "text-xl font-semibold tracking-tight text-slate-900",
   adminH3: "text-sm font-semibold text-slate-900",
-  adminCard: "grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm",
-  container: "mx-auto w-full max-w-6xl px-4",
-  card: "grid gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm",
+  adminCard: "grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4",
+  container: "mx-auto w-full max-w-6xl px-4 sm:px-5",
+  card: "grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6",
   cardFlat: "rounded-xl border border-slate-200 bg-white shadow-sm",
   muted: "text-slate-500",
   small: "text-sm",
-  h1: "text-2xl font-bold tracking-tight text-slate-900",
+  h1: "text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl",
   h3: "text-base font-semibold text-slate-900",
   btn:
-    "inline-flex min-h-[42px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55",
+    "inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55",
   field: "grid gap-1.5",
   label: "text-sm font-semibold text-slate-900",
   input:
-    "min-h-[42px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100",
+    "min-h-[44px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100",
   inputError: "border-red-500 focus:border-red-500 focus:ring-red-100",
   fieldError: "text-xs font-medium text-red-600",
   grid2: "grid gap-4 md:grid-cols-2",
-  tableWrap: "overflow-x-auto rounded-lg border border-slate-200 bg-white",
-  table: "w-full border-collapse text-sm",
-  th: "border-b border-slate-200 bg-slate-50 px-3.5 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-slate-500",
-  td: "border-b border-slate-200 px-3.5 py-3 text-left text-slate-800",
+  tableWrap: "-mx-1 overflow-x-auto rounded-lg border border-slate-200 bg-white sm:mx-0",
+  table: "w-full min-w-[36rem] border-collapse text-sm",
+  th: "border-b border-slate-200 bg-slate-50 px-3 py-2.5 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-slate-500 sm:px-3.5 sm:py-3",
+  td: "border-b border-slate-200 px-3 py-2.5 text-left text-slate-800 sm:px-3.5 sm:py-3",
   pill: "inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.72rem] font-semibold",
   statGrid: "grid gap-3 sm:grid-cols-3",
   statCard: "rounded-lg border border-slate-200 bg-white px-4 py-4",
   navTabs: "flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1",
-  priceBox: "flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3.5 font-semibold text-slate-900",
+  navTabsScroll: "flex flex-nowrap gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-100 p-1 scrollbar-none md:flex-wrap md:overflow-visible",
+  priceBox:
+    "flex flex-col gap-2 rounded-lg bg-blue-50 px-4 py-3.5 font-semibold text-slate-900 sm:flex-row sm:items-center sm:justify-between",
+  mobileCardList: "grid gap-3 md:hidden",
+  mobileCard: "grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm",
+  mobileCardRow: "flex items-start justify-between gap-3",
   divider:
     "flex items-center gap-3 text-xs text-slate-500 before:h-px before:flex-1 before:bg-slate-200 after:h-px after:flex-1 after:bg-slate-200",
 };
@@ -55,9 +61,9 @@ export function chipClass(active) {
 
 export function tabClass(active) {
   if (active) {
-    return "inline-flex min-h-9 items-center rounded-md bg-white px-3.5 text-sm font-semibold text-blue-700 shadow-sm ring-1 ring-slate-200";
+    return "inline-flex shrink-0 min-h-9 items-center whitespace-nowrap rounded-md bg-white px-3 text-sm font-semibold text-blue-700 shadow-sm ring-1 ring-slate-200 sm:px-3.5";
   }
-  return "inline-flex min-h-9 items-center rounded-md px-3.5 text-sm font-medium text-slate-600 hover:bg-white/70 hover:text-slate-900";
+  return "inline-flex shrink-0 min-h-9 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-white/70 hover:text-slate-900 sm:px-3.5";
 }
 
 export function heroBtnPrimary() {

@@ -174,8 +174,13 @@ export default function OrderPage() {
               <strong>{amount ? formatRupees(amount) : "—"}</strong>
             </div>
 
-            <button className={btnClass("primary")} type="submit" disabled={submitting || !catalog?.paperTypes?.length}>
-              {submitting ? "Submitting..." : `Submit Order — ${amount ? formatRupees(amount) : ""}`}
+            <button className={`${btnClass("primary")} w-full sm:w-auto`} type="submit" disabled={submitting || !catalog?.paperTypes?.length}>
+              {submitting ? "Submitting..." : (
+                <>
+                  <span className="sm:hidden">Submit Order{amount ? ` (${formatRupees(amount)})` : ""}</span>
+                  <span className="hidden sm:inline">{`Submit Order — ${amount ? formatRupees(amount) : ""}`}</span>
+                </>
+              )}
             </button>
           </form>
         </div>

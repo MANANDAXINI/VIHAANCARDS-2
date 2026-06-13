@@ -99,8 +99,9 @@ function ReviewContent() {
                 </>
               ) : (
                 <>
-                  <button className={btnClass("primary")} type="button" onClick={goToPayment}>
-                    Proceed to Payment — {formatRupees(review.shortfall)}
+                  <button className={`${btnClass("primary")} w-full sm:w-auto`} type="button" onClick={goToPayment}>
+                    <span className="sm:hidden">Pay {formatRupees(review.shortfall)}</span>
+                    <span className="hidden sm:inline">{`Proceed to Payment — ${formatRupees(review.shortfall)}`}</span>
                   </button>
                   <Link href="/order" className={btnClass("ghost")}>Edit Order</Link>
                 </>

@@ -44,26 +44,46 @@ export default function AccountPage() {
           </div>
 
           <div className={ui.card}>
-            <div className={ui.tableWrap}>
-              <table className={ui.table}>
-                <thead><tr><th className={ui.th}>Order #</th><th className={ui.th}>Date</th><th className={ui.th}>Paper / Size</th><th className={ui.th}>Amount</th><th className={ui.th}>Status</th></tr></thead>
-                <tbody>
-                  {orders.length === 0 ? (
-                    <tr><td className={ui.td} colSpan="5">No orders yet. <Link href="/order" className="text-blue-600 hover:underline">Place your first order</Link></td></tr>
-                  ) : orders.map((o) => (
-                    <tr key={o.id}>
-                      <td className={ui.td}>{o.orderNumber || "—"}</td>
-                      <td className={ui.td}>{formatDate(o.createdAt)}</td>
-                      <td className={ui.td}>{o.paperGsm}, {o.size}</td>
-                      <td className={ui.td}>{formatRupees(o.amount)}</td>
-                      <td className={ui.td}>
+            {orders.length === 0 ? (
+              <p className={ui.muted}>
+                No orders yet. <Link href="/order" className="text-blue-600 hover:underline">Place your first order</Link>
+              </p>
+            ) : (
+              <>
+                <div className={ui.mobileCardList}>
+                  {orders.map((o) => (
+                    <article key={o.id} className={ui.mobileCard}>
+                      <div className={ui.mobileCardRow}>
+                        <strong>{o.orderNumber || "—"}</strong>
                         <span className={orderStatusClass(o.status)}>{formatOrderStatus(o.status)}</span>
-                      </td>
-                    </tr>
+                      </div>
+                      <p className={ui.muted}>{formatDate(o.createdAt)}</p>
+                      <p>{o.paperGsm}, {o.size}</p>
+                      <p className="font-semibold">{formatRupees(o.amount)}</p>
+                    </article>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+
+                <div className={`${ui.tableWrap} hidden md:block`}>
+                  <table className={ui.table}>
+                    <thead><tr><th className={ui.th}>Order #</th><th className={ui.th}>Date</th><th className={ui.th}>Paper / Size</th><th className={ui.th}>Amount</th><th className={ui.th}>Status</th></tr></thead>
+                    <tbody>
+                      {orders.map((o) => (
+                        <tr key={o.id}>
+                          <td className={ui.td}>{o.orderNumber || "—"}</td>
+                          <td className={ui.td}>{formatDate(o.createdAt)}</td>
+                          <td className={ui.td}>{o.paperGsm}, {o.size}</td>
+                          <td className={ui.td}>{formatRupees(o.amount)}</td>
+                          <td className={ui.td}>
+                            <span className={orderStatusClass(o.status)}>{formatOrderStatus(o.status)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
 
           <Link href="/order" className={btnClass("primary")}>New Order</Link>

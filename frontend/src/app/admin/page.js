@@ -144,7 +144,7 @@ export default function AdminPage() {
     return (
       <>
         <AdminHeader user={user} onLogout={handleLogout} />
-        <main className={`${ui.page} text-sm`}>
+        <main className={`${ui.pageAdminShell} text-sm`}>
           <div className="mx-auto w-full max-w-md px-4">
             {!ready ? (
               <p className={`text-center ${ui.muted}`}>Loading...</p>
@@ -224,7 +224,7 @@ export default function AdminPage() {
   return (
     <>
       <AdminHeader user={user} onLogout={handleLogout} />
-      <main className={`${ui.page} text-sm`}>
+      <main className={`${ui.pageAdminShell} text-sm`}>
         <div className={ui.pageAdmin}>
           <div>
             <h1 className={ui.adminH1}>Admin Dashboard</h1>

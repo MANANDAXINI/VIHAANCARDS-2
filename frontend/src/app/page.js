@@ -116,7 +116,7 @@ function HomeContent() {
 
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <section
-          className="bg-gradient-to-br from-blue-900 via-blue-600 to-blue-500 px-4 pb-14 pt-28 text-center text-white"
+          className="bg-gradient-to-br from-blue-900 via-blue-600 to-blue-500 px-4 pb-14 pt-32 text-center text-white max-[900px]:pt-40 max-[560px]:pt-44"
           id="home"
         >
           <div className={`${ui.container} grid gap-6`}>
@@ -143,7 +143,7 @@ function HomeContent() {
               <p className="text-white/95">Welcome back, <strong>{user.business || user.name}</strong></p>
             )}
 
-            <div className="mx-auto grid w-full max-w-lg grid-cols-3 gap-3">
+            <div className="mx-auto grid w-full max-w-lg grid-cols-1 gap-3 sm:grid-cols-3">
               {[
                 { label: "Online", sub: "Order placement" },
                 { label: "UPI", sub: "Easy payments" },

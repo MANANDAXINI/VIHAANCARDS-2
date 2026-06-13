@@ -1,5 +1,27 @@
 let adminApp = null;
 
+function loadServiceAccountCredentials() {
+  const base64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64?.trim();
+  if (base64) {
+    try {
+      return JSON.parse(Buffer.from(base64, "base64").toString("utf8"));
+    } catch {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_BASE64 is invalid.");
+    }
+  }
+
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "FIREBASE_SERVICE_ACCOUNT_JSON is invalid JSON. Paste the minified one-line JSON from Firebase, or use FIREBASE_SERVICE_ACCOUNT_BASE64 instead."
+    );
+  }
+}
+
 async function getFirebaseAdmin() {
   if (adminApp) return adminApp;
 
@@ -11,19 +33,13 @@ async function getFirebaseAdmin() {
     return adminApp;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
   if (!projectId) {
     throw new Error("FIREBASE_PROJECT_ID is not configured.");
   }
 
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (serviceAccountJson) {
-    let credentials;
-    try {
-      credentials = JSON.parse(serviceAccountJson);
-    } catch {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is invalid JSON.");
-    }
+  const credentials = loadServiceAccountCredentials();
+  if (credentials) {
     initializeApp({
       credential: cert(credentials),
       projectId,

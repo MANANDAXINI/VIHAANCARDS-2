@@ -40,8 +40,8 @@ export default function CustomerNav({ user }) {
   const links = getLinks(user);
 
   return (
-    <nav aria-label="Site navigation">
-      <div className={`${ui.navTabs} max-w-full`}>
+    <nav aria-label="Site navigation" className="w-full">
+      <div className={`${ui.navTabsScroll} max-w-full`}>
         {links.map((link) => (
           <Link
             key={link.href}

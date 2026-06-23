@@ -2,8 +2,10 @@
 
 import { formatRupees } from "@/lib/api";
 import { btnClass, formatOrderStatus, orderStatusClass, pendingCountClass, ui } from "@/lib/ui";
+import { todayIst } from "@/components/AdminDayBook";
 
 const QUICK_LINKS = [
+  { id: "day-book", label: "Day Book", desc: "Today total orders and amount" },
   { id: "accounts", label: "Users & Accounts", desc: "Approve registrations and manage roles", countKey: "accounts" },
   { id: "payments", label: "Payments", desc: "Review and approve UPI payments", countKey: "payments" },
   { id: "orders", label: "Orders", desc: "Dispatch and mark orders delivered", countKey: "orders" },
@@ -27,6 +29,13 @@ export default function AdminDashboard({
   const hasAlerts = counts.accounts > 0 || counts.payments > 0 || counts.orders > 0;
   const recentOrders = orders.slice(0, 5);
   const recentPayments = payments.slice(0, 5);
+  const today = todayIst();
+  const todayOrders = orders.filter((o) => {
+    const orderDay = new Date(o.createdAt).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return orderDay === today;
+  });
+  const todayTotalAmount = todayOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
+  const todayTotalQty = todayOrders.reduce((sum, o) => sum + (Number(o.quantity) || 0), 0);
 
   return (
     <div className="grid gap-4">
@@ -34,6 +43,32 @@ export default function AdminDashboard({
         <p className="text-xs text-slate-500">Welcome back</p>
         <h2 className="mt-0.5 text-lg font-semibold text-slate-900">{user.business}</h2>
         <p className="mt-1 text-sm text-slate-500">Here is what needs your attention today.</p>
+      </section>
+
+      <section className={`${ui.adminCard} border-blue-200 bg-blue-50/40`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className={ui.adminH3}>Today&apos;s Day Book</h3>
+            <p className={`mt-1 ${ui.small} ${ui.muted}`}>{today} (IST)</p>
+          </div>
+          <button type="button" className={btnClass("primary", true)} onClick={() => onNavigate("day-book")}>
+            Open Day Book
+          </button>
+        </div>
+        <div className={`${ui.statGrid} mt-3`}>
+          <div className={ui.statCard}>
+            <span className={`block ${ui.small} ${ui.muted}`}>Orders today</span>
+            <strong className="text-lg font-semibold text-slate-900">{todayOrders.length}</strong>
+          </div>
+          <div className={ui.statCard}>
+            <span className={`block ${ui.small} ${ui.muted}`}>Qty today</span>
+            <strong className="text-lg font-semibold text-slate-900">{todayTotalQty.toLocaleString("en-IN")}</strong>
+          </div>
+          <div className={ui.statCard}>
+            <span className={`block ${ui.small} ${ui.muted}`}>Amount today</span>
+            <strong className="text-lg font-semibold text-slate-900">{formatRupees(todayTotalAmount)}</strong>
+          </div>
+        </div>
       </section>
 
       {hasAlerts && (

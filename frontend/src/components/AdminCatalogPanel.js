@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
-import { adminCatalogApi, API_URL } from "@/lib/api";
+import { adminCatalogApi, API_URL, formatDate } from "@/lib/api";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { toast } from "@/lib/toast";
-import { btnClass, ui } from "@/lib/ui";
+import { formatOrderStatus, orderStatusClass, btnClass, ui } from "@/lib/ui";
 
 function formatPhone(phone) {
   return phone?.startsWith("g-") ? "Not set" : phone;
 }
 
-function CatalogTable({ title, items, columns, searchKeys, onEdit, onDelete, onToggleActive }) {
+function CatalogTable({ title, items, columns, searchKeys, onEdit, onDelete, onToggleActive, onHistory }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -46,7 +46,11 @@ function CatalogTable({ title, items, columns, searchKeys, onEdit, onDelete, onT
               <tr><td className={ui.td} colSpan={columns.length + 2}>No items found</td></tr>
             ) : pageItems.map((item) => (
               <tr key={item.id}>
-                {columns.map((c) => <td key={c.key} className={ui.td}>{item[c.key]}</td>)}
+                {columns.map((c) => (
+                  <td key={c.key} className={ui.td}>
+                    {c.render ? c.render(item) : item[c.key]}
+                  </td>
+                ))}
                 <td className={ui.td}>
                   <input
                     type="checkbox"
@@ -56,6 +60,9 @@ function CatalogTable({ title, items, columns, searchKeys, onEdit, onDelete, onT
                 </td>
                 <td className={ui.td}>
                   <div className="flex flex-wrap gap-2">
+                    {onHistory && (
+                      <button className={btnClass("secondary", true)} type="button" onClick={() => onHistory(item)}>History</button>
+                    )}
                     <button className={btnClass("ghost", true)} type="button" onClick={() => onEdit(item)}>Edit</button>
                     <button className={btnClass("ghost", true)} type="button" onClick={() => onDelete(item.id)}>Delete</button>
                   </div>
@@ -74,6 +81,9 @@ export function AdminPaperTypesSection() {
   const [paperTypes, setPaperTypes] = useState([]);
   const [paperForm, setPaperForm] = useState({ name: "", availableQuantity: "", ratePerThousand: "" });
   const [editPaper, setEditPaper] = useState(null);
+  const [historyPaper, setHistoryPaper] = useState(null);
+  const [historyData, setHistoryData] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   async function load() {
     const p = await adminCatalogApi.paperTypes();
@@ -83,6 +93,21 @@ export function AdminPaperTypesSection() {
   useEffect(() => {
     load().catch((e) => toast.error(e.message));
   }, []);
+
+  async function loadHistory(paper) {
+    setHistoryPaper(paper);
+    setHistoryLoading(true);
+    setHistoryData(null);
+    try {
+      const data = await adminCatalogApi.paperTypeHistory(paper.id);
+      setHistoryData(data);
+    } catch (e) {
+      toast.error(e.message);
+      setHistoryPaper(null);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   async function addPaperType(event) {
     event.preventDefault();
@@ -142,8 +167,16 @@ export function AdminPaperTypesSection() {
         searchKeys={["name", "availableQuantity", "ratePerThousand"]}
         columns={[
           { key: "name", label: "Name" },
-          { key: "availableQuantity", label: "Stock" },
-          { key: "ratePerThousand", label: "Rate/1000" },
+          {
+            key: "availableQuantity",
+            label: "Available Qty",
+            render: (item) => Number(item.availableQuantity || 0).toLocaleString("en-IN"),
+          },
+          {
+            key: "ratePerThousand",
+            label: "Rate/1000",
+            render: (item) => `₹${Number(item.ratePerThousand || 0).toLocaleString("en-IN")}`,
+          },
         ]}
         onEdit={(item) => {
           setEditPaper(item);
@@ -171,7 +204,82 @@ export function AdminPaperTypesSection() {
             toast.error(e.message);
           }
         }}
+        onHistory={loadHistory}
       />
+
+      {historyPaper && (
+        <section className={ui.adminCard}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className={ui.adminH3}>Issue history — {historyPaper.name}</h3>
+              <p className={`mt-1 ${ui.small} ${ui.muted}`}>
+                Which customers received this product from stock.
+              </p>
+            </div>
+            <button className={btnClass("ghost", true)} type="button" onClick={() => { setHistoryPaper(null); setHistoryData(null); }}>
+              Close
+            </button>
+          </div>
+
+          {historyLoading ? (
+            <p className={`mt-3 ${ui.muted}`}>Loading history...</p>
+          ) : historyData ? (
+            <>
+              <div className={`${ui.statGrid} mt-4`}>
+                <div className={ui.statCard}>
+                  <span className={`block ${ui.small} ${ui.muted}`}>Total orders</span>
+                  <strong>{historyData.totalOrders}</strong>
+                </div>
+                <div className={ui.statCard}>
+                  <span className={`block ${ui.small} ${ui.muted}`}>Qty issued</span>
+                  <strong>{Number(historyData.totalQuantityIssued || 0).toLocaleString("en-IN")}</strong>
+                </div>
+                <div className={ui.statCard}>
+                  <span className={`block ${ui.small} ${ui.muted}`}>Available now</span>
+                  <strong>{Number(historyData.paperType?.availableQuantity || 0).toLocaleString("en-IN")}</strong>
+                </div>
+              </div>
+
+              <div className={`${ui.tableWrap} mt-4`}>
+                <table className={ui.table}>
+                  <thead>
+                    <tr>
+                      <th className={ui.th}>Date</th>
+                      <th className={ui.th}>Order #</th>
+                      <th className={ui.th}>Customer</th>
+                      <th className={ui.th}>Business</th>
+                      <th className={ui.th}>Phone</th>
+                      <th className={ui.th}>Qty</th>
+                      <th className={ui.th}>Size</th>
+                      <th className={ui.th}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyData.history.length === 0 ? (
+                      <tr><td className={ui.td} colSpan="8">No orders yet for this product.</td></tr>
+                    ) : (
+                      historyData.history.map((row) => (
+                        <tr key={row.id}>
+                          <td className={ui.td}>{formatDate(row.createdAt)}</td>
+                          <td className={ui.td}>{row.orderNumber || "—"}</td>
+                          <td className={ui.td}>{row.customerName}</td>
+                          <td className={ui.td}>{row.business}</td>
+                          <td className={ui.td}>{formatPhone(row.phone) || "—"}</td>
+                          <td className={ui.td}>{row.quantity || "—"}</td>
+                          <td className={ui.td}>{row.size}</td>
+                          <td className={ui.td}>
+                            <span className={orderStatusClass(row.status)}>{formatOrderStatus(row.status)}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
+        </section>
+      )}
     </div>
   );
 }

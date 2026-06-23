@@ -294,6 +294,45 @@ router.put("/orders/:id/deliver", authAdmin, async (req, res) => {
   res.json({ order: publicOrder(order) });
 });
 
+function istDateString(date = new Date()) {
+  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
+function istDayRange(dateStr) {
+  const start = new Date(`${dateStr}T00:00:00+05:30`);
+  const end = new Date(`${dateStr}T23:59:59.999+05:30`);
+  return { start, end };
+}
+
+router.get("/day-book", authAdmin, async (req, res) => {
+  const dateStr = String(req.query.date || "").trim() || istDateString();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return res.status(400).json({ error: "Invalid date. Use YYYY-MM-DD." });
+  }
+
+  const { start, end } = istDayRange(dateStr);
+  const orders = await prisma.order.findMany({
+    where: { createdAt: { gte: start, lte: end } },
+    include: { account: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totalAmount = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
+  const totalQuantity = orders.reduce((sum, order) => sum + (Number(order.quantity) || 0), 0);
+
+  res.json({
+    date: dateStr,
+    orderCount: orders.length,
+    totalAmount,
+    totalQuantity,
+    orders: orders.map((order) => ({
+      ...publicOrder(order),
+      customerName: order.account.name,
+      business: order.account.business,
+    })),
+  });
+});
+
 router.get("/ledger/:accountId", authAdmin, async (req, res) => {
   const account = await prisma.account.findUnique({ where: { id: req.params.accountId } });
   if (!account) return res.status(404).json({ error: "Account not found." });

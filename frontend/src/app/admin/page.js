@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AdminDashboard from "@/components/AdminDashboard";
+import AdminDayBook, { todayIst } from "@/components/AdminDayBook";
 import { AdminHeader } from "@/components/AdminHeader";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import AdminNav from "@/components/AdminNav";
@@ -271,7 +272,7 @@ export default function AdminPage() {
   const paymentsFiltered = filterItems(payments, paymentsSearch, ["account.business", "amount", "type"]);
   const paymentsPaged = paginateItems(paymentsFiltered, paymentsPage);
 
-  const ordersFiltered = filterItems(orders, ordersSearch, ["orderNumber", "business", "paperGsm", "size", "status", "amount"]);
+  const ordersFiltered = filterItems(orders, ordersSearch, ["orderNumber", "business", "customerName", "paperGsm", "size", "quantity", "status", "amount"]);
   const ordersPaged = paginateItems(ordersFiltered, ordersPage);
 
   return (
@@ -299,6 +300,8 @@ export default function AdminPage() {
               approvingId={approvingId}
             />
           )}
+
+          {activeTab === "day-book" && <AdminDayBook />}
 
           {activeTab === "accounts" && (
             <div className="grid gap-4">
@@ -494,9 +497,9 @@ export default function AdminPage() {
               </div>
               <div className={ui.tableWrap}>
                 <table className={ui.table}>
-                  <thead><tr><th className={ui.th}>Order #</th><th className={ui.th}>Customer</th><th className={ui.th}>Paper / Size</th><th className={ui.th}>Amount</th><th className={ui.th}>Status</th><th className={ui.th}>File</th><th className={ui.th}></th></tr></thead>
+                  <thead><tr><th className={ui.th}>Order #</th><th className={ui.th}>Customer</th><th className={ui.th}>Paper / Size</th><th className={ui.th}>Qty</th><th className={ui.th}>Amount</th><th className={ui.th}>Status</th><th className={ui.th}>File</th><th className={ui.th}></th></tr></thead>
                   <tbody>
-                    {ordersPaged.items.length === 0 ? <tr><td className={ui.td} colSpan="7">No orders</td></tr> : ordersPaged.items.map((o) => {
+                    {ordersPaged.items.length === 0 ? <tr><td className={ui.td} colSpan="8">No orders</td></tr> : ordersPaged.items.map((o) => {
                       const status = String(o.status || "").toUpperCase();
                       const canDispatch = status !== "DISPATCHED" && status !== "COMPLETED";
                       const canDeliver = status === "DISPATCHED";
@@ -507,8 +510,12 @@ export default function AdminPage() {
                       return (
                         <tr key={o.id} className={pendingRowClass(isPending)}>
                           <td className={ui.td}>{o.orderNumber || "—"}</td>
-                          <td className={ui.td}>{o.business}</td>
+                          <td className={ui.td}>
+                            <strong className="block">{o.customerName || o.business}</strong>
+                            <span className={`${ui.small} ${ui.muted}`}>{o.business}</span>
+                          </td>
                           <td className={ui.td}>{o.paperGsm}, {o.size}</td>
+                          <td className={ui.td}>{o.quantity || "—"}</td>
                           <td className={ui.td}>{formatRupees(o.amount)}</td>
                           <td className={ui.td}>
                             <span className={orderStatusClass(o.status)}>{formatOrderStatus(o.status)}</span>

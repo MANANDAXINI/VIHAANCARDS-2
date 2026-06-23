@@ -4,6 +4,7 @@ import { tabClass, pendingCountClass, ui } from "@/lib/ui";
 
 const ADMIN_TABS = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "day-book", label: "Day Book" },
   { id: "accounts", label: "Users & Accounts", countKey: "accounts" },
   { id: "paper-types", label: "Paper Types" },
   { id: "sizes", label: "Sizes" },

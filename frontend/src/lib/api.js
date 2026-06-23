@@ -87,6 +87,7 @@ export const adminApi = {
   orders: () => api("/api/admin/orders"),
   dispatch: (id, body, options) => api(`/api/admin/orders/${id}/dispatch`, { method: "PUT", body, ...options }),
   deliver: (id, options) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT", ...options }),
+  dayBook: (date) => api(`/api/admin/day-book${date ? `?date=${encodeURIComponent(date)}` : ""}`),
 };
 
 export const catalogApi = {
@@ -99,6 +100,7 @@ export const adminCatalogApi = {
   createPaperType: (body) => api("/api/admin/catalog/paper-types", { method: "POST", body }),
   updatePaperType: (id, body) => api(`/api/admin/catalog/paper-types/${id}`, { method: "PUT", body }),
   deletePaperType: (id) => api(`/api/admin/catalog/paper-types/${id}`, { method: "DELETE" }),
+  paperTypeHistory: (id) => api(`/api/admin/catalog/paper-types/${id}/history`),
   sizes: () => api("/api/admin/catalog/sizes"),
   createSize: (body) => api("/api/admin/catalog/sizes", { method: "POST", body }),
   updateSize: (id, body) => api(`/api/admin/catalog/sizes/${id}`, { method: "PUT", body }),

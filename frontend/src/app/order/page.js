@@ -116,6 +116,17 @@ export default function OrderPage() {
           )}
 
           <form className={ui.card} onSubmit={handleSubmit}>
+            <p className={`${ui.small} rounded-lg border border-slate-200 bg-slate-50 px-4 py-3`}>
+              <span className={ui.muted}>Customer name: </span>
+              <strong>{user.name || "—"}</strong>
+              {user.business ? (
+                <>
+                  <span className={ui.muted}> · Business: </span>
+                  <strong>{user.business}</strong>
+                </>
+              ) : null}
+            </p>
+
             <div className={ui.field}>
               <label className={ui.label}>Paper Type (GSM)</label>
               <div className="flex flex-wrap gap-2">
@@ -168,7 +179,8 @@ export default function OrderPage() {
 
             <div className={ui.priceBox}>
               <div>
-                <span className={`${ui.muted} ${ui.small}`}>{paperName} | {sizeName} | {quantity || "—"} | {sideName}</span>
+                <span className={`${ui.muted} ${ui.small}`}>{paperName} | {sizeName} | {sideName}</span>
+                <div>Quantity: <strong>{quantity || "—"}</strong></div>
                 <div>Total Price</div>
               </div>
               <strong>{amount ? formatRupees(amount) : "—"}</strong>

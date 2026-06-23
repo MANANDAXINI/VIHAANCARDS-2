@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const { prisma } = require("../lib/prisma");
+const { prisma, publicOrder } = require("../lib/prisma");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -79,6 +79,38 @@ function crudRoutes(modelName, label) {
 crudRoutes("paperType", "paper-types");
 crudRoutes("paperSize", "sizes");
 crudRoutes("printingSideOption", "printing-sides");
+
+router.get("/paper-types/:id/history", authAdmin, async (req, res) => {
+  const paper = await prisma.paperType.findUnique({ where: { id: req.params.id } });
+  if (!paper) return res.status(404).json({ error: "Paper type not found." });
+
+  const orders = await prisma.order.findMany({
+    where: { paperGsm: paper.name },
+    include: { account: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totalQuantityIssued = orders.reduce((sum, order) => sum + (Number(order.quantity) || 0), 0);
+
+  res.json({
+    paperType: paper,
+    totalOrders: orders.length,
+    totalQuantityIssued,
+    history: orders.map((order) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      customerName: order.account.name,
+      business: order.account.business,
+      phone: order.account.phone?.startsWith("g-") ? "" : order.account.phone,
+      quantity: order.quantity,
+      size: order.size,
+      printingSide: order.printingSide,
+      amount: order.amount,
+      status: order.status,
+    })),
+  });
+});
 
 // Price rules
 router.get("/price-rules", authAdmin, async (_req, res) => {

@@ -66,6 +66,18 @@ export default function OrderPage() {
 
   const amount = quotedAmount > 0 ? quotedAmount : localAmount;
 
+  const sideName = useMemo(
+    () => pricedSides.find((s) => s.id === printingSideId)?.name || "",
+    [pricedSides, printingSideId]
+  );
+  const requiresBackUpload = needsBackUpload(sideName);
+
+  useEffect(() => {
+    if (!requiresBackUpload) {
+      setArtworkBack(null);
+    }
+  }, [requiresBackUpload]);
+
   useEffect(() => {
     if (ready && !user) router.replace("/?auth=login");
     if (ready && user?.role === "ADMIN") router.replace("/admin");
@@ -197,8 +209,13 @@ export default function OrderPage() {
       const data = await orderApi.create(formData, { silent: true });
       await refresh();
       sessionStorage.removeItem("pd_pending_order");
-      sessionStorage.setItem("pd_order_review", JSON.stringify({ success: true, order: data.order }));
-      router.push("/order/review");
+      sessionStorage.removeItem("pd_order_review");
+      toast.success(
+        data.order?.orderNumber
+          ? `Order ${data.order.orderNumber} placed successfully.`
+          : "Order placed successfully."
+      );
+      router.push("/account");
     } catch (error) {
       if (error.status === 402) {
         sessionStorage.setItem("pd_pending_order", JSON.stringify(error.data.pendingOrderData));
@@ -206,6 +223,8 @@ export default function OrderPage() {
           shortfall: error.data.shortfall,
           orderAmount: error.data.orderAmount,
           availableCredit: error.data.availableCredit,
+          walletBalance: error.data.walletBalance,
+          totalAvailable: error.data.totalAvailable,
         }));
         router.push("/order/review");
         return;
@@ -222,8 +241,6 @@ export default function OrderPage() {
 
   const paperName = selectedPaper?.name || "";
   const sizeName = pricedSizes.find((s) => s.id === sizeId)?.name || "";
-  const sideName = pricedSides.find((s) => s.id === printingSideId)?.name || "";
-  const requiresBackUpload = needsBackUpload(sideName);
   const hasPricedOptions = pricedSizes.length > 0;
 
   return (
@@ -337,13 +354,14 @@ export default function OrderPage() {
                 onChange={setArtworkFront}
                 required
               />
-              <ArtworkUploadField
-                label="Upload Back Side"
-                hint={requiresBackUpload ? null : "(optional for single side)"}
-                file={artworkBack}
-                onChange={setArtworkBack}
-                required={requiresBackUpload}
-              />
+              {requiresBackUpload ? (
+                <ArtworkUploadField
+                  label="Upload Back Side"
+                  file={artworkBack}
+                  onChange={setArtworkBack}
+                  required
+                />
+              ) : null}
             </div>
 
             <div className={ui.priceBox}>

@@ -54,6 +54,41 @@ router.put("/accounts/:id/credit", authAdmin, async (req, res) => {
   res.json({ account: publicAccount(account) });
 });
 
+router.post("/accounts/:id/outstanding", authAdmin, async (req, res) => {
+  const amount = Number(req.body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: "Valid outstanding amount required." });
+  }
+
+  const account = await prisma.account.findUnique({ where: { id: req.params.id } });
+  if (!account) return res.status(404).json({ error: "Account not found." });
+
+  const newOutstanding = account.previousOutstanding + amount;
+
+  const [updated, entry] = await prisma.$transaction([
+    prisma.account.update({
+      where: { id: account.id },
+      data: {
+        previousOutstanding: newOutstanding,
+        oldOutstanding: newOutstanding,
+      },
+    }),
+    prisma.ledgerEntry.create({
+      data: {
+        accountId: account.id,
+        label: req.body.label || "Outstanding Added",
+        amount,
+        debit: amount,
+        outstandingAfter: newOutstanding,
+        balanceAfter: account.balance,
+        oldOutstandingBefore: account.oldOutstanding,
+      },
+    }),
+  ]);
+
+  res.json({ account: publicAccount(updated), entry });
+});
+
 router.post("/accounts/:id/payment", authAdmin, async (req, res) => {
   const { amount, label, receivedDate } = req.body;
   const payment = Number(amount);

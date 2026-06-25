@@ -8,6 +8,20 @@ export function uploadAssetUrl(pathOrUrl) {
   return `${base}${assetPath}`;
 }
 
+export async function fetchArtworkBlobUrl(pathOrUrl) {
+  const fullUrl = uploadAssetUrl(pathOrUrl);
+  if (!fullUrl || typeof window === "undefined") return null;
+
+  const token = localStorage.getItem("pd_token");
+  const response = await fetch(fullUrl, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!response.ok) return null;
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 async function loadToast() {
   const { toast } = await import("@/lib/toast");
   return toast;
@@ -88,7 +102,9 @@ export const adminApi = {
   accounts: () => api("/api/admin/accounts"),
   approveAccount: (id, options) => api(`/api/admin/accounts/${id}/approve`, { method: "PUT", ...options }),
   updateRole: (id, role) => api(`/api/admin/accounts/${id}/role`, { method: "PUT", body: { role } }),
-  updateCredit: (id, body) => api(`/api/admin/accounts/${id}/credit`, { method: "PUT", body }),
+  updateCredit: (id, body, options) => api(`/api/admin/accounts/${id}/credit`, { method: "PUT", body, ...options }),
+  addOutstanding: (id, body, options) => api(`/api/admin/accounts/${id}/outstanding`, { method: "POST", body, ...options }),
+  receivePayment: (id, body, options) => api(`/api/admin/accounts/${id}/payment`, { method: "POST", body, ...options }),
   walletRequests: () => api("/api/admin/wallet-requests"),
   approveWallet: (id) => api(`/api/admin/wallet-requests/${id}/approve`, { method: "PUT" }),
   rejectWallet: (id) => api(`/api/admin/wallet-requests/${id}/reject`, { method: "PUT" }),

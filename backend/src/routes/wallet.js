@@ -28,7 +28,7 @@ router.get("/ledger", authCustomer, async (req, res) => {
     res.json({
       account: publicAccount(req.account),
       ledgerEntries: entries,
-      orders: orders.map(publicOrder),
+      orders: orders.map((order) => publicOrder(order, { secureFiles: true })),
       pendingPayments,
     });
   } catch (error) {

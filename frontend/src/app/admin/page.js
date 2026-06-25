@@ -10,6 +10,7 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
 import AdminNav from "@/components/AdminNav";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import BusinessPickList from "@/components/BusinessPickList";
+import AdminCustomerCreditWallet from "@/components/AdminCustomerCreditWallet";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
@@ -671,6 +672,8 @@ export default function AdminPage() {
                     </div>
                     <AdminPagination page={walletPaged.page} totalPages={walletPaged.totalPages} total={walletPaged.total} onPageChange={setWalletPage} />
                   </section>
+
+                  <AdminCustomerCreditWallet accounts={accounts} onRefresh={load} />
                 </>
               )}
 

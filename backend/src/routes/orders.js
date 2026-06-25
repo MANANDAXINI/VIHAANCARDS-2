@@ -60,7 +60,7 @@ router.get("/my-orders", authCustomer, async (req, res) => {
       where: { accountId: req.account.id },
       orderBy: { createdAt: "desc" },
     });
-    res.json({ orders: orders.map(publicOrder) });
+    res.json({ orders: orders.map((order) => publicOrder(order, { secureFiles: true })) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -72,7 +72,7 @@ router.get("/:id", authCustomer, async (req, res) => {
       where: { id: req.params.id, accountId: req.account.id },
     });
     if (!order) return res.status(404).json({ error: "Order not found." });
-    res.json({ order: publicOrder(order) });
+    res.json({ order: publicOrder(order, { secureFiles: true }) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -108,18 +108,22 @@ router.post("/", authCustomer, upload.fields([
     }
 
     const account = req.account;
+    const walletBalance = Math.max(0, account.balance);
     const availableCredit = Math.max(0, account.creditLimit - account.usedCredit);
     const canUseCredit = useCredit === "true" || useCredit === true;
-    const hasEnoughCredit = canUseCredit && availableCredit >= orderAmount;
+    const totalAvailable = walletBalance + (canUseCredit ? availableCredit : 0);
+    const hasEnoughFunds = canUseCredit && totalAvailable >= orderAmount;
 
     const orderFields = buildOrderPayload(selection, req, orderAmount);
 
-    if (!hasEnoughCredit) {
-      const shortfall = orderAmount - (canUseCredit ? availableCredit : 0);
+    if (!hasEnoughFunds) {
+      const shortfall = Math.max(0, orderAmount - totalAvailable);
       return res.status(402).json({
         error: "Insufficient credit. Payment required.",
-        shortfall: Math.max(shortfall, orderAmount),
+        shortfall,
         availableCredit,
+        walletBalance,
+        totalAvailable,
         orderAmount,
         pendingOrderData: {
           ...orderFields,
@@ -129,6 +133,11 @@ router.post("/", authCustomer, upload.fields([
         },
       });
     }
+
+    const fromBalance = Math.min(walletBalance, orderAmount);
+    const fromCredit = orderAmount - fromBalance;
+    const newBalance = walletBalance - fromBalance;
+    const newOutstanding = account.previousOutstanding + fromCredit;
 
     const orderNumber = await nextOrderNumber();
     const order = await prisma.$transaction(async (tx) => {
@@ -150,8 +159,9 @@ router.post("/", authCustomer, upload.fields([
       await tx.account.update({
         where: { id: account.id },
         data: {
-          usedCredit: { increment: orderAmount },
-          previousOutstanding: { increment: orderAmount },
+          balance: newBalance,
+          usedCredit: { increment: fromCredit },
+          previousOutstanding: newOutstanding,
         },
       });
 
@@ -161,8 +171,9 @@ router.post("/", authCustomer, upload.fields([
           label: `Order ${orderNumber} - ${orderFields.product}`,
           amount: orderAmount,
           debit: orderAmount,
-          outstandingAfter: account.previousOutstanding + orderAmount,
-          balanceAfter: account.balance,
+          credit: fromBalance,
+          outstandingAfter: newOutstanding,
+          balanceAfter: newBalance,
           oldOutstandingBefore: account.oldOutstanding,
         },
       });
@@ -170,7 +181,7 @@ router.post("/", authCustomer, upload.fields([
       return created;
     });
 
-    res.status(201).json({ order: publicOrder(order) });
+    res.status(201).json({ order: publicOrder(order, { secureFiles: true }) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

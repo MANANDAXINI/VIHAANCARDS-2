@@ -53,11 +53,17 @@ async function nextReceiptNumber() {
   return formatReceiptNumber(counter.value - 1);
 }
 
-function publicOrder(order) {
+function publicOrder(order, options = {}) {
+  const secure = options.secureFiles === true;
+  const toUrl = (filePath) => {
+    if (!filePath) return null;
+    return secure ? `/api/files/${filePath}` : `/uploads/${filePath}`;
+  };
+
   return {
     ...order,
-    artworkUrl: order.artworkPath ? `/uploads/${order.artworkPath}` : null,
-    artworkBackUrl: order.artworkBackPath ? `/uploads/${order.artworkBackPath}` : null,
+    artworkUrl: toUrl(order.artworkPath),
+    artworkBackUrl: toUrl(order.artworkBackPath),
   };
 }
 

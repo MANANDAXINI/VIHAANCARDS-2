@@ -73,7 +73,9 @@ function ReviewContent() {
                   ["Order Amount", formatRupees(order.amount || review.orderAmount)],
                   ...(!isSuccess
                     ? [
+                        ["Wallet Balance", formatRupees(review.walletBalance || 0)],
                         ["Available Credit", formatRupees(review.availableCredit || 0)],
+                        ["Total Available", formatRupees(review.totalAvailable || 0)],
                         ["Payment Required", formatRupees(review.shortfall)],
                       ]
                     : []),

@@ -2,7 +2,7 @@ export const ui = {
   page: "min-h-screen bg-slate-50 pt-32 pb-safe text-slate-900 max-[900px]:pt-40 max-[560px]:pt-[11rem]",
   pageAdminShell: "min-h-screen bg-slate-50 pt-28 pb-safe text-slate-900 sm:pt-32",
   pageNarrow: "mx-auto grid w-full max-w-3xl gap-4 px-4 sm:px-5",
-  pageAdmin: "mx-auto grid w-full max-w-6xl gap-3 px-4 md:px-6",
+  pageAdmin: "mx-auto grid w-full max-w-[90rem] gap-3 px-3 sm:px-4 lg:px-6",
   adminH1: "text-xl font-semibold tracking-tight text-slate-900",
   adminH3: "text-sm font-semibold text-slate-900",
   adminCard: "grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4",
@@ -19,6 +19,8 @@ export const ui = {
   label: "text-sm font-semibold text-slate-900",
   input:
     "min-h-[44px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100",
+  inputCompact:
+    "min-h-[34px] w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 outline-none transition focus:border-blue-600 focus:ring-1 focus:ring-blue-100 sm:text-sm",
   inputError: "border-red-500 focus:border-red-500 focus:ring-red-100",
   fieldError: "text-xs font-medium text-red-600",
   grid2: "grid gap-4 md:grid-cols-2",
@@ -30,7 +32,7 @@ export const ui = {
   statGrid: "grid gap-3 sm:grid-cols-3",
   statCard: "rounded-lg border border-slate-200 bg-white px-4 py-4",
   navTabs: "flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1",
-  navTabsScroll: "flex flex-nowrap gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-100 p-1 scrollbar-none md:flex-wrap md:overflow-visible",
+  navTabsScroll: "flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1",
   priceBox:
     "flex flex-col gap-2 rounded-lg bg-blue-50 px-4 py-3.5 font-semibold text-slate-900 sm:flex-row sm:items-center sm:justify-between",
   pageOrder: "mx-auto w-full max-w-5xl px-4 sm:px-5",

@@ -10,6 +10,7 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
 import AdminNav from "@/components/AdminNav";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import BusinessPickList from "@/components/BusinessPickList";
+import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
 import AdminRatesSection from "@/components/AdminRatesSection";
@@ -686,15 +687,7 @@ export default function AdminPage() {
               )}
 
               {ordersSubTab === "ledger" && (
-                <section className={ui.adminCard}>
-                  <h3 className={ui.adminH3}>Customer Ledger</h3>
-                  <p className={ui.muted}>
-                    View day-book entries and customer payment history from the Day Book tab, or open a customer&apos;s Order History page from their account.
-                  </p>
-                  <button className={btnClass("primary")} type="button" onClick={() => setActiveTab("day-book")}>
-                    Open Day Book
-                  </button>
-                </section>
+                <AdminCustomerLedgerSection accounts={accounts} />
               )}
             </div>
           )}

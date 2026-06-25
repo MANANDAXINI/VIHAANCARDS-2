@@ -385,17 +385,40 @@ router.get("/ledger/:accountId", authAdmin, async (req, res) => {
   const account = await prisma.account.findUnique({ where: { id: req.params.accountId } });
   if (!account) return res.status(404).json({ error: "Account not found." });
 
+  const fromDate = String(req.query.fromDate || "").trim();
+  const toDate = String(req.query.toDate || "").trim();
+  const where = { accountId: account.id };
+
+  if (fromDate || toDate) {
+    where.entryDate = {};
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+      where.entryDate.gte = new Date(`${fromDate}T00:00:00+05:30`);
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+      where.entryDate.lte = new Date(`${toDate}T23:59:59.999+05:30`);
+    }
+  }
+
   const entries = await prisma.ledgerEntry.findMany({
-    where: { accountId: account.id },
-    orderBy: { entryDate: "desc" },
+    where,
+    orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
   });
 
-  const orders = await prisma.order.findMany({
-    where: { accountId: account.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const totalJobOutstanding = entries.reduce((sum, entry) => sum + (entry.debit || 0), 0);
+  const totalPaymentReceived = entries.reduce((sum, entry) => sum + (entry.credit || 0), 0);
+  const finalBalance = entries.length
+    ? entries[entries.length - 1].outstandingAfter
+    : account.previousOutstanding;
 
-  res.json({ account: publicAccount(account), ledgerEntries: entries, orders });
+  res.json({
+    account: publicAccount(account),
+    ledgerEntries: entries,
+    summary: {
+      totalJobOutstanding,
+      totalPaymentReceived,
+      finalBalance,
+    },
+  });
 });
 
 module.exports = router;

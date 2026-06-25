@@ -90,6 +90,13 @@ export const adminApi = {
   dispatch: (id, body, options) => api(`/api/admin/orders/${id}/dispatch`, { method: "PUT", body, ...options }),
   deliver: (id, options) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT", ...options }),
   dayBook: (date) => api(`/api/admin/day-book${date ? `?date=${encodeURIComponent(date)}` : ""}`),
+  customerLedger: (accountId, { fromDate, toDate } = {}) => {
+    const params = new URLSearchParams();
+    if (fromDate) params.set("fromDate", fromDate);
+    if (toDate) params.set("toDate", toDate);
+    const query = params.toString();
+    return api(`/api/admin/ledger/${accountId}${query ? `?${query}` : ""}`);
+  },
 };
 
 export const catalogApi = {

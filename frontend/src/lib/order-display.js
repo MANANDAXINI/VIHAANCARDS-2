@@ -21,11 +21,13 @@ export function formatOrderDescription(order) {
 }
 
 export const JOB_VERIFIED_LABEL = "PAYMENT VERIFIED AND JOB MOVED TO NEXT PROCESS";
+export const JOB_PRINTING_LABEL = "PROCEEDED TO PRINTING";
 
 export function formatJobProcess(status) {
   const s = String(status || "").toUpperCase();
   if (s === "DISPATCHED" || s === "COMPLETED") return "JOB COMPLETED";
-  if (s === "PAYMENT_VERIFIED" || s === "IN_PRINTING") return JOB_VERIFIED_LABEL;
+  if (s === "IN_PRINTING") return JOB_PRINTING_LABEL;
+  if (s === "PAYMENT_VERIFIED") return JOB_VERIFIED_LABEL;
   return "Pending";
 }
 
@@ -34,7 +36,10 @@ export function jobProcessClass(status) {
   if (s === "DISPATCHED" || s === "COMPLETED") {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-600 sm:text-xs";
   }
-  if (s === "PAYMENT_VERIFIED" || s === "IN_PRINTING") {
+  if (s === "IN_PRINTING") {
+    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-600 sm:text-xs";
+  }
+  if (s === "PAYMENT_VERIFIED") {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-700 sm:text-xs";
   }
   return `${ui.pill} bg-amber-100 text-amber-800`;

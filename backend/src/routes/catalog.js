@@ -14,10 +14,21 @@ router.get("/", async (_req, res) => {
       prisma.paymentQr.findUnique({ where: { id: 1 } }),
     ]);
 
+    let quantities = [];
+    try {
+      quantities = await prisma.quantityOption.findMany({
+        where: { active: true },
+        orderBy: [{ sortOrder: "asc" }, { value: "asc" }],
+      });
+    } catch (quantityError) {
+      console.warn("QuantityOption unavailable:", quantityError.message);
+    }
+
     res.json({
       paperTypes,
       sizes,
       printingSides,
+      quantities,
       priceRules,
       hasQr: Boolean(qr?.imagePath),
       qrImageUrl: qr?.imagePath ? `/uploads/${qr.imagePath}` : null,

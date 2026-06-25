@@ -55,4 +55,49 @@
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  @keyframes hero-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .hero-fade-up {
+    animation: hero-fade-up 0.75s ease-out forwards;
+    opacity: 0;
+  }
+
+  .hero-fade-up-delay-1 {
+    animation-delay: 0.1s;
+  }
+
+  .hero-fade-up-delay-2 {
+    animation-delay: 0.2s;
+  }
+
+  .hero-fade-up-delay-3 {
+    animation-delay: 0.32s;
+  }
+
+  .hero-fade-up-delay-4 {
+    animation-delay: 0.44s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-fade-up {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+
+    .hero-stat-card {
+      transition: none;
+    }
+  }
 }

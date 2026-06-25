@@ -442,6 +442,124 @@ export function AdminPrintingSidesSection() {
   );
 }
 
+export function AdminQuantitiesSection() {
+  const [quantities, setQuantities] = useState([]);
+  const [qtyForm, setQtyForm] = useState({ value: "", label: "" });
+  const [editQty, setEditQty] = useState(null);
+
+  async function load() {
+    const q = await adminCatalogApi.quantities();
+    setQuantities(q.items);
+  }
+
+  useEffect(() => {
+    load().catch((e) => toast.error(e.message));
+  }, []);
+
+  async function addQuantity(event) {
+    event.preventDefault();
+    try {
+      const body = {
+        value: Number(qtyForm.value),
+        label: qtyForm.label || String(qtyForm.value),
+      };
+      if (editQty) {
+        await adminCatalogApi.updateQuantity(editQty.id, body);
+        setEditQty(null);
+      } else {
+        await adminCatalogApi.createQuantity(body);
+      }
+      setQtyForm({ value: "", label: "" });
+      await load();
+      toast.success("Quantity option saved.");
+    } catch (e) {
+      toast.error(e.message);
+    }
+  }
+
+  return (
+    <div className="grid gap-4">
+      <section className={ui.adminCard}>
+        <h3 className={ui.adminH3}>Add / Edit Quantity Option</h3>
+        <p className={`${ui.muted} ${ui.small}`}>
+          These values appear in the customer order form quantity dropdown (e.g. 1000, 5000).
+        </p>
+        <form className={ui.grid2} onSubmit={addQuantity}>
+          <div className={ui.field}>
+            <label className={ui.label}>Quantity value</label>
+            <input
+              className={ui.input}
+              type="number"
+              min="1"
+              value={qtyForm.value}
+              onChange={(e) => setQtyForm((f) => ({ ...f, value: e.target.value }))}
+              required
+            />
+          </div>
+          <div className={ui.field}>
+            <label className={ui.label}>Display label (optional)</label>
+            <input
+              className={ui.input}
+              placeholder="e.g. 5,000"
+              value={qtyForm.label}
+              onChange={(e) => setQtyForm((f) => ({ ...f, label: e.target.value }))}
+            />
+          </div>
+          <div className={`${ui.field} self-end md:col-span-2`}>
+            <div className="flex flex-wrap gap-2">
+              <button className={btnClass("primary")} type="submit">{editQty ? "Update" : "Add"} Quantity</button>
+              {editQty && (
+                <button
+                  className={btnClass("ghost")}
+                  type="button"
+                  onClick={() => { setEditQty(null); setQtyForm({ value: "", label: "" }); }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </section>
+      <CatalogTable
+        title={`Quantities (${quantities.length})`}
+        items={quantities}
+        searchKeys={["value", "label"]}
+        columns={[
+          {
+            key: "value",
+            label: "Value",
+            render: (item) => Number(item.value).toLocaleString("en-IN"),
+          },
+          { key: "label", label: "Label", render: (item) => item.label || item.value },
+        ]}
+        onEdit={(item) => {
+          setEditQty(item);
+          setQtyForm({ value: String(item.value), label: item.label || "" });
+        }}
+        onDelete={async (id) => {
+          try {
+            await adminCatalogApi.deleteQuantity(id);
+            await load();
+            toast.success("Quantity deleted.");
+          } catch (e) {
+            toast.error(e.message);
+          }
+        }}
+        onToggleActive={async (item) => {
+          try {
+            await adminCatalogApi.updateQuantity(item.id, { active: !item.active });
+            await load();
+            toast.success("Quantity updated.");
+          } catch (e) {
+            toast.error(e.message);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 export function AdminQrSection() {
   const [qr, setQr] = useState(null);
   const [uploading, setUploading] = useState(false);

@@ -16,7 +16,7 @@ function ReviewContent() {
   const [pendingOrder, setPendingOrder] = useState(null);
 
   useEffect(() => {
-    if (ready && !user) router.replace("/#login");
+    if (ready && !user) router.replace("/?auth=login");
     if (ready && user?.role === "ADMIN") router.replace("/admin");
   }, [ready, user, router]);
 

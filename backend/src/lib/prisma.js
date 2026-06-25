@@ -57,6 +57,7 @@ function publicOrder(order) {
   return {
     ...order,
     artworkUrl: order.artworkPath ? `/uploads/${order.artworkPath}` : null,
+    artworkBackUrl: order.artworkBackPath ? `/uploads/${order.artworkBackPath}` : null,
   };
 }
 

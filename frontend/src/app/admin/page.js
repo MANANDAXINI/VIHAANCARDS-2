@@ -4,17 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AdminDashboard from "@/components/AdminDashboard";
-import AdminDayBook, { todayIst } from "@/components/AdminDayBook";
+import AdminDayBook from "@/components/AdminDayBook";
 import { AdminHeader } from "@/components/AdminHeader";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import AdminNav from "@/components/AdminNav";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import BusinessPickList from "@/components/BusinessPickList";
+import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import {
-  AdminPaperTypesSection,
-  AdminPrintingSidesSection,
   AdminQrSection,
-  AdminSizesSection,
   formatPhone,
 } from "@/components/AdminCatalogPanel";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
@@ -58,6 +56,11 @@ export default function AdminPage() {
   const [ordersPage, setOrdersPage] = useState(1);
   const [approvingId, setApprovingId] = useState(null);
   const [orderActionId, setOrderActionId] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useAdminTableState(pendingSearch, setPendingPage);
   useAdminTableState(accountsSearch, setAccountsPage);
@@ -194,30 +197,32 @@ export default function AdminPage() {
     }
   }
 
-  if (!ready || !user || !isAdmin(user)) {
+  const showLoginShell = !mounted || !ready || !user || !isAdmin(user);
+
+  if (showLoginShell) {
     return (
       <>
-        <AdminHeader user={user} onLogout={handleLogout} />
+        <AdminHeader user={mounted && ready ? user : null} onLogout={handleLogout} />
         <main className={`${ui.pageAdminShell} text-sm`}>
           <div className="mx-auto w-full max-w-md px-4">
-            {!ready ? (
-              <p className={`text-center ${ui.muted}`}>Loading...</p>
-            ) : (
-              <>
-                <div className="mb-5 text-center">
-                  <h1 className={ui.adminH1}>Admin Dashboard</h1>
-                  <p className={`mt-1.5 text-sm ${ui.muted}`}>Sign in to manage orders, payments, and catalog.</p>
-                </div>
+            <div className="mb-5 text-center">
+              <h1 className={ui.adminH1}>Admin Dashboard</h1>
+              <p className={`mt-1.5 text-sm ${ui.muted}`}>Sign in to manage orders, payments, and catalog.</p>
+            </div>
 
-                {user && !isAdmin(user) && (
-                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    Logged in as <strong>{user.business}</strong> ({roleLabel(user.role)}).
-                    Use an admin account to continue.
-                    <button type="button" className={`${btnClass("ghost")} mt-2`} onClick={handleLogout}>Logout</button>
-                  </div>
-                )}
+            {mounted && ready && user && !isAdmin(user) && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Logged in as <strong>{user.business}</strong> ({roleLabel(user.role)}).
+                Use an admin account to continue.
+                <button type="button" className={`${btnClass("ghost")} mt-2`} onClick={handleLogout}>Logout</button>
+              </div>
+            )}
 
-                <div className={ui.adminCard}>
+            <div className={ui.adminCard}>
+              {!mounted || !ready ? (
+                <p className={`text-center ${ui.muted}`}>Loading...</p>
+              ) : (
+                <>
                   {businessOptions.length > 0 ? (
                     <BusinessPickList
                       accounts={businessOptions}
@@ -248,9 +253,9 @@ export default function AdminPage() {
                   <p className={`text-center ${ui.small} ${ui.muted}`}>
                     Customer? <Link href="/" className="font-semibold text-blue-600 hover:underline">Go to storefront</Link>
                   </p>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </main>
       </>
@@ -429,9 +434,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {activeTab === "paper-types" && <AdminPaperTypesSection />}
-          {activeTab === "sizes" && <AdminSizesSection />}
-          {activeTab === "printing-sides" && <AdminPrintingSidesSection />}
+          {activeTab === "catalog" && <AdminOrderCatalogSection />}
 
           {activeTab === "payments" && (
             <section className={`${ui.adminCard} ${payments.length > 0 ? "border-red-200" : ""}`}>

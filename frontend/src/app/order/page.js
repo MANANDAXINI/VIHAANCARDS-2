@@ -28,7 +28,7 @@ export default function OrderPage() {
   );
 
   useEffect(() => {
-    if (ready && !user) router.replace("/#login");
+    if (ready && !user) router.replace("/?auth=login");
     if (ready && user?.role === "ADMIN") router.replace("/admin");
     if (ready && user?.status === "PENDING") router.replace("/?pending=1");
     if (ready && user?.profileNeedsPhone) router.replace("/profile");

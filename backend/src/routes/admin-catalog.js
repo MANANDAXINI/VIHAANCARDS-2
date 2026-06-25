@@ -31,6 +31,15 @@ function crudRoutes(modelName, label) {
 
   router.get(`/${label}`, authAdmin, async (_req, res) => {
     const items = await model.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+    if (label === "sizes") {
+      let quantities = [];
+      try {
+        quantities = await prisma.quantityOption.findMany({ orderBy: [{ sortOrder: "asc" }, { value: "asc" }] });
+      } catch (error) {
+        console.warn("quantityOption list failed:", error.message);
+      }
+      return res.json({ items, quantities });
+    }
     res.json({ items });
   });
 
@@ -79,6 +88,53 @@ function crudRoutes(modelName, label) {
 crudRoutes("paperType", "paper-types");
 crudRoutes("paperSize", "sizes");
 crudRoutes("printingSideOption", "printing-sides");
+
+router.get("/quantities", authAdmin, async (_req, res) => {
+  try {
+    const items = await prisma.quantityOption.findMany({ orderBy: [{ sortOrder: "asc" }, { value: "asc" }] });
+    res.json({ items });
+  } catch (error) {
+    console.error("GET /quantities failed:", error.message);
+    res.status(500).json({ error: "Quantity options table not ready. Redeploy backend with latest schema." });
+  }
+});
+
+router.post("/quantities", authAdmin, async (req, res) => {
+  const value = Number(req.body.value);
+  if (!Number.isFinite(value) || value <= 0) {
+    return res.status(400).json({ error: "Valid quantity value is required." });
+  }
+  const item = await prisma.quantityOption.create({
+    data: {
+      value,
+      label: String(req.body.label || value).trim(),
+      active: req.body.active !== false,
+      sortOrder: Number(req.body.sortOrder) || 0,
+    },
+  });
+  res.status(201).json({ item });
+});
+
+router.put("/quantities/:id", authAdmin, async (req, res) => {
+  const data = {};
+  if (req.body.value !== undefined) {
+    const value = Number(req.body.value);
+    if (!Number.isFinite(value) || value <= 0) {
+      return res.status(400).json({ error: "Valid quantity value is required." });
+    }
+    data.value = value;
+  }
+  if (req.body.label !== undefined) data.label = String(req.body.label).trim();
+  if (req.body.active !== undefined) data.active = req.body.active;
+  if (req.body.sortOrder !== undefined) data.sortOrder = Number(req.body.sortOrder) || 0;
+  const item = await prisma.quantityOption.update({ where: { id: req.params.id }, data });
+  res.json({ item });
+});
+
+router.delete("/quantities/:id", authAdmin, async (req, res) => {
+  await prisma.quantityOption.delete({ where: { id: req.params.id } });
+  res.json({ message: "Deleted." });
+});
 
 router.get("/paper-types/:id/history", authAdmin, async (req, res) => {
   const paper = await prisma.paperType.findUnique({ where: { id: req.params.id } });

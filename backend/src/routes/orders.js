@@ -27,8 +27,16 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
+function needsBackUpload(sideName) {
+  const n = String(sideName || "").toLowerCase();
+  return (n.includes("front") && n.includes("back")) || n.includes("both") || n.includes("double");
+}
+
 function buildOrderPayload(selection, req, orderAmount) {
-  return {
+  const frontFile = req.files?.artwork?.[0] || req.file;
+  const backFile = req.files?.artworkBack?.[0];
+
+  const payload = {
     title: req.body.title || "",
     product: req.body.product || "LEAFLET / PAMPLET",
     paperGsm: selection.paperType.name,
@@ -38,10 +46,18 @@ function buildOrderPayload(selection, req, orderAmount) {
     printingSide: selection.printingSide.name,
     amount: orderAmount,
     notes: req.body.notes || "",
-    artworkName: req.file.originalname,
-    artworkPath: req.file.filename,
-    artworkMime: req.file.mimetype,
+    artworkName: frontFile.originalname,
+    artworkPath: frontFile.filename,
+    artworkMime: frontFile.mimetype,
   };
+
+  if (backFile) {
+    payload.artworkBackName = backFile.originalname;
+    payload.artworkBackPath = backFile.filename;
+    payload.artworkBackMime = backFile.mimetype;
+  }
+
+  return payload;
 }
 
 router.get("/my-orders", authCustomer, async (req, res) => {
@@ -68,12 +84,16 @@ router.get("/:id", authCustomer, async (req, res) => {
   }
 });
 
-router.post("/", authCustomer, upload.single("artwork"), async (req, res) => {
+router.post("/", authCustomer, upload.fields([
+  { name: "artwork", maxCount: 1 },
+  { name: "artworkBack", maxCount: 1 },
+]), async (req, res) => {
   try {
     const { paperTypeId, sizeId, printingSideId, quantity, amount, useCredit } = req.body;
+    const frontFile = req.files?.artwork?.[0];
 
-    if (!req.file) {
-      return res.status(400).json({ error: "Artwork file is required." });
+    if (!frontFile) {
+      return res.status(400).json({ error: "Front artwork file is required." });
     }
 
     let selection;
@@ -81,6 +101,10 @@ router.post("/", authCustomer, upload.single("artwork"), async (req, res) => {
       selection = await resolveCatalogSelection({ paperTypeId, sizeId, printingSideId, quantity });
     } catch (error) {
       return res.status(400).json({ error: error.message });
+    }
+
+    if (needsBackUpload(selection.printingSide.name) && !req.files?.artworkBack?.[0]) {
+      return res.status(400).json({ error: "Back artwork file is required for double-sided printing." });
     }
 
     const orderAmount = selection.amount;

@@ -25,7 +25,7 @@ function PaymentContent() {
   const shortfall = Number(params.get("shortfall") || 0);
 
   useEffect(() => {
-    if (ready && !user) router.replace("/#login");
+    if (ready && !user) router.replace("/?auth=login");
   }, [ready, user, router]);
 
   useEffect(() => {

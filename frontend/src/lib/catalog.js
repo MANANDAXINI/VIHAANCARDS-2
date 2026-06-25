@@ -10,6 +10,19 @@ export function calcOrderAmount(catalog, paperTypeId, sizeId, printingSideId, qu
   return Math.round((qty / 1000) * rate);
 }
 
+export function needsBackUpload(sideName) {
+  const n = String(sideName || "").toLowerCase();
+  return (n.includes("front") && n.includes("back")) || n.includes("both") || n.includes("double");
+}
+
+export function formatOrderDate(value = new Date()) {
+  const d = value instanceof Date ? value : new Date(value);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 export function isValidIndianMobile(phone) {
   return /^[0-9]{10}$/.test(String(phone || "").replace(/\D/g, ""));
 }

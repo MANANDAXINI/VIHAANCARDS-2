@@ -107,6 +107,9 @@ model Order {
   artworkName      String?
   artworkPath      String?
   artworkMime      String?
+  artworkBackName  String?
+  artworkBackPath  String?
+  artworkBackMime  String?
   status           OrderStatus   @default(ORDER_CREATED)
   paymentStatus    PaymentStatus @default(PENDING)
   lrNumber         String        @default("")
@@ -189,6 +192,16 @@ model PrintingSideOption {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   priceRules PriceRule[]
+}
+
+model QuantityOption {
+  id        String   @id @default(cuid())
+  value     Int      @unique
+  label     String   @default("")
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PriceRule {

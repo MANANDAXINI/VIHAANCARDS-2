@@ -9,9 +9,7 @@ const QUICK_LINKS = [
   { id: "accounts", label: "Users & Accounts", desc: "Approve registrations and manage roles", countKey: "accounts" },
   { id: "payments", label: "Payments", desc: "Review and approve UPI payments", countKey: "payments" },
   { id: "orders", label: "Orders", desc: "Dispatch and mark orders delivered", countKey: "orders" },
-  { id: "paper-types", label: "Paper Types", desc: "Stock and rates" },
-  { id: "sizes", label: "Sizes", desc: "Available print sizes" },
-  { id: "printing-sides", label: "Printing Sides", desc: "Single / double sided options" },
+  { id: "catalog", label: "Order Catalog", desc: "Paper GSM, sizes, quantities & rates" },
   { id: "qr", label: "Payment QR", desc: "UPI QR for customer payments" },
 ];
 

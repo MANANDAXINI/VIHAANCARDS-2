@@ -16,7 +16,7 @@ export default function AccountPage() {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    if (ready && !user) router.replace("/#login");
+    if (ready && !user) router.replace("/?auth=login");
     if (ready && user?.role === "ADMIN") router.replace("/admin");
     if (ready && user?.profileNeedsPhone) router.replace("/profile");
   }, [ready, user, router]);

@@ -76,6 +76,30 @@ async function seedCatalog() {
   console.log(`Catalog seeded — ${paperNames.length} papers, ${sizeNames.length} sizes, ${sideNames.length} sides.`);
 }
 
+async function seedQuantities() {
+  const count = await prisma.quantityOption.count();
+  if (count > 0) {
+    console.log("Quantities already seeded — skipping.");
+    return;
+  }
+
+  const qtyValues = [...new Set(rateRows.map((r) => Number(r.quantity)).filter((n) => Number.isFinite(n) && n > 0))];
+  qtyValues.sort((a, b) => a - b);
+
+  for (let i = 0; i < qtyValues.length; i += 1) {
+    const value = qtyValues[i];
+    await prisma.quantityOption.create({
+      data: {
+        value,
+        label: value.toLocaleString("en-IN"),
+        sortOrder: i,
+      },
+    });
+  }
+
+  console.log(`Quantities seeded — ${qtyValues.length} options.`);
+}
+
 async function main() {
   await prisma.orderCounter.upsert({
     where: { id: 1 },
@@ -114,6 +138,7 @@ async function main() {
   }
 
   await seedCatalog();
+  await seedQuantities();
 }
 
 main()

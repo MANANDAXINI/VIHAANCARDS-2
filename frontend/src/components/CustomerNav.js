@@ -7,8 +7,6 @@ import { isAdmin, isCustomer } from "@/lib/redirect";
 
 const GUEST_LINKS = [
   { href: "/", label: "Home", match: (path) => path === "/" },
-  { href: "/register", label: "Register", match: (path) => path === "/register" },
-  { href: "/#login", label: "Login", match: () => false },
 ];
 
 const CUSTOMER_LINKS = [

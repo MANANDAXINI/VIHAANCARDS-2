@@ -33,6 +33,17 @@ export const ui = {
   navTabsScroll: "flex flex-nowrap gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-100 p-1 scrollbar-none md:flex-wrap md:overflow-visible",
   priceBox:
     "flex flex-col gap-2 rounded-lg bg-blue-50 px-4 py-3.5 font-semibold text-slate-900 sm:flex-row sm:items-center sm:justify-between",
+  pageOrder: "mx-auto w-full max-w-5xl px-4 sm:px-5",
+  orderLayout:
+    "grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:grid-cols-[12rem_1fr] lg:grid-cols-[14rem_1fr]",
+  paperSidebar: "border-b border-slate-200 bg-slate-50 p-3 md:border-b-0 md:border-r md:p-4",
+  paperSidebarTitle: "mb-2 text-sm font-bold text-slate-900",
+  paperNavItem:
+    "block w-full rounded-md px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100",
+  paperNavItemActive: "bg-sky-100 font-semibold text-sky-900",
+  orderFormBody: "grid gap-4 p-4 sm:p-6",
+  orderTotalBar:
+    "flex items-center justify-between rounded-lg bg-amber-400 px-4 py-3 font-bold text-slate-900",
   mobileCardList: "grid gap-3 md:hidden",
   mobileCard: "grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm",
   mobileCardRow: "flex items-start justify-between gap-3",
@@ -67,11 +78,11 @@ export function tabClass(active) {
 }
 
 export function heroBtnPrimary() {
-  return `${ui.btn} bg-white text-blue-700 shadow-sm hover:bg-blue-50`;
+  return `${ui.btn} bg-white text-blue-700 shadow-lg shadow-slate-900/25 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-blue-50 hover:shadow-xl hover:shadow-slate-900/30 active:translate-y-0`;
 }
 
 export function heroBtnSecondary() {
-  return `${ui.btn} border border-white/60 bg-white/15 text-white hover:bg-white/25`;
+  return `${ui.btn} border-2 border-white/60 bg-white/10 text-white backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-white hover:bg-white/20 hover:shadow-lg hover:shadow-slate-900/25 active:translate-y-0`;
 }
 
 export function accountStatusClass(status) {

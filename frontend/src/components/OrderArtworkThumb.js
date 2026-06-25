@@ -1,6 +1,6 @@
 "use client";
 
-import { API_URL } from "@/lib/api";
+import { uploadAssetUrl } from "@/lib/api";
 import { ui } from "@/lib/ui";
 
 function isImageArtwork(order, side = "front") {
@@ -14,36 +14,34 @@ function ArtworkThumb({ url, mime, name, label, className = "h-14 w-14" }) {
   const showImage =
     url && (mime?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)/i.test(name || url));
 
-  if (showImage) {
-    return (
-      <a href={url} target="_blank" rel="noreferrer" className="inline-flex flex-col items-start gap-1">
-        {label ? <span className={`${ui.small} font-semibold text-slate-700`}>{label}</span> : null}
-        <img
-          src={url}
-          alt={name || "Artwork"}
-          className={`${className} rounded border border-slate-200 object-cover`}
-        />
-      </a>
-    );
-  }
-
   return (
-    <div className="inline-flex flex-col gap-1">
+    <div className="flex w-full flex-col gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
       {label ? <span className={`${ui.small} font-semibold text-slate-700`}>{label}</span> : null}
-      <a
-        href={url || undefined}
-        target={url ? "_blank" : undefined}
-        rel={url ? "noreferrer" : undefined}
-        className={`${className} grid place-items-center rounded border border-slate-200 bg-slate-100 px-1 text-center text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500`}
-      >
-        {url ? "File" : "—"}
-      </a>
+      {showImage ? (
+        <a href={url} target="_blank" rel="noreferrer" className="block w-full">
+          <img
+            src={url}
+            alt={name || "Artwork"}
+            className={`${className} mx-auto w-full max-w-[8rem] rounded border border-slate-200 object-contain`}
+          />
+        </a>
+      ) : (
+        <a
+          href={url || undefined}
+          target={url ? "_blank" : undefined}
+          rel={url ? "noreferrer" : undefined}
+          className={`${className} mx-auto grid w-full max-w-[8rem] place-items-center rounded border border-slate-200 bg-slate-100 px-1 text-center text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500`}
+        >
+          {url ? "File" : "—"}
+        </a>
+      )}
+      {name ? <p className={`${ui.small} break-all text-slate-600`}>{name}</p> : null}
     </div>
   );
 }
 
 export default function OrderArtworkThumb({ order, className = "h-16 w-16" }) {
-  const frontUrl = order?.artworkUrl ? `${API_URL}${order.artworkUrl}` : null;
+  const frontUrl = uploadAssetUrl(order?.artworkUrl);
   const showImage = frontUrl && isImageArtwork(order);
 
   if (showImage) {
@@ -71,8 +69,8 @@ export default function OrderArtworkThumb({ order, className = "h-16 w-16" }) {
 }
 
 export function OrderArtworkCell({ order }) {
-  const frontUrl = order?.artworkUrl ? `${API_URL}${order.artworkUrl}` : null;
-  const backUrl = order?.artworkBackUrl ? `${API_URL}${order.artworkBackUrl}` : null;
+  const frontUrl = uploadAssetUrl(order?.artworkUrl);
+  const backUrl = uploadAssetUrl(order?.artworkBackUrl);
   const hasBack = Boolean(backUrl || order?.artworkBackName);
 
   if (!frontUrl && !backUrl) {
@@ -80,25 +78,25 @@ export function OrderArtworkCell({ order }) {
   }
 
   return (
-    <div className="flex flex-wrap items-start gap-3">
-      {frontUrl && (
+    <div className="grid w-full max-w-[10rem] gap-2">
+      {frontUrl ? (
         <ArtworkThumb
           url={frontUrl}
           mime={order.artworkMime}
           name={order.artworkName}
-          label={hasBack ? "Front:" : null}
-          className="h-12 w-12 sm:h-14 sm:w-14"
+          label="Front"
+          className="h-14 w-14"
         />
-      )}
-      {hasBack && (
+      ) : null}
+      {hasBack ? (
         <ArtworkThumb
           url={backUrl}
           mime={order.artworkBackMime}
           name={order.artworkBackName}
-          label="Back:"
-          className="h-12 w-12 sm:h-14 sm:w-14"
+          label="Back"
+          className="h-14 w-14"
         />
-      )}
+      ) : null}
     </div>
   );
 }

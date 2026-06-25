@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AdminPagination, AdminSearchBar } from "@/components/AdminTableTools";
 import { formatPhone } from "@/components/AdminCatalogPanel";
-import { adminApi, API_URL, formatRupees } from "@/lib/api";
+import { adminApi, uploadAssetUrl, formatRupees } from "@/lib/api";
 import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
 import { btnClass, pendingRowClass, pendingSectionTitleClass, ui } from "@/lib/ui";
@@ -45,31 +45,30 @@ function SectionLabel({ children }) {
 }
 
 function ArtworkFileRow({ label, url, name, mime, downloaded, onDownload, busy }) {
-  const fullUrl = url ? `${API_URL}${url}` : null;
+  const fullUrl = uploadAssetUrl(url);
   const showThumb = fullUrl && (mime?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)/i.test(name || ""));
 
   return (
-    <div className="flex flex-col gap-1.5 border-b border-slate-100 py-2 last:border-0">
+    <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <p className={`${ui.small} mb-1.5 font-semibold text-slate-700`}>{label}</p>
       <button
         type="button"
-        className={`${btnClass(downloaded ? "teal" : "amber", true)} w-full`}
+        className={`${btnClass(downloaded ? "teal" : "amber", true)} mb-2 w-full`}
         disabled={!fullUrl || busy}
         onClick={onDownload}
       >
         {downloaded ? "Download Completed" : "Download Pending"}
       </button>
       {showThumb ? (
-        <a href={fullUrl} target="_blank" rel="noreferrer" className="block w-fit">
+        <a href={fullUrl} target="_blank" rel="noreferrer" className="mb-2 block w-full">
           <img
             src={fullUrl}
             alt={name || "Artwork"}
-            className="h-12 w-12 rounded border border-slate-200 object-cover"
+            className="mx-auto h-14 w-full max-w-[8rem] rounded border border-slate-200 object-contain"
           />
         </a>
       ) : null}
-      <p className={`${ui.small} break-all text-slate-700`}>
-        {label ? `${label}: ` : ""}{name || "—"}
-      </p>
+      <p className={`${ui.small} break-all text-slate-700`}>{name || "—"}</p>
     </div>
   );
 }
@@ -174,7 +173,7 @@ function OrderProcessingCard({ order, onRefresh }) {
     if (!url) return;
     setArtworkBusy(side);
     try {
-      window.open(`${API_URL}${url}`, "_blank", "noopener,noreferrer");
+      window.open(uploadAssetUrl(url), "_blank", "noopener,noreferrer");
       await adminApi.markArtworkDownloaded(order.id, side, { silent: true });
       await onRefresh();
     } catch (error) {
@@ -251,7 +250,7 @@ function OrderProcessingCard({ order, onRefresh }) {
           {!order.artworkUrl && !order.artworkBackUrl ? (
             <span className={ui.muted}>—</span>
           ) : (
-            <div>
+            <div className="grid w-full gap-2">
               {order.artworkUrl ? (
                 <ArtworkFileRow
                   label="Front"

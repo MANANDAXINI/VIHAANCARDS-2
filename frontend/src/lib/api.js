@@ -1,5 +1,13 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
+export function uploadAssetUrl(pathOrUrl) {
+  if (!pathOrUrl) return null;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  const base = API_URL.replace(/\/$/, "");
+  const assetPath = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
+  return `${base}${assetPath}`;
+}
+
 async function loadToast() {
   const { toast } = await import("@/lib/toast");
   return toast;

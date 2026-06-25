@@ -1,18 +1,12 @@
 const express = require("express");
-const path = require("path");
-const fs = require("fs");
 const multer = require("multer");
 const crypto = require("crypto");
 const { prisma, publicOrder, nextOrderNumber } = require("../lib/prisma");
+const { uploadDir } = require("../lib/uploads");
 const { authCustomer } = require("../middleware/auth");
 const { resolveCatalogSelection } = require("../lib/catalog");
 
 const router = express.Router();
-const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, "../../uploads");
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),

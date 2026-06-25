@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { API_URL } from "@/lib/api";
+import { uploadAssetUrl } from "@/lib/api";
 import { ui } from "@/lib/ui";
 
 export default function TapToRevealQr({ imageUrl }) {
@@ -15,7 +15,7 @@ export default function TapToRevealQr({ imageUrl }) {
     );
   }
 
-  const src = imageUrl.startsWith("http") ? imageUrl : `${API_URL}${imageUrl}`;
+  const src = uploadAssetUrl(imageUrl);
 
   return (
     <button

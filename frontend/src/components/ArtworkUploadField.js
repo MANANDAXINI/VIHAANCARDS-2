@@ -36,9 +36,10 @@ export default function ArtworkUploadField({
   }
 
   return (
-    <div className={ui.field}>
+    <div className={`${ui.field} w-full`}>
       <label className={ui.label}>
         {label}
+        {required ? <span className="text-red-600"> *</span> : null}
         {hint ? <span className={`${ui.muted} font-normal`}> {hint}</span> : null}
       </label>
       <input
@@ -50,29 +51,29 @@ export default function ArtworkUploadField({
         required={required && !file}
       />
 
-      {file && (
-        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      {file ? (
+        <div className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 p-3">
           {previewUrl ? (
             <a
               href={previewUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="group inline-block"
+              className="group block w-full"
               title="Click to view full size"
             >
               <img
                 src={previewUrl}
                 alt={`${label} preview`}
-                className="max-h-36 w-auto max-w-full rounded-md border border-slate-200 object-contain shadow-sm transition group-hover:opacity-90"
+                className="mx-auto max-h-40 w-full max-w-sm rounded-md border border-slate-200 object-contain shadow-sm transition group-hover:opacity-90"
               />
-              <p className={`${ui.small} ${ui.muted} mt-1.5`}>Click thumbnail to open full size</p>
+              <p className={`${ui.small} ${ui.muted} mt-1.5 text-center`}>Click thumbnail to open full size</p>
             </a>
           ) : (
-            <div className="flex items-start gap-3">
+            <div className="flex w-full items-start gap-3">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-bold uppercase text-red-600">
                 {isPdf ? "PDF" : "File"}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
                 <p className={`${ui.small} ${ui.muted}`}>
                   {(file.size / 1024).toFixed(0)} KB
@@ -83,12 +84,14 @@ export default function ArtworkUploadField({
           )}
           <button
             type="button"
-            className={`${btnClass("ghost", true)} mt-2`}
+            className={`${btnClass("ghost", true)} mt-2 w-full sm:w-auto`}
             onClick={clearFile}
           >
             Remove file
           </button>
         </div>
+      ) : (
+        <p className={`${ui.small} ${ui.muted}`}>No file selected</p>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
-import { adminCatalogApi, API_URL, formatDate } from "@/lib/api";
+import { adminCatalogApi, uploadAssetUrl, formatDate } from "@/lib/api";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { toast } from "@/lib/toast";
 import { formatOrderStatus, orderStatusClass, btnClass, ui } from "@/lib/ui";
@@ -629,7 +629,7 @@ export function AdminQrSection() {
             >
               ×
             </button>
-            <img src={`${API_URL}${qr.imageUrl}`} alt="Current payment QR" className="max-h-48 w-full rounded object-contain" />
+            <img src={uploadAssetUrl(qr.imageUrl)} alt="Current payment QR" className="max-h-48 w-full rounded object-contain" />
             <p className={`${ui.muted} ${ui.small} mt-2`}>Current QR is live. Use Replace to upload a new image, or × to remove.</p>
           </div>
         ) : (

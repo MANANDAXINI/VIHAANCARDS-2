@@ -328,6 +328,9 @@ export default function OrderPage() {
                   )}
                 </select>
               </div>
+            </div>
+
+            <div className="grid gap-4">
               <ArtworkUploadField
                 label="Upload Front Side"
                 file={artworkFront}
@@ -336,7 +339,7 @@ export default function OrderPage() {
               />
               <ArtworkUploadField
                 label="Upload Back Side"
-                hint={requiresBackUpload ? "" : "(optional for single side)"}
+                hint={requiresBackUpload ? null : "(optional for single side)"}
                 file={artworkBack}
                 onChange={setArtworkBack}
                 required={requiresBackUpload}

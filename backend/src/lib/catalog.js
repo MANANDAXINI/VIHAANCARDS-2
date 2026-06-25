@@ -6,8 +6,7 @@ function calcOrderAmount(paperType, priceRule, quantity) {
   if (priceRule && Number(priceRule.amount) > 0) {
     return Math.round(Number(priceRule.amount));
   }
-  const rate = priceRule?.ratePerThousand || paperType?.ratePerThousand || 0;
-  return Math.round((qty / 1000) * rate);
+  return 0;
 }
 
 async function findPriceRule(paperTypeId, sizeId, printingSideId, quantity) {

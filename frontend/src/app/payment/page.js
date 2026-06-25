@@ -20,7 +20,6 @@ function PaymentContent() {
   const [pendingOrder, setPendingOrder] = useState(null);
   const [amount, setAmount] = useState(0);
   const [allowed, setAllowed] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
 
   const shortfall = Number(params.get("shortfall") || 0);
 
@@ -75,8 +74,8 @@ function PaymentContent() {
       sessionStorage.removeItem("pd_pending_order");
       sessionStorage.removeItem("pd_order_review");
       await refresh();
-      setSubmitted(true);
       toast.success("Payment submitted for this order. Send screenshot to 7507543214. Admin will confirm.");
+      router.push("/account");
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -119,9 +118,6 @@ function PaymentContent() {
             <button className={btnClass("primary")} type="submit" disabled={submitting}>
               {submitting ? "Submitting..." : "Submit Payment for Order"}
             </button>
-            {submitted && (
-              <Link href="/account" className={btnClass("ghost")}>View My Orders</Link>
-            )}
             <Link href="/order/review" className={btnClass("ghost")}>Back to Review</Link>
           </form>
         </div>

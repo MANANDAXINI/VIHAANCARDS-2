@@ -59,6 +59,12 @@ export function btnClass(variant = "primary", small = false) {
   if (variant === "secondary") {
     return `${ui.btn} ${size} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50`;
   }
+  if (variant === "amber") {
+    return `${ui.btn} ${size} bg-amber-400 font-bold text-slate-900 hover:bg-amber-500`;
+  }
+  if (variant === "teal") {
+    return `${ui.btn} ${size} bg-teal-600 text-white hover:bg-teal-700`;
+  }
   return `${ui.btn} ${size} bg-blue-600 text-white hover:bg-blue-700`;
 }
 

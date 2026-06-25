@@ -110,6 +110,8 @@ model Order {
   artworkBackName  String?
   artworkBackPath  String?
   artworkBackMime  String?
+  artworkDownloaded     Boolean       @default(false)
+  artworkBackDownloaded Boolean       @default(false)
   status           OrderStatus   @default(ORDER_CREATED)
   paymentStatus    PaymentStatus @default(PENDING)
   lrNumber         String        @default("")

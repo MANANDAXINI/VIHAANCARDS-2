@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { adminCatalogApi, formatDate } from "@/lib/api";
-import { calcOrderAmount } from "@/lib/catalog";
 import { toast } from "@/lib/toast";
 import { btnClass, formatOrderStatus, orderStatusClass, ui } from "@/lib/ui";
 
@@ -88,7 +87,6 @@ export default function AdminOrderCatalogSection() {
   const [printingSideId, setPrintingSideId] = useState("");
   const [quantityId, setQuantityId] = useState("");
 
-  const [paperForm, setPaperForm] = useState({ name: "", availableQuantity: "" });
   const [sizeDraft, setSizeDraft] = useState("");
   const [sideDraft, setSideDraft] = useState("");
   const [qtyDraft, setQtyDraft] = useState("");
@@ -102,16 +100,6 @@ export default function AdminOrderCatalogSection() {
   const selectedPaper = paperTypes.find((p) => p.id === paperTypeId);
   const selectedQty = quantities.find((q) => q.id === quantityId);
 
-  const catalogPreview = useMemo(
-    () => ({ paperTypes, sizes, printingSides, priceRules }),
-    [paperTypes, sizes, printingSides, priceRules]
-  );
-
-  const previewAmount = useMemo(
-    () => calcOrderAmount(catalogPreview, paperTypeId, sizeId, printingSideId, selectedQty?.value),
-    [catalogPreview, paperTypeId, sizeId, printingSideId, selectedQty]
-  );
-
   const activeRule = priceRules.find(
     (r) =>
       r.paperTypeId === paperTypeId &&
@@ -119,6 +107,9 @@ export default function AdminOrderCatalogSection() {
       r.printingSideId === printingSideId &&
       Number(r.quantity) === Number(selectedQty?.value)
   );
+
+  const savedCustomerAmount =
+    activeRule && Number(activeRule.amount) > 0 ? Math.round(Number(activeRule.amount)) : 0;
 
   async function loadQuantitiesSafe() {
     try {
@@ -161,15 +152,6 @@ export default function AdminOrderCatalogSection() {
   }, []);
 
   useEffect(() => {
-    if (selectedPaper) {
-      setPaperForm({
-        name: selectedPaper.name,
-        availableQuantity: String(selectedPaper.availableQuantity ?? ""),
-      });
-    }
-  }, [selectedPaper?.id, selectedPaper?.name, selectedPaper?.availableQuantity]);
-
-  useEffect(() => {
     if (activeRule && Number(activeRule.amount) > 0) {
       setComboAmount(String(activeRule.amount));
     } else {
@@ -178,15 +160,14 @@ export default function AdminOrderCatalogSection() {
   }, [activeRule?.id, activeRule?.amount, paperTypeId, sizeId, printingSideId, quantityId]);
 
   async function addPaper() {
-    if (!paperForm.name.trim()) {
-      toast.error("Paper name is required.");
-      return;
-    }
+    const name = window.prompt("Paper GSM name?", "");
+    if (!name?.trim()) return;
+
     setSavingPaper(true);
     try {
       const created = await adminCatalogApi.createPaperType({
-        name: paperForm.name.trim(),
-        availableQuantity: Number(paperForm.availableQuantity) || 0,
+        name: name.trim(),
+        availableQuantity: 100000,
         ratePerThousand: 0,
       });
       setPaperTypeId(created.item.id);
@@ -200,19 +181,26 @@ export default function AdminOrderCatalogSection() {
   }
 
   async function updatePaper() {
-    if (!paperTypeId) {
+    if (!paperTypeId || !selectedPaper) {
       toast.error("Select a paper from the list to update.");
       return;
     }
-    if (!paperForm.name.trim()) {
-      toast.error("Paper name is required.");
+
+    const name = window.prompt("Paper GSM name?", selectedPaper.name);
+    if (!name?.trim()) return;
+
+    const stockStr = window.prompt("Available stock?", String(selectedPaper.availableQuantity ?? 0));
+    const availableQuantity = Number(stockStr);
+    if (!Number.isFinite(availableQuantity) || availableQuantity < 0) {
+      toast.error("Enter a valid stock amount.");
       return;
     }
+
     setSavingPaper(true);
     try {
       await adminCatalogApi.updatePaperType(paperTypeId, {
-        name: paperForm.name.trim(),
-        availableQuantity: Number(paperForm.availableQuantity) || 0,
+        name: name.trim(),
+        availableQuantity,
       });
       await loadAll();
       toast.success("Paper updated.");
@@ -233,7 +221,6 @@ export default function AdminOrderCatalogSection() {
       await adminCatalogApi.deletePaperType(paperTypeId);
       const data = await loadAll();
       setPaperTypeId(data.paperTypes[0]?.id || "");
-      setPaperForm({ name: "", availableQuantity: "" });
       setHistoryData(null);
       toast.success("Paper deleted.");
     } catch (e) {
@@ -289,7 +276,7 @@ export default function AdminOrderCatalogSection() {
       <div className={ui.orderLayout}>
         <aside className={ui.paperSidebar}>
           <h2 className={ui.paperSidebarTitle}>Paper GSM</h2>
-          <nav className="grid max-h-[16rem] gap-0.5 overflow-y-auto" aria-label="Paper GSM">
+          <nav className="grid max-h-[24rem] gap-0.5 overflow-y-auto" aria-label="Paper GSM">
             {paperTypes.map((p) => (
               <button
                 key={p.id}
@@ -307,41 +294,20 @@ export default function AdminOrderCatalogSection() {
           </nav>
 
           <div className="mt-3 grid gap-2 border-t border-slate-200 pt-3">
-            <div className={ui.field}>
-              <label className={ui.label}>Paper Name</label>
-              <input
-                className={ui.input}
-                value={paperForm.name}
-                onChange={(e) => setPaperForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. 90 ART"
-              />
-            </div>
-            <div className={ui.field}>
-              <label className={ui.label}>Available Stock</label>
-              <input
-                className={ui.input}
-                type="number"
-                min="0"
-                value={paperForm.availableQuantity}
-                onChange={(e) => setPaperForm((f) => ({ ...f, availableQuantity: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <button type="button" className={btnClass("secondary", true)} disabled={savingPaper} onClick={addPaper}>
-                {savingPaper ? "Saving..." : "Add Paper"}
+            <button type="button" className={btnClass("secondary", true)} disabled={savingPaper} onClick={addPaper}>
+              {savingPaper ? "Saving..." : "Add Paper"}
+            </button>
+            <button type="button" className={btnClass("primary", true)} disabled={savingPaper || !paperTypeId} onClick={updatePaper}>
+              Update Paper
+            </button>
+            <button type="button" className={btnClass("ghost", true)} disabled={!paperTypeId} onClick={deletePaper}>
+              Delete Paper
+            </button>
+            {paperTypeId && (
+              <button type="button" className={btnClass("ghost", true)} onClick={loadHistory} disabled={historyLoading}>
+                {historyLoading ? "Loading..." : "History"}
               </button>
-              <button type="button" className={btnClass("primary", true)} disabled={savingPaper || !paperTypeId} onClick={updatePaper}>
-                Update Paper
-              </button>
-              <button type="button" className={btnClass("ghost", true)} disabled={!paperTypeId} onClick={deletePaper}>
-                Delete Paper
-              </button>
-              {paperTypeId && (
-                <button type="button" className={btnClass("ghost", true)} onClick={loadHistory} disabled={historyLoading}>
-                  {historyLoading ? "Loading..." : "History"}
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </aside>
 
@@ -353,7 +319,7 @@ export default function AdminOrderCatalogSection() {
 
           {!paperTypeId && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Select a paper GSM from the left, or create one using Add Paper.
+              Select a paper GSM from the left, or use Add Paper.
             </p>
           )}
 
@@ -501,7 +467,7 @@ export default function AdminOrderCatalogSection() {
           />
 
           <div className={ui.field}>
-            <label className={ui.label}>Total Amount for this combination (Rs.)</label>
+            <label className={ui.label}>Total Amount (Rs.) — customer pays this exact amount</label>
             <div className="flex flex-wrap gap-2">
               <input
                 className={`${ui.input} min-w-[8rem] flex-1`}
@@ -509,7 +475,7 @@ export default function AdminOrderCatalogSection() {
                 min="0"
                 value={comboAmount}
                 onChange={(e) => setComboAmount(e.target.value)}
-                placeholder="e.g. 5500"
+                placeholder="Enter amount e.g. 5500"
               />
               <button
                 type="button"
@@ -521,14 +487,10 @@ export default function AdminOrderCatalogSection() {
               </button>
             </div>
             <p className={`${ui.muted} ${ui.small}`}>
-              Exact price customers pay for this paper + size + quantity + printing side.
-              {activeRule ? " Saved rate loaded." : " No rate saved yet for this combo."}
+              {savedCustomerAmount > 0
+                ? `Saved for this combo — customers see Rs. ${savedCustomerAmount.toLocaleString("en-IN")}.`
+                : "No rate saved yet for this combination. Enter amount and click Save Rate."}
             </p>
-          </div>
-
-          <div className={ui.orderTotalBar}>
-            <span>Customer will see</span>
-            <span>{previewAmount ? `Rs. ${previewAmount.toLocaleString("en-IN")}` : "—"}</span>
           </div>
         </div>
       </div>

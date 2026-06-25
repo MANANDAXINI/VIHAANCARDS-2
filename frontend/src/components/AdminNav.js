@@ -7,6 +7,7 @@ const ADMIN_TABS = [
   { id: "day-book", label: "Day Book" },
   { id: "accounts", label: "Users & Accounts", countKey: "accounts" },
   { id: "catalog", label: "Order Catalog" },
+  { id: "rates", label: "Rates" },
   { id: "payments", label: "Payments", countKey: "payments" },
   { id: "orders", label: "Orders", countKey: "orders" },
   { id: "qr", label: "Payment QR" },

@@ -10,6 +10,7 @@ const QUICK_LINKS = [
   { id: "payments", label: "Payments", desc: "Review and approve UPI payments", countKey: "payments" },
   { id: "orders", label: "Orders", desc: "Dispatch and mark orders delivered", countKey: "orders" },
   { id: "catalog", label: "Order Catalog", desc: "Paper GSM, sizes, quantities & rates" },
+  { id: "rates", label: "Rates", desc: "View all saved combination prices" },
   { id: "qr", label: "Payment QR", desc: "UPI QR for customer payments" },
 ];
 

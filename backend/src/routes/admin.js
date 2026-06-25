@@ -158,14 +158,19 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
         });
       }
 
+      await tx.account.update({
+        where: { id: account.id },
+        data: { usedCredit: { increment: Number(data.amount) } },
+      });
+
       await tx.ledgerEntry.create({
         data: {
           accountId: account.id,
-          label: `Order ${orderNumber}`,
+          label: `Order ${orderNumber} - ${order.product}`,
           amount: order.amount,
           debit: order.amount,
-          outstandingAfter: account.previousOutstanding,
-          balanceAfter: account.balance + request.amount,
+          outstandingAfter: account.previousOutstanding + order.amount,
+          balanceAfter: account.balance,
           oldOutstandingBefore: account.oldOutstanding,
         },
       });
@@ -174,13 +179,26 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
     });
   }
 
+  const afterOrderOutstanding =
+    createdOrder ? account.previousOutstanding + Number(createdOrder.amount) : account.previousOutstanding;
   const newBalance = account.balance + request.amount;
   const newOutstanding =
     request.type === "OUTSTANDING_PAYMENT"
       ? Math.max(0, account.previousOutstanding - request.amount)
-      : account.previousOutstanding;
+      : createdOrder
+        ? Math.max(0, afterOrderOutstanding - request.amount)
+        : account.previousOutstanding;
 
   const receiptNumber = await nextReceiptNumber();
+
+  const paymentLabel =
+    createdOrder?.orderNumber
+      ? `Payment Received against ${createdOrder.orderNumber} Receipt No: ${receiptNumber}`
+      : request.type === "ORDER_PAYMENT"
+        ? `Payment Received Receipt No: ${receiptNumber}`
+        : request.type === "OUTSTANDING_PAYMENT"
+          ? `Outstanding Payment Receipt No: ${receiptNumber}`
+          : `Wallet Top-up Receipt No: ${receiptNumber}`;
 
   const [updatedAccount, updatedRequest] = await prisma.$transaction([
     prisma.account.update({
@@ -197,12 +215,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
     prisma.ledgerEntry.create({
       data: {
         accountId: account.id,
-        label:
-          request.type === "ORDER_PAYMENT"
-            ? "Order Payment"
-            : request.type === "OUTSTANDING_PAYMENT"
-              ? "Outstanding Payment"
-              : "Wallet Top-up",
+        label: paymentLabel,
         amount: request.amount,
         credit: request.amount,
         oldOutstandingBefore: account.oldOutstanding,
@@ -239,8 +252,40 @@ router.get("/orders", authAdmin, async (_req, res) => {
       customerName: order.account.name,
       business: order.account.business,
       customerCity: order.account.address,
+      customerPhone: order.account.phone,
     })),
   });
+});
+
+router.put("/orders/:id/proceed-printing", authAdmin, async (req, res) => {
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found." });
+  if (existing.status !== "PAYMENT_VERIFIED") {
+    return res.status(400).json({ error: "Only payment-verified orders can proceed to printing." });
+  }
+
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: { status: "IN_PRINTING" },
+  });
+  res.json({ order: publicOrder(order) });
+});
+
+router.put("/orders/:id/mark-artwork", authAdmin, async (req, res) => {
+  const { side } = req.body;
+  if (!["front", "back"].includes(side)) {
+    return res.status(400).json({ error: "Side must be front or back." });
+  }
+
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found." });
+
+  const data = side === "back" ? { artworkBackDownloaded: true } : { artworkDownloaded: true };
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data,
+  });
+  res.json({ order: publicOrder(order) });
 });
 
 router.put("/orders/:id/status", authAdmin, async (req, res) => {
@@ -259,23 +304,23 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
   const { lrNumber, transportDetails, dispatchDate } = req.body;
   const lr = String(lrNumber || "").trim();
   if (!lr) {
-    return res.status(400).json({ error: "LR number is required to dispatch." });
+    return res.status(400).json({ error: "LR number is required." });
   }
 
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
-  if (existing.status === "DISPATCHED") {
-    return res.status(400).json({ error: "Order is already dispatched." });
-  }
   if (existing.status === "COMPLETED") {
-    return res.status(400).json({ error: "Completed orders cannot be dispatched again." });
+    return res.status(400).json({ error: "Completed orders cannot be updated." });
+  }
+  if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED"].includes(existing.status)) {
+    return res.status(400).json({ error: "Order must proceed to printing before dispatch." });
   }
 
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: {
       lrNumber: lr,
-      transportDetails: transportDetails || "",
+      transportDetails: String(transportDetails || "").trim(),
       dispatchDate: dispatchDate ? new Date(dispatchDate) : new Date(),
       status: "DISPATCHED",
     },

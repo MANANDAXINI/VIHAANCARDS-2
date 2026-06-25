@@ -155,16 +155,19 @@ router.post("/", authCustomer, upload.fields([
 
       await tx.account.update({
         where: { id: account.id },
-        data: { usedCredit: { increment: orderAmount } },
+        data: {
+          usedCredit: { increment: orderAmount },
+          previousOutstanding: { increment: orderAmount },
+        },
       });
 
       await tx.ledgerEntry.create({
         data: {
           accountId: account.id,
-          label: `Order ${orderNumber}`,
+          label: `Order ${orderNumber} - ${orderFields.product}`,
           amount: orderAmount,
           debit: orderAmount,
-          outstandingAfter: account.previousOutstanding,
+          outstandingAfter: account.previousOutstanding + orderAmount,
           balanceAfter: account.balance,
           oldOutstandingBefore: account.oldOutstanding,
         },

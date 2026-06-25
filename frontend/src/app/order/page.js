@@ -3,9 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
+import ArtworkUploadField from "@/components/ArtworkUploadField";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { catalogApi, formatRupees, orderApi } from "@/lib/api";
-import { calcOrderAmount } from "@/lib/catalog";
+import {
+  calcOrderAmount,
+  getPricedPrintingSides,
+  getPricedQuantities,
+  getPricedSizes,
+  needsBackUpload,
+} from "@/lib/catalog";
 import { toast } from "@/lib/toast";
 import { btnClass, chipClass, ui } from "@/lib/ui";
 
@@ -18,14 +25,46 @@ export default function OrderPage() {
   const [sizeId, setSizeId] = useState("");
   const [printingSideId, setPrintingSideId] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [artwork, setArtwork] = useState(null);
+  const [artworkFront, setArtworkFront] = useState(null);
+  const [artworkBack, setArtworkBack] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [quotedAmount, setQuotedAmount] = useState(0);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
-  const selectedPaper = catalog?.paperTypes?.find((p) => p.id === paperTypeId);
-  const amount = useMemo(
+  const pricedPapers = useMemo(() => {
+    if (!catalog?.paperTypes?.length) return [];
+    const paperIds = new Set(
+      (catalog.priceRules || [])
+        .filter((r) => Number(r.amount) > 0)
+        .map((r) => r.paperTypeId)
+    );
+    return catalog.paperTypes.filter((p) => paperIds.has(p.id));
+  }, [catalog]);
+
+  const selectedPaper = pricedPapers.find((p) => p.id === paperTypeId)
+    || catalog?.paperTypes?.find((p) => p.id === paperTypeId);
+
+  const pricedSizes = useMemo(
+    () => getPricedSizes(catalog, paperTypeId),
+    [catalog, paperTypeId]
+  );
+
+  const pricedSides = useMemo(
+    () => getPricedPrintingSides(catalog, paperTypeId, sizeId),
+    [catalog, paperTypeId, sizeId]
+  );
+
+  const pricedQuantities = useMemo(
+    () => getPricedQuantities(catalog, paperTypeId, sizeId, printingSideId),
+    [catalog, paperTypeId, sizeId, printingSideId]
+  );
+
+  const localAmount = useMemo(
     () => calcOrderAmount(catalog, paperTypeId, sizeId, printingSideId, quantity),
     [catalog, paperTypeId, sizeId, printingSideId, quantity]
   );
+
+  const amount = quotedAmount > 0 ? quotedAmount : localAmount;
 
   useEffect(() => {
     if (ready && !user) router.replace("/?auth=login");
@@ -38,24 +77,104 @@ export default function OrderPage() {
     catalogApi.get()
       .then((data) => {
         setCatalog(data);
-        if (data.paperTypes?.length) setPaperTypeId(data.paperTypes[0].id);
-        if (data.sizes?.length) setSizeId(data.sizes[0].id);
-        if (data.printingSides?.length) setPrintingSideId(data.printingSides[0].id);
-        if (data.quantities?.length) setQuantity(String(data.quantities[0].value));
+        if (!data.paperTypes?.length) return;
+
+        const papersWithPrices = data.paperTypes.filter((p) =>
+          (data.priceRules || []).some((r) => r.paperTypeId === p.id && Number(r.amount) > 0)
+        );
+        const paperList = papersWithPrices.length ? papersWithPrices : data.paperTypes;
+        const firstPaper = paperList[0].id;
+        setPaperTypeId(firstPaper);
+
+        const sizes = getPricedSizes(data, firstPaper);
+        const firstSize = sizes[0]?.id || "";
+        setSizeId(firstSize);
+
+        const sides = getPricedPrintingSides(data, firstPaper, firstSize);
+        const firstSide = sides[0]?.id || "";
+        setPrintingSideId(firstSide);
+
+        const qtys = getPricedQuantities(data, firstPaper, firstSize, firstSide);
+        if (qtys[0]) setQuantity(String(qtys[0].value));
       })
       .catch((e) => toast.error(e.message));
   }, []);
 
-  const useQuantityDropdown = Boolean(catalog?.quantities?.length);
+  useEffect(() => {
+    if (!paperTypeId || !catalog) return;
+
+    const sizes = getPricedSizes(catalog, paperTypeId);
+    if (!sizes.some((s) => s.id === sizeId)) {
+      const nextSize = sizes[0]?.id || "";
+      setSizeId(nextSize);
+      const sides = getPricedPrintingSides(catalog, paperTypeId, nextSize);
+      const nextSide = sides[0]?.id || "";
+      setPrintingSideId(nextSide);
+      const qtys = getPricedQuantities(catalog, paperTypeId, nextSize, nextSide);
+      setQuantity(qtys[0] ? String(qtys[0].value) : "");
+      return;
+    }
+
+    const sides = getPricedPrintingSides(catalog, paperTypeId, sizeId);
+    if (!sides.some((s) => s.id === printingSideId)) {
+      const nextSide = sides[0]?.id || "";
+      setPrintingSideId(nextSide);
+      const qtys = getPricedQuantities(catalog, paperTypeId, sizeId, nextSide);
+      setQuantity(qtys[0] ? String(qtys[0].value) : "");
+      return;
+    }
+
+    const qtys = getPricedQuantities(catalog, paperTypeId, sizeId, printingSideId);
+    if (qtys.length && !qtys.some((q) => String(q.value) === String(quantity))) {
+      setQuantity(String(qtys[0].value));
+    }
+  }, [paperTypeId, sizeId, printingSideId, catalog]);
+
+  useEffect(() => {
+    const qty = Number(quantity);
+    if (!paperTypeId || !sizeId || !printingSideId || !Number.isFinite(qty) || qty <= 0) {
+      setQuotedAmount(0);
+      return;
+    }
+
+    let cancelled = false;
+    setQuoteLoading(true);
+
+    catalogApi
+      .quote({ paperTypeId, sizeId, printingSideId, quantity: qty })
+      .then((data) => {
+        if (!cancelled) setQuotedAmount(Number(data.amount) || 0);
+      })
+      .catch(() => {
+        if (!cancelled) setQuotedAmount(0);
+      })
+      .finally(() => {
+        if (!cancelled) setQuoteLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paperTypeId, sizeId, printingSideId, quantity]);
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!artwork) { toast.error("Please upload artwork file."); return; }
-    if (!amount) { toast.error("Please select valid options and quantity."); return; }
+    if (!artworkFront) {
+      toast.error("Please upload front side artwork.");
+      return;
+    }
+    if (requiresBackUpload && !artworkBack) {
+      toast.error("Please upload back side artwork.");
+      return;
+    }
+    if (!amount) {
+      toast.error("No price set for this combination. Ask admin to add a rate in Order Catalog.");
+      return;
+    }
 
     const qty = Number(quantity);
     if (!Number.isFinite(qty) || qty <= 0) {
-      toast.error("Enter a valid quantity.");
+      toast.error("Select a valid quantity.");
       return;
     }
     if (selectedPaper && qty > selectedPaper.availableQuantity) {
@@ -65,7 +184,8 @@ export default function OrderPage() {
 
     setSubmitting(true);
     const formData = new FormData();
-    formData.append("artwork", artwork);
+    formData.append("artwork", artworkFront);
+    if (artworkBack) formData.append("artworkBack", artworkBack);
     formData.append("paperTypeId", paperTypeId);
     formData.append("sizeId", sizeId);
     formData.append("printingSideId", printingSideId);
@@ -101,8 +221,10 @@ export default function OrderPage() {
   }
 
   const paperName = selectedPaper?.name || "";
-  const sizeName = catalog?.sizes?.find((s) => s.id === sizeId)?.name || "";
-  const sideName = catalog?.printingSides?.find((s) => s.id === printingSideId)?.name || "";
+  const sizeName = pricedSizes.find((s) => s.id === sizeId)?.name || "";
+  const sideName = pricedSides.find((s) => s.id === printingSideId)?.name || "";
+  const requiresBackUpload = needsBackUpload(sideName);
+  const hasPricedOptions = pricedSizes.length > 0;
 
   return (
     <>
@@ -110,11 +232,17 @@ export default function OrderPage() {
       <main className={ui.page}>
         <div className={ui.pageNarrow}>
           <h1 className={ui.h1}>Place Order — Leaflet / Pamphlet</h1>
-          <p className={ui.muted}>Pick paper, size, printing side, and quantity.</p>
+          <p className={ui.muted}>Pick paper, size, printing side, and quantity — price comes from admin catalog.</p>
 
           {!catalog?.paperTypes?.length && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Catalog not set up yet. Ask admin to add paper types.
+            </p>
+          )}
+
+          {catalog?.paperTypes?.length > 0 && !hasPricedOptions && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              No prices set yet. Admin must save rates in Order Catalog for each combination.
             </p>
           )}
 
@@ -133,7 +261,7 @@ export default function OrderPage() {
             <div className={ui.field}>
               <label className={ui.label}>Paper Type (GSM)</label>
               <div className="flex flex-wrap gap-2">
-                {catalog?.paperTypes?.map((p) => (
+                {(pricedPapers.length ? pricedPapers : catalog?.paperTypes)?.map((p) => (
                   <button
                     key={p.id}
                     type="button"
@@ -152,48 +280,67 @@ export default function OrderPage() {
             <div className={ui.grid2}>
               <div className={ui.field}>
                 <label className={ui.label}>Size</label>
-                <select className={ui.input} value={sizeId} onChange={(e) => setSizeId(e.target.value)}>
-                  {catalog?.sizes?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                <select
+                  className={ui.input}
+                  value={sizeId}
+                  onChange={(e) => setSizeId(e.target.value)}
+                  disabled={!pricedSizes.length}
+                >
+                  {pricedSizes.length === 0 ? (
+                    <option value="">No priced sizes</option>
+                  ) : (
+                    pricedSizes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)
+                  )}
                 </select>
               </div>
               <div className={ui.field}>
                 <label className={ui.label}>Quantity</label>
-                {useQuantityDropdown ? (
-                  <select
-                    className={ui.input}
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    required
-                  >
-                    <option value="">Select quantity</option>
-                    {catalog.quantities.map((q) => (
+                <select
+                  className={ui.input}
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  disabled={!pricedQuantities.length}
+                  required
+                >
+                  {pricedQuantities.length === 0 ? (
+                    <option value="">No priced quantities</option>
+                  ) : (
+                    pricedQuantities.map((q) => (
                       <option key={q.id} value={q.value}>
                         {q.label || Number(q.value).toLocaleString("en-IN")}
                       </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    className={ui.input}
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 1000"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    required
-                  />
-                )}
-              </div>
-              <div className={ui.field}>
-                <label className={ui.label}>Printing Side</label>
-                <select className={ui.input} value={printingSideId} onChange={(e) => setPrintingSideId(e.target.value)}>
-                  {catalog?.printingSides?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    ))
+                  )}
                 </select>
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Upload Artwork (PDF/JPG)</label>
-                <input className={ui.input} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setArtwork(e.target.files?.[0] || null)} required />
+                <label className={ui.label}>Printing Side</label>
+                <select
+                  className={ui.input}
+                  value={printingSideId}
+                  onChange={(e) => setPrintingSideId(e.target.value)}
+                  disabled={!pricedSides.length}
+                >
+                  {pricedSides.length === 0 ? (
+                    <option value="">No priced sides</option>
+                  ) : (
+                    pricedSides.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
+                  )}
+                </select>
               </div>
+              <ArtworkUploadField
+                label="Upload Front Side"
+                file={artworkFront}
+                onChange={setArtworkFront}
+                required
+              />
+              <ArtworkUploadField
+                label="Upload Back Side"
+                hint={requiresBackUpload ? "" : "(optional for single side)"}
+                file={artworkBack}
+                onChange={setArtworkBack}
+                required={requiresBackUpload}
+              />
             </div>
 
             <div className={ui.priceBox}>
@@ -201,11 +348,20 @@ export default function OrderPage() {
                 <span className={`${ui.muted} ${ui.small}`}>{paperName} | {sizeName} | {sideName}</span>
                 <div>Quantity: <strong>{quantity || "—"}</strong></div>
                 <div>Total Price</div>
+                {!amount && !quoteLoading && (
+                  <p className={`${ui.small} mt-1 text-amber-700`}>No rate saved for this combination.</p>
+                )}
               </div>
-              <strong>{amount ? formatRupees(amount) : "—"}</strong>
+              <strong>
+                {quoteLoading ? "..." : amount ? formatRupees(amount) : "—"}
+              </strong>
             </div>
 
-            <button className={`${btnClass("primary")} w-full sm:w-auto`} type="submit" disabled={submitting || !catalog?.paperTypes?.length}>
+            <button
+              className={`${btnClass("primary")} w-full sm:w-auto`}
+              type="submit"
+              disabled={submitting || !catalog?.paperTypes?.length || !amount}
+            >
               {submitting ? "Submitting..." : (
                 <>
                   <span className="sm:hidden">Submit Order{amount ? ` (${formatRupees(amount)})` : ""}</span>

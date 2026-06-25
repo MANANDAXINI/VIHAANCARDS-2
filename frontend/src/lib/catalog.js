@@ -1,25 +1,69 @@
-export function calcOrderAmount(catalog, paperTypeId, sizeId, printingSideId, quantity) {
+export function findPriceRule(catalog, paperTypeId, sizeId, printingSideId, quantity) {
   const qty = Number(quantity);
-  if (!catalog || !Number.isFinite(qty) || qty <= 0) return 0;
-
-  const rule = catalog.priceRules?.find(
+  if (!catalog?.priceRules || !Number.isFinite(qty) || qty <= 0) return null;
+  return catalog.priceRules.find(
     (r) =>
       r.paperTypeId === paperTypeId &&
       r.sizeId === sizeId &&
       r.printingSideId === printingSideId &&
-      Number(r.quantity) === qty
+      Number(r.quantity) === qty &&
+      Number(r.amount) > 0
+  );
+}
+
+export function calcOrderAmount(catalog, paperTypeId, sizeId, printingSideId, quantity) {
+  const rule = findPriceRule(catalog, paperTypeId, sizeId, printingSideId, quantity);
+  if (rule) return Math.round(Number(rule.amount));
+  return 0;
+}
+
+export function getPricedSizes(catalog, paperTypeId) {
+  if (!catalog?.sizes?.length || !paperTypeId) return [];
+  const sizeIds = new Set(
+    (catalog.priceRules || [])
+      .filter((r) => r.paperTypeId === paperTypeId && Number(r.amount) > 0)
+      .map((r) => r.sizeId)
+  );
+  return catalog.sizes.filter((s) => sizeIds.has(s.id));
+}
+
+export function getPricedPrintingSides(catalog, paperTypeId, sizeId) {
+  if (!catalog?.printingSides?.length || !paperTypeId || !sizeId) return [];
+  const sideIds = new Set(
+    (catalog.priceRules || [])
+      .filter(
+        (r) =>
+          r.paperTypeId === paperTypeId &&
+          r.sizeId === sizeId &&
+          Number(r.amount) > 0
+      )
+      .map((r) => r.printingSideId)
+  );
+  return catalog.printingSides.filter((s) => sideIds.has(s.id));
+}
+
+export function getPricedQuantities(catalog, paperTypeId, sizeId, printingSideId) {
+  const qtyValues = new Set(
+    (catalog?.priceRules || [])
+      .filter(
+        (r) =>
+          r.paperTypeId === paperTypeId &&
+          r.sizeId === sizeId &&
+          r.printingSideId === printingSideId &&
+          Number(r.amount) > 0
+      )
+      .map((r) => Number(r.quantity))
   );
 
-  if (rule && Number(rule.amount) > 0) {
-    return Math.round(Number(rule.amount));
+  if (catalog?.quantities?.length) {
+    return catalog.quantities.filter((q) => qtyValues.has(Number(q.value)));
   }
 
-  const paperType = catalog.paperTypes?.find((p) => p.id === paperTypeId);
-  const legacyRule = catalog.priceRules?.find(
-    (r) => r.paperTypeId === paperTypeId && r.sizeId === sizeId && r.printingSideId === printingSideId
-  );
-  const rate = legacyRule?.ratePerThousand || paperType?.ratePerThousand || 0;
-  return rate > 0 ? Math.round((qty / 1000) * rate) : 0;
+  return [...qtyValues].sort((a, b) => a - b).map((value) => ({
+    id: `qty-${value}`,
+    value,
+    label: String(value),
+  }));
 }
 
 export function needsBackUpload(sideName) {

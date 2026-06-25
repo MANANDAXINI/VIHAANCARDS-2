@@ -11,26 +11,44 @@ import AdminNav from "@/components/AdminNav";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import BusinessPickList from "@/components/BusinessPickList";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
+import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
+import AdminRatesSection from "@/components/AdminRatesSection";
 import {
   AdminQrSection,
   formatPhone,
 } from "@/components/AdminCatalogPanel";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { useLogout } from "@/hooks/useLogout";
-import { adminApi, API_URL, formatRupees } from "@/lib/api";
+import { adminApi, formatRupees } from "@/lib/api";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { isAdmin, roleLabel } from "@/lib/redirect";
 import { toast } from "@/lib/toast";
 import {
+  formatOrderDescription,
+} from "@/lib/order-display";
+import {
   accountStatusClass,
   btnClass,
-  formatOrderStatus,
   isOrderPending,
-  orderStatusClass,
   pendingRowClass,
   pendingSectionTitleClass,
+  tabClass,
   ui,
 } from "@/lib/ui";
+
+function walletRequestTypeLabel(type) {
+  if (type === "ORDER_PAYMENT") return "Order Payment";
+  if (type === "OUTSTANDING_PAYMENT") return "Outstanding Payment";
+  return "Wallet Top-up";
+}
+
+function walletRequestSummary(req) {
+  if (req.type === "ORDER_PAYMENT" && req.pendingOrderData) {
+    const d = req.pendingOrderData;
+    return `${d.product || "LEAFLET / PAMPLET"} - ${formatRupees(d.amount || req.amount)}`;
+  }
+  return walletRequestTypeLabel(req.type);
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -54,8 +72,12 @@ export default function AdminPage() {
   const [accountsPage, setAccountsPage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersSubTab, setOrdersSubTab] = useState("wallet");
+  const [walletRequests, setWalletRequests] = useState([]);
+  const [walletSearch, setWalletSearch] = useState("");
+  const [walletPage, setWalletPage] = useState(1);
+  const [walletActionId, setWalletActionId] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
-  const [orderActionId, setOrderActionId] = useState(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -66,6 +88,7 @@ export default function AdminPage() {
   useAdminTableState(accountsSearch, setAccountsPage);
   useAdminTableState(paymentsSearch, setPaymentsPage);
   useAdminTableState(ordersSearch, setOrdersPage);
+  useAdminTableState(walletSearch, setWalletPage);
 
   useEffect(() => {
     if (isAdmin(user)) load();
@@ -81,6 +104,7 @@ export default function AdminPage() {
       ]);
       setPending(p.accounts);
       setAccounts(a.accounts);
+      setWalletRequests(w.requests);
       setPayments(w.requests.filter((r) => r.status === "PENDING"));
       setOrders(o.orders);
     } catch (error) {
@@ -146,6 +170,37 @@ export default function AdminPage() {
     }
   }
 
+  async function approveWalletRequest(id) {
+    if (walletActionId) return;
+    setWalletActionId(id);
+    try {
+      await adminApi.approveWallet(id);
+      toast.success("Payment verified. Order moved to job process.");
+      setActiveTab("orders");
+      setOrdersSubTab("processing");
+      await load();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setWalletActionId(null);
+    }
+  }
+
+  async function cancelWalletRequest(id) {
+    if (walletActionId) return;
+    if (!window.confirm("Cancel this payment request?")) return;
+    setWalletActionId(id);
+    try {
+      await adminApi.rejectWallet(id);
+      toast.success("Payment request cancelled.");
+      await load();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setWalletActionId(null);
+    }
+  }
+
   async function approveAccount(accountId) {
     if (approvingId) return;
     setApprovingId(accountId);
@@ -157,43 +212,6 @@ export default function AdminPage() {
       toast.error(error.message || "Could not approve account.");
     } finally {
       setApprovingId(null);
-    }
-  }
-
-  async function dispatchOrder(orderId) {
-    const lr = prompt("Enter LR number");
-    if (!lr?.trim()) return;
-    if (orderActionId) return;
-
-    setOrderActionId(`dispatch-${orderId}`);
-    try {
-      await adminApi.dispatch(orderId, {
-        lrNumber: lr.trim(),
-        transportDetails: "",
-        dispatchDate: new Date().toISOString().slice(0, 10),
-      }, { silent: true });
-      toast.success("Order dispatched. Click Delivered when the customer receives it.");
-      await load();
-    } catch (error) {
-      toast.error(error.message || "Could not dispatch order.");
-    } finally {
-      setOrderActionId(null);
-    }
-  }
-
-  async function deliverOrder(orderId) {
-    if (orderActionId) return;
-    if (!window.confirm("Mark this order as delivered?")) return;
-
-    setOrderActionId(`deliver-${orderId}`);
-    try {
-      await adminApi.deliver(orderId, { silent: true });
-      toast.success("Order marked as delivered.");
-      await load();
-    } catch (error) {
-      toast.error(error.message || "Could not mark order as delivered.");
-    } finally {
-      setOrderActionId(null);
     }
   }
 
@@ -277,7 +295,10 @@ export default function AdminPage() {
   const paymentsFiltered = filterItems(payments, paymentsSearch, ["account.business", "amount", "type"]);
   const paymentsPaged = paginateItems(paymentsFiltered, paymentsPage);
 
-  const ordersFiltered = filterItems(orders, ordersSearch, ["orderNumber", "business", "customerName", "paperGsm", "size", "quantity", "status", "amount"]);
+  const walletFiltered = filterItems(walletRequests, walletSearch, ["account.business", "account.phone", "amount", "type", "status"]);
+  const walletPaged = paginateItems(walletFiltered, walletPage);
+
+  const ordersFiltered = filterItems(orders, ordersSearch, ["orderNumber", "business", "customerName", "paperGsm", "size", "quantity", "status", "amount", "product"]);
   const ordersPaged = paginateItems(ordersFiltered, ordersPage);
 
   return (
@@ -435,12 +456,13 @@ export default function AdminPage() {
           )}
 
           {activeTab === "catalog" && <AdminOrderCatalogSection />}
+          {activeTab === "rates" && <AdminRatesSection />}
 
           {activeTab === "payments" && (
             <section className={`${ui.adminCard} ${payments.length > 0 ? "border-red-200" : ""}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className={pendingSectionTitleClass(payments.length > 0)}>
-                  Pending Payments ({payments.length})
+                  Wallet Top-up Requests ({payments.length} pending)
                 </h3>
                 <div className="w-full sm:w-64">
                   <AdminSearchBar value={paymentsSearch} onChange={setPaymentsSearch} placeholder="Search payments..." />
@@ -448,107 +470,57 @@ export default function AdminPage() {
               </div>
               <div className={ui.tableWrap}>
                 <table className={ui.table}>
-                  <thead><tr><th className={ui.th}>Business</th><th className={ui.th}>Amount</th><th className={ui.th}></th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th className={ui.th}>Customer</th>
+                      <th className={ui.th}>Mobile</th>
+                      <th className={ui.th}>Amount</th>
+                      <th className={ui.th}>Status</th>
+                      <th className={ui.th}>Action</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {paymentsPaged.items.length === 0 ? <tr><td className={ui.td} colSpan="3">No pending payments</td></tr> : paymentsPaged.items.map((p) => (
-                      <tr key={p.id} className={pendingRowClass(true)}>
-                        <td className={ui.td}>{p.account?.business}</td>
-                        <td className={`${ui.td} font-semibold text-red-600`}>{formatRupees(p.amount)}</td>
-                        <td className={ui.td}>
-                          <div className="flex flex-wrap gap-2">
-                            <button className={btnClass("primary", true)} type="button" onClick={async () => {
-                              try {
-                                await adminApi.approveWallet(p.id);
-                                toast.success("Payment approved.");
-                                load();
-                              } catch (error) {
-                                toast.error(error.message);
-                              }
-                            }}>Approve</button>
-                            <button className={btnClass("ghost", true)} type="button" onClick={async () => {
-                              try {
-                                await adminApi.rejectWallet(p.id);
-                                toast.success("Payment rejected.");
-                                load();
-                              } catch (error) {
-                                toast.error(error.message);
-                              }
-                            }}>Reject</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <AdminPagination page={paymentsPaged.page} totalPages={paymentsPaged.totalPages} total={paymentsPaged.total} onPageChange={setPaymentsPage} />
-            </section>
-          )}
-
-          {activeTab === "orders" && (
-            <section className={`${ui.adminCard} ${navCounts.orders > 0 ? "border-red-200" : ""}`}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className={pendingSectionTitleClass(navCounts.orders > 0)}>
-                  Orders ({orders.length})
-                  {navCounts.orders > 0 && (
-                    <span className="ml-2 text-sm font-normal">— {navCounts.orders} remaining</span>
-                  )}
-                </h3>
-                <div className="w-full sm:w-64">
-                  <AdminSearchBar value={ordersSearch} onChange={setOrdersSearch} placeholder="Search orders..." />
-                </div>
-              </div>
-              <div className={ui.tableWrap}>
-                <table className={ui.table}>
-                  <thead><tr><th className={ui.th}>Order #</th><th className={ui.th}>Customer</th><th className={ui.th}>Paper / Size</th><th className={ui.th}>Qty</th><th className={ui.th}>Amount</th><th className={ui.th}>Status</th><th className={ui.th}>File</th><th className={ui.th}></th></tr></thead>
-                  <tbody>
-                    {ordersPaged.items.length === 0 ? <tr><td className={ui.td} colSpan="8">No orders</td></tr> : ordersPaged.items.map((o) => {
-                      const status = String(o.status || "").toUpperCase();
-                      const canDispatch = status !== "DISPATCHED" && status !== "COMPLETED";
-                      const canDeliver = status === "DISPATCHED";
-                      const isPending = isOrderPending(o.status);
-                      const isDispatching = orderActionId === `dispatch-${o.id}`;
-                      const isDelivering = orderActionId === `deliver-${o.id}`;
-
+                    {paymentsPaged.items.length === 0 ? (
+                      <tr><td className={ui.td} colSpan="5">No pending payments</td></tr>
+                    ) : paymentsPaged.items.map((p) => {
+                      const isPending = p.status === "PENDING";
+                      const busy = walletActionId === p.id;
                       return (
-                        <tr key={o.id} className={pendingRowClass(isPending)}>
-                          <td className={ui.td}>{o.orderNumber || "—"}</td>
+                        <tr key={p.id} className={pendingRowClass(isPending)}>
+                          <td className={ui.td}>{p.account?.business || "—"}</td>
+                          <td className={ui.td}>{formatPhone(p.account?.phone)}</td>
+                          <td className={`${ui.td} font-semibold`}>{formatRupees(p.amount)}</td>
                           <td className={ui.td}>
-                            <strong className="block">{o.customerName || o.business}</strong>
-                            <span className={`${ui.small} ${ui.muted}`}>{o.business}</span>
+                            <strong className={isPending ? "text-slate-900" : "text-emerald-700"}>
+                              {isPending ? "Pending" : "Approved"}
+                            </strong>
+                            <span className={`mt-1 block ${ui.small} ${ui.muted}`}>
+                              {walletRequestTypeLabel(p.type)}
+                            </span>
+                            <span className={`block ${ui.small} ${ui.muted}`}>{walletRequestSummary(p)}</span>
                           </td>
-                          <td className={ui.td}>{o.paperGsm}, {o.size}</td>
-                          <td className={ui.td}>{o.quantity || "—"}</td>
-                          <td className={ui.td}>{formatRupees(o.amount)}</td>
                           <td className={ui.td}>
-                            <span className={orderStatusClass(o.status)}>{formatOrderStatus(o.status)}</span>
-                            {o.lrNumber ? (
-                              <span className={`mt-1 block ${ui.small} ${ui.muted}`}>LR: {o.lrNumber}</span>
-                            ) : null}
-                          </td>
-                          <td className={ui.td}>{o.artworkUrl ? <a href={`${API_URL}${o.artworkUrl}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Download</a> : "—"}</td>
-                          <td className={ui.td}>
-                            {status === "COMPLETED" ? (
-                              <span className={ui.muted}>Done</span>
-                            ) : (
-                              <div className="flex min-w-[11rem] flex-col gap-2 sm:min-w-0 sm:flex-row sm:flex-wrap">
+                            {isPending ? (
+                              <div className="flex flex-wrap gap-2">
                                 <button
-                                  className={btnClass(canDispatch ? "primary" : "ghost", true)}
+                                  className={btnClass("primary", true)}
                                   type="button"
-                                  disabled={!canDispatch || isDispatching || isDelivering}
-                                  onClick={() => dispatchOrder(o.id)}
+                                  disabled={busy}
+                                  onClick={() => approveWalletRequest(p.id)}
                                 >
-                                  {isDispatching ? "Dispatching..." : "Dispatch"}
+                                  {busy ? "..." : "Approve"}
                                 </button>
                                 <button
-                                  className={btnClass(canDeliver ? "secondary" : "ghost", true)}
+                                  className={`${btnClass("ghost", true)} !text-red-600`}
                                   type="button"
-                                  disabled={!canDeliver || isDispatching || isDelivering}
-                                  onClick={() => deliverOrder(o.id)}
+                                  disabled={busy}
+                                  onClick={() => cancelWalletRequest(p.id)}
                                 >
-                                  {isDelivering ? "Saving..." : "Delivered"}
+                                  Cancel
                                 </button>
                               </div>
+                            ) : (
+                              <span className="font-semibold text-emerald-700">Approved</span>
                             )}
                           </td>
                         </tr>
@@ -557,8 +529,174 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
-              <AdminPagination page={ordersPaged.page} totalPages={ordersPaged.totalPages} total={ordersPaged.total} onPageChange={setOrdersPage} />
+              <AdminPagination page={paymentsPaged.page} totalPages={paymentsPaged.totalPages} total={paymentsPaged.total} onPageChange={setPaymentsPage} />
             </section>
+          )}
+
+          {activeTab === "orders" && (
+            <div className="grid gap-4">
+              <div>
+                <h2 className={ui.adminH1}>Orders</h2>
+                <p className={ui.muted}>All customer orders, artwork files, and payment status appear here.</p>
+              </div>
+
+              <div className={`${ui.navTabsScroll} w-full`}>
+                {[
+                  { id: "wallet", label: "Account / Wallet / Credit" },
+                  { id: "processing", label: "Order Processing" },
+                  { id: "ledger", label: "Customer Ledger" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={tabClass(ordersSubTab === tab.id)}
+                    onClick={() => setOrdersSubTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {ordersSubTab === "wallet" && (
+                <>
+                  <section className={`${ui.adminCard} ${pending.length > 0 ? "border-red-200" : ""}`}>
+                    <h3 className={pendingSectionTitleClass(pending.length > 0)}>Account Approval Requests</h3>
+                    <div className={ui.tableWrap}>
+                      <table className={ui.table}>
+                        <thead>
+                          <tr>
+                            <th className={ui.th}>Name</th>
+                            <th className={ui.th}>Business</th>
+                            <th className={ui.th}>Mobile</th>
+                            <th className={ui.th}>Email</th>
+                            <th className={ui.th}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pending.length === 0 ? (
+                            <tr><td className={ui.td} colSpan="5">No pending requests.</td></tr>
+                          ) : pending.map((a) => (
+                            <tr key={a.id} className={pendingRowClass(true)}>
+                              <td className={ui.td}>{a.name}</td>
+                              <td className={ui.td}>{a.business}</td>
+                              <td className={ui.td}>{formatPhone(a.phone)}</td>
+                              <td className={ui.td}>{a.email || "—"}</td>
+                              <td className={ui.td}>
+                                <button
+                                  className={btnClass("primary", true)}
+                                  type="button"
+                                  disabled={approvingId === a.id}
+                                  onClick={() => approveAccount(a.id)}
+                                >
+                                  {approvingId === a.id ? "..." : "Approve"}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section className={`${ui.adminCard} ${payments.length > 0 ? "border-red-200" : ""}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h3 className={pendingSectionTitleClass(payments.length > 0)}>Wallet Top-up Requests</h3>
+                      <div className="w-full sm:w-64">
+                        <AdminSearchBar value={walletSearch} onChange={setWalletSearch} placeholder="Search wallet requests..." />
+                      </div>
+                    </div>
+                    <div className={ui.tableWrap}>
+                      <table className={ui.table}>
+                        <thead>
+                          <tr>
+                            <th className={ui.th}>Customer</th>
+                            <th className={ui.th}>Mobile</th>
+                            <th className={ui.th}>Amount</th>
+                            <th className={ui.th}>Status</th>
+                            <th className={ui.th}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {walletPaged.items.length === 0 ? (
+                            <tr><td className={ui.td} colSpan="5">No wallet requests.</td></tr>
+                          ) : walletPaged.items.map((p) => {
+                            const isPending = p.status === "PENDING";
+                            const busy = walletActionId === p.id;
+                            return (
+                              <tr key={p.id} className={pendingRowClass(isPending)}>
+                                <td className={ui.td}>{p.account?.business || "—"}</td>
+                                <td className={ui.td}>{formatPhone(p.account?.phone)}</td>
+                                <td className={`${ui.td} font-semibold`}>{formatRupees(p.amount)}</td>
+                                <td className={ui.td}>
+                                  <strong className={isPending ? "text-slate-900" : "text-emerald-700"}>
+                                    {isPending ? "Pending" : p.status === "REJECTED" ? "Cancelled" : "Approved"}
+                                  </strong>
+                                  <span className={`mt-1 block ${ui.small} ${ui.muted}`}>
+                                    {walletRequestTypeLabel(p.type)}
+                                  </span>
+                                  <span className={`block ${ui.small} ${ui.muted}`}>{walletRequestSummary(p)}</span>
+                                </td>
+                                <td className={ui.td}>
+                                  {isPending ? (
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        className={btnClass("primary", true)}
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => approveWalletRequest(p.id)}
+                                      >
+                                        {busy ? "..." : "Approve"}
+                                      </button>
+                                      <button
+                                        className={`${btnClass("ghost", true)} !text-red-600`}
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => cancelWalletRequest(p.id)}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="font-semibold text-emerald-700">
+                                      {p.status === "REJECTED" ? "Cancelled" : "Approved"}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <AdminPagination page={walletPaged.page} totalPages={walletPaged.totalPages} total={walletPaged.total} onPageChange={setWalletPage} />
+                  </section>
+                </>
+              )}
+
+              {ordersSubTab === "processing" && (
+                <AdminOrderProcessingSection
+                  orders={orders}
+                  ordersSearch={ordersSearch}
+                  onOrdersSearchChange={setOrdersSearch}
+                  ordersPaged={ordersPaged}
+                  onOrdersPageChange={setOrdersPage}
+                  onRefresh={load}
+                  pendingCount={navCounts.orders}
+                />
+              )}
+
+              {ordersSubTab === "ledger" && (
+                <section className={ui.adminCard}>
+                  <h3 className={ui.adminH3}>Customer Ledger</h3>
+                  <p className={ui.muted}>
+                    View day-book entries and customer payment history from the Day Book tab, or open a customer&apos;s Order History page from their account.
+                  </p>
+                  <button className={btnClass("primary")} type="button" onClick={() => setActiveTab("day-book")}>
+                    Open Day Book
+                  </button>
+                </section>
+              )}
+            </div>
           )}
 
           {activeTab === "qr" && <AdminQrSection />}

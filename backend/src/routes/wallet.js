@@ -8,7 +8,7 @@ router.get("/ledger", authCustomer, async (req, res) => {
   try {
     const entries = await prisma.ledgerEntry.findMany({
       where: { accountId: req.account.id },
-      orderBy: { entryDate: "desc" },
+      orderBy: { entryDate: "asc" },
     });
 
     const orders = await prisma.order.findMany({
@@ -16,10 +16,20 @@ router.get("/ledger", authCustomer, async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
+    const pendingPayments = await prisma.walletRequest.findMany({
+      where: {
+        accountId: req.account.id,
+        type: "ORDER_PAYMENT",
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
     res.json({
       account: publicAccount(req.account),
       ledgerEntries: entries,
       orders: orders.map(publicOrder),
+      pendingPayments,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

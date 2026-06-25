@@ -50,19 +50,18 @@ async function seedCatalog() {
 
   const seen = new Set();
   for (const row of rateRows) {
-    const key = [normalize(row.paperGsm), normalize(row.size), normalize(row.printingSide)].join("|");
+    const qty = Number(row.quantity) || 1000;
+    const key = [normalize(row.paperGsm), normalize(row.size), normalize(row.printingSide), qty].join("|");
     if (seen.has(key)) continue;
     seen.add(key);
-
-    const qty = Number(row.quantity) || 1000;
-    const ratePerThousand = Math.round(row.rate / (qty / 1000));
 
     await prisma.priceRule.create({
       data: {
         paperTypeId: paperMap[normalize(row.paperGsm)],
         sizeId: sizeMap[normalize(row.size)],
         printingSideId: sideMap[normalize(row.printingSide)],
-        ratePerThousand,
+        quantity: qty,
+        amount: Number(row.rate) || 0,
       },
     });
   }

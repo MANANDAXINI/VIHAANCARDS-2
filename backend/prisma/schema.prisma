@@ -205,18 +205,20 @@ model QuantityOption {
 }
 
 model PriceRule {
-  id             String             @id @default(cuid())
-  paperTypeId    String
-  paperType      PaperType          @relation(fields: [paperTypeId], references: [id], onDelete: Cascade)
-  sizeId         String
-  size           PaperSize          @relation(fields: [sizeId], references: [id], onDelete: Cascade)
-  printingSideId String
-  printingSide   PrintingSideOption @relation(fields: [printingSideId], references: [id], onDelete: Cascade)
-  ratePerThousand Float             @default(0)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id              String             @id @default(cuid())
+  paperTypeId     String
+  paperType       PaperType          @relation(fields: [paperTypeId], references: [id], onDelete: Cascade)
+  sizeId          String
+  size            PaperSize          @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  printingSideId  String
+  printingSide    PrintingSideOption @relation(fields: [printingSideId], references: [id], onDelete: Cascade)
+  quantity        Int                @default(1000)
+  amount          Float              @default(0)
+  ratePerThousand Float              @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  @@unique([paperTypeId, sizeId, printingSideId])
+  @@unique([paperTypeId, sizeId, printingSideId, quantity])
 }
 
 model PaymentQr {

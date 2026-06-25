@@ -177,22 +177,45 @@ router.get("/price-rules", authAdmin, async (_req, res) => {
 });
 
 router.post("/price-rules", authAdmin, async (req, res) => {
-  const { paperTypeId, sizeId, printingSideId, ratePerThousand } = req.body;
-  const item = await prisma.priceRule.create({
-    data: {
+  const { paperTypeId, sizeId, printingSideId, quantity, amount } = req.body;
+  const qty = Number(quantity);
+  const total = Number(amount);
+  if (!paperTypeId || !sizeId || !printingSideId || !Number.isFinite(qty) || qty <= 0) {
+    return res.status(400).json({ error: "Paper, size, side, and quantity are required." });
+  }
+  if (!Number.isFinite(total) || total <= 0) {
+    return res.status(400).json({ error: "Valid total amount is required." });
+  }
+
+  const item = await prisma.priceRule.upsert({
+    where: {
+      paperTypeId_sizeId_printingSideId_quantity: {
+        paperTypeId,
+        sizeId,
+        printingSideId,
+        quantity: qty,
+      },
+    },
+    update: { amount: total },
+    create: {
       paperTypeId,
       sizeId,
       printingSideId,
-      ratePerThousand: Number(ratePerThousand) || 0,
+      quantity: qty,
+      amount: total,
     },
   });
   res.status(201).json({ item });
 });
 
 router.put("/price-rules/:id", authAdmin, async (req, res) => {
+  const data = {};
+  if (req.body.amount !== undefined) data.amount = Number(req.body.amount) || 0;
+  if (req.body.quantity !== undefined) data.quantity = Number(req.body.quantity) || 0;
+  if (req.body.ratePerThousand !== undefined) data.ratePerThousand = Number(req.body.ratePerThousand) || 0;
   const item = await prisma.priceRule.update({
     where: { id: req.params.id },
-    data: { ratePerThousand: Number(req.body.ratePerThousand) || 0 },
+    data,
   });
   res.json({ item });
 });

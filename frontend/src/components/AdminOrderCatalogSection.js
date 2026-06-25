@@ -88,11 +88,11 @@ export default function AdminOrderCatalogSection() {
   const [printingSideId, setPrintingSideId] = useState("");
   const [quantityId, setQuantityId] = useState("");
 
-  const [paperForm, setPaperForm] = useState({ name: "", availableQuantity: "", ratePerThousand: "" });
+  const [paperForm, setPaperForm] = useState({ name: "", availableQuantity: "" });
   const [sizeDraft, setSizeDraft] = useState("");
   const [sideDraft, setSideDraft] = useState("");
   const [qtyDraft, setQtyDraft] = useState("");
-  const [ruleRate, setRuleRate] = useState("");
+  const [comboAmount, setComboAmount] = useState("");
 
   const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -113,7 +113,11 @@ export default function AdminOrderCatalogSection() {
   );
 
   const activeRule = priceRules.find(
-    (r) => r.paperTypeId === paperTypeId && r.sizeId === sizeId && r.printingSideId === printingSideId
+    (r) =>
+      r.paperTypeId === paperTypeId &&
+      r.sizeId === sizeId &&
+      r.printingSideId === printingSideId &&
+      Number(r.quantity) === Number(selectedQty?.value)
   );
 
   async function loadQuantitiesSafe() {
@@ -142,9 +146,6 @@ export default function AdminOrderCatalogSection() {
     setPrintingSides(ps.items);
     setQuantities(q);
     setPriceRules(pr.items);
-    if (q.length === 0) {
-      toast.error("No quantity options yet. Redeploy backend on Render if Add Quantity fails.");
-    }
     return { paperTypes: p.items, sizes: s.items, printingSides: ps.items, quantities: q };
   }
 
@@ -164,39 +165,57 @@ export default function AdminOrderCatalogSection() {
       setPaperForm({
         name: selectedPaper.name,
         availableQuantity: String(selectedPaper.availableQuantity ?? ""),
-        ratePerThousand: String(selectedPaper.ratePerThousand ?? ""),
       });
     }
-  }, [selectedPaper?.id, selectedPaper?.name, selectedPaper?.availableQuantity, selectedPaper?.ratePerThousand]);
+  }, [selectedPaper?.id, selectedPaper?.name, selectedPaper?.availableQuantity]);
 
   useEffect(() => {
-    if (activeRule) {
-      setRuleRate(String(activeRule.ratePerThousand ?? ""));
+    if (activeRule && Number(activeRule.amount) > 0) {
+      setComboAmount(String(activeRule.amount));
     } else {
-      setRuleRate(selectedPaper ? String(selectedPaper.ratePerThousand ?? "") : "");
+      setComboAmount("");
     }
-  }, [activeRule?.id, activeRule?.ratePerThousand, paperTypeId, sizeId, printingSideId, selectedPaper?.ratePerThousand]);
+  }, [activeRule?.id, activeRule?.amount, paperTypeId, sizeId, printingSideId, quantityId]);
 
-  async function savePaper() {
+  async function addPaper() {
     if (!paperForm.name.trim()) {
       toast.error("Paper name is required.");
       return;
     }
     setSavingPaper(true);
     try {
-      const body = {
+      const created = await adminCatalogApi.createPaperType({
         name: paperForm.name.trim(),
         availableQuantity: Number(paperForm.availableQuantity) || 0,
-        ratePerThousand: Number(paperForm.ratePerThousand) || 0,
-      };
-      if (paperTypeId && selectedPaper) {
-        await adminCatalogApi.updatePaperType(paperTypeId, body);
-      } else {
-        const created = await adminCatalogApi.createPaperType(body);
-        setPaperTypeId(created.item.id);
-      }
+        ratePerThousand: 0,
+      });
+      setPaperTypeId(created.item.id);
       await loadAll();
-      toast.success("Paper saved.");
+      toast.success("Paper added.");
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSavingPaper(false);
+    }
+  }
+
+  async function updatePaper() {
+    if (!paperTypeId) {
+      toast.error("Select a paper from the list to update.");
+      return;
+    }
+    if (!paperForm.name.trim()) {
+      toast.error("Paper name is required.");
+      return;
+    }
+    setSavingPaper(true);
+    try {
+      await adminCatalogApi.updatePaperType(paperTypeId, {
+        name: paperForm.name.trim(),
+        availableQuantity: Number(paperForm.availableQuantity) || 0,
+      });
+      await loadAll();
+      toast.success("Paper updated.");
     } catch (e) {
       toast.error(e.message);
     } finally {
@@ -205,12 +224,16 @@ export default function AdminOrderCatalogSection() {
   }
 
   async function deletePaper() {
-    if (!paperTypeId) return;
+    if (!paperTypeId) {
+      toast.error("Select a paper to delete.");
+      return;
+    }
     if (!window.confirm(`Delete paper "${selectedPaper?.name}"?`)) return;
     try {
       await adminCatalogApi.deletePaperType(paperTypeId);
       const data = await loadAll();
       setPaperTypeId(data.paperTypes[0]?.id || "");
+      setPaperForm({ name: "", availableQuantity: "" });
       setHistoryData(null);
       toast.success("Paper deleted.");
     } catch (e) {
@@ -233,23 +256,24 @@ export default function AdminOrderCatalogSection() {
   }
 
   async function savePriceRule() {
-    if (!paperTypeId || !sizeId || !printingSideId) {
-      toast.error("Select paper, size, and printing side first.");
+    if (!paperTypeId || !sizeId || !printingSideId || !selectedQty) {
+      toast.error("Select paper, size, quantity, and printing side first.");
+      return;
+    }
+    const amount = Number(comboAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid total amount.");
       return;
     }
     setSavingRule(true);
     try {
-      const ratePerThousand = Number(ruleRate) || 0;
-      if (activeRule) {
-        await adminCatalogApi.updatePriceRule(activeRule.id, { ratePerThousand });
-      } else {
-        await adminCatalogApi.createPriceRule({
-          paperTypeId,
-          sizeId,
-          printingSideId,
-          ratePerThousand,
-        });
-      }
+      await adminCatalogApi.createPriceRule({
+        paperTypeId,
+        sizeId,
+        printingSideId,
+        quantity: selectedQty.value,
+        amount,
+      });
       const pr = await adminCatalogApi.priceRules();
       setPriceRules(pr.items);
       toast.success("Rate saved for this combination.");
@@ -260,18 +284,12 @@ export default function AdminOrderCatalogSection() {
     }
   }
 
-  function startNewPaper() {
-    setPaperTypeId("");
-    setPaperForm({ name: "", availableQuantity: "", ratePerThousand: "" });
-    setHistoryData(null);
-  }
-
   return (
     <div className="grid gap-4">
       <div className={ui.orderLayout}>
         <aside className={ui.paperSidebar}>
           <h2 className={ui.paperSidebarTitle}>Paper GSM</h2>
-          <nav className="grid max-h-[28rem] gap-0.5 overflow-y-auto" aria-label="Paper GSM">
+          <nav className="grid max-h-[16rem] gap-0.5 overflow-y-auto" aria-label="Paper GSM">
             {paperTypes.map((p) => (
               <button
                 key={p.id}
@@ -287,18 +305,8 @@ export default function AdminOrderCatalogSection() {
               </button>
             ))}
           </nav>
-          <button type="button" className={`${btnClass("secondary", true)} mt-3 w-full`} onClick={startNewPaper}>
-            + Add Paper
-          </button>
-        </aside>
 
-        <div className={ui.orderFormBody}>
-          <h2 className={ui.h3}>Catalog Settings</h2>
-          <p className={`${ui.muted} ${ui.small}`}>
-            Manage paper stock, dropdown options (size, quantity, printing side), and rates — same layout customers see on orders.
-          </p>
-
-          <div className={ui.grid2}>
+          <div className="mt-3 grid gap-2 border-t border-slate-200 pt-3">
             <div className={ui.field}>
               <label className={ui.label}>Paper Name</label>
               <input
@@ -318,36 +326,36 @@ export default function AdminOrderCatalogSection() {
                 onChange={(e) => setPaperForm((f) => ({ ...f, availableQuantity: e.target.value }))}
               />
             </div>
-          </div>
-
-          <div className={ui.field}>
-            <label className={ui.label}>Base Rate per 1000 (Rs.)</label>
-            <input
-              className={ui.input}
-              type="number"
-              min="0"
-              value={paperForm.ratePerThousand}
-              onChange={(e) => setPaperForm((f) => ({ ...f, ratePerThousand: e.target.value }))}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={btnClass("primary")} disabled={savingPaper} onClick={savePaper}>
-              {savingPaper ? "Saving..." : paperTypeId ? "Save Paper" : "Create Paper"}
-            </button>
-            {paperTypeId && (
-              <>
-                <button type="button" className={btnClass("ghost")} onClick={loadHistory} disabled={historyLoading}>
+            <div className="grid gap-2">
+              <button type="button" className={btnClass("secondary", true)} disabled={savingPaper} onClick={addPaper}>
+                {savingPaper ? "Saving..." : "Add Paper"}
+              </button>
+              <button type="button" className={btnClass("primary", true)} disabled={savingPaper || !paperTypeId} onClick={updatePaper}>
+                Update Paper
+              </button>
+              <button type="button" className={btnClass("ghost", true)} disabled={!paperTypeId} onClick={deletePaper}>
+                Delete Paper
+              </button>
+              {paperTypeId && (
+                <button type="button" className={btnClass("ghost", true)} onClick={loadHistory} disabled={historyLoading}>
                   {historyLoading ? "Loading..." : "History"}
                 </button>
-                <button type="button" className={btnClass("ghost")} onClick={deletePaper}>
-                  Delete Paper
-                </button>
-              </>
-            )}
+              )}
+            </div>
           </div>
+        </aside>
 
-          <hr className="border-slate-200" />
+        <div className={ui.orderFormBody}>
+          <h2 className={ui.h3}>Catalog Settings</h2>
+          <p className={`${ui.muted} ${ui.small}`}>
+            Set size, quantity, printing side, and the exact total amount for the selected paper GSM.
+          </p>
+
+          {!paperTypeId && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Select a paper GSM from the left, or create one using Add Paper.
+            </p>
+          )}
 
           <DropdownCrud
             label="Size"
@@ -493,26 +501,33 @@ export default function AdminOrderCatalogSection() {
           />
 
           <div className={ui.field}>
-            <label className={ui.label}>Rate per 1000 for selected combo (Rs.)</label>
+            <label className={ui.label}>Total Amount for this combination (Rs.)</label>
             <div className="flex flex-wrap gap-2">
               <input
                 className={`${ui.input} min-w-[8rem] flex-1`}
                 type="number"
                 min="0"
-                value={ruleRate}
-                onChange={(e) => setRuleRate(e.target.value)}
+                value={comboAmount}
+                onChange={(e) => setComboAmount(e.target.value)}
+                placeholder="e.g. 5500"
               />
-              <button type="button" className={btnClass("secondary")} disabled={savingRule} onClick={savePriceRule}>
+              <button
+                type="button"
+                className={btnClass("secondary")}
+                disabled={savingRule || !paperTypeId}
+                onClick={savePriceRule}
+              >
                 {savingRule ? "Saving..." : "Save Rate"}
               </button>
             </div>
             <p className={`${ui.muted} ${ui.small}`}>
-              Overrides base paper rate for this paper + size + printing side combination.
+              Exact price customers pay for this paper + size + quantity + printing side.
+              {activeRule ? " Saved rate loaded." : " No rate saved yet for this combo."}
             </p>
           </div>
 
           <div className={ui.orderTotalBar}>
-            <span>Preview Total</span>
+            <span>Customer will see</span>
             <span>{previewAmount ? `Rs. ${previewAmount.toLocaleString("en-IN")}` : "—"}</span>
           </div>
         </div>

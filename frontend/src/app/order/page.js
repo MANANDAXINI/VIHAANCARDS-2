@@ -41,9 +41,12 @@ export default function OrderPage() {
         if (data.paperTypes?.length) setPaperTypeId(data.paperTypes[0].id);
         if (data.sizes?.length) setSizeId(data.sizes[0].id);
         if (data.printingSides?.length) setPrintingSideId(data.printingSides[0].id);
+        if (data.quantities?.length) setQuantity(String(data.quantities[0].value));
       })
       .catch((e) => toast.error(e.message));
   }, []);
+
+  const useQuantityDropdown = Boolean(catalog?.quantities?.length);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -107,7 +110,7 @@ export default function OrderPage() {
       <main className={ui.page}>
         <div className={ui.pageNarrow}>
           <h1 className={ui.h1}>Place Order — Leaflet / Pamphlet</h1>
-          <p className={ui.muted}>Pick paper, size, printing side, and type your quantity.</p>
+          <p className={ui.muted}>Pick paper, size, printing side, and quantity.</p>
 
           {!catalog?.paperTypes?.length && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -154,16 +157,32 @@ export default function OrderPage() {
                 </select>
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Quantity (type amount)</label>
-                <input
-                  className={ui.input}
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 1000"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  required
-                />
+                <label className={ui.label}>Quantity</label>
+                {useQuantityDropdown ? (
+                  <select
+                    className={ui.input}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    required
+                  >
+                    <option value="">Select quantity</option>
+                    {catalog.quantities.map((q) => (
+                      <option key={q.id} value={q.value}>
+                        {q.label || Number(q.value).toLocaleString("en-IN")}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className={ui.input}
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 1000"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    required
+                  />
+                )}
               </div>
               <div className={ui.field}>
                 <label className={ui.label}>Printing Side</label>

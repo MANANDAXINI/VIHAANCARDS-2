@@ -43,7 +43,12 @@ router.post("/quote", async (req, res) => {
     const { paperTypeId, sizeId, printingSideId, quantity } = req.body;
     const paperType = await prisma.paperType.findUnique({ where: { id: paperTypeId } });
     const priceRule = await prisma.priceRule.findFirst({
-      where: { paperTypeId, sizeId, printingSideId },
+      where: {
+        paperTypeId,
+        sizeId,
+        printingSideId,
+        quantity: Number(quantity),
+      },
     });
     const amount = calcOrderAmount(paperType, priceRule, quantity);
     res.json({ amount, availableQuantity: paperType?.availableQuantity || 0 });

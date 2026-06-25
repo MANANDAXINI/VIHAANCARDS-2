@@ -2,12 +2,24 @@ export function calcOrderAmount(catalog, paperTypeId, sizeId, printingSideId, qu
   const qty = Number(quantity);
   if (!catalog || !Number.isFinite(qty) || qty <= 0) return 0;
 
-  const paperType = catalog.paperTypes?.find((p) => p.id === paperTypeId);
   const rule = catalog.priceRules?.find(
+    (r) =>
+      r.paperTypeId === paperTypeId &&
+      r.sizeId === sizeId &&
+      r.printingSideId === printingSideId &&
+      Number(r.quantity) === qty
+  );
+
+  if (rule && Number(rule.amount) > 0) {
+    return Math.round(Number(rule.amount));
+  }
+
+  const paperType = catalog.paperTypes?.find((p) => p.id === paperTypeId);
+  const legacyRule = catalog.priceRules?.find(
     (r) => r.paperTypeId === paperTypeId && r.sizeId === sizeId && r.printingSideId === printingSideId
   );
-  const rate = rule?.ratePerThousand || paperType?.ratePerThousand || 0;
-  return Math.round((qty / 1000) * rate);
+  const rate = legacyRule?.ratePerThousand || paperType?.ratePerThousand || 0;
+  return rate > 0 ? Math.round((qty / 1000) * rate) : 0;
 }
 
 export function needsBackUpload(sideName) {

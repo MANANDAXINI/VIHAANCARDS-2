@@ -3,14 +3,19 @@ const { prisma } = require("../lib/prisma");
 function calcOrderAmount(paperType, priceRule, quantity) {
   const qty = Number(quantity);
   if (!Number.isFinite(qty) || qty <= 0) return 0;
+  if (priceRule && Number(priceRule.amount) > 0) {
+    return Math.round(Number(priceRule.amount));
+  }
   const rate = priceRule?.ratePerThousand || paperType?.ratePerThousand || 0;
   return Math.round((qty / 1000) * rate);
 }
 
-async function findPriceRule(paperTypeId, sizeId, printingSideId) {
+async function findPriceRule(paperTypeId, sizeId, printingSideId, quantity) {
   if (!paperTypeId || !sizeId || !printingSideId) return null;
+  const qty = Number(quantity);
+  if (!Number.isFinite(qty) || qty <= 0) return null;
   return prisma.priceRule.findFirst({
-    where: { paperTypeId, sizeId, printingSideId },
+    where: { paperTypeId, sizeId, printingSideId, quantity: qty },
   });
 }
 
@@ -39,7 +44,7 @@ async function resolveCatalogSelection({ paperTypeId, sizeId, printingSideId, qu
     throw new Error(`Only ${paperType.availableQuantity} available for ${paperType.name}.`);
   }
 
-  const priceRule = await findPriceRule(paperTypeId, sizeId, printingSideId);
+  const priceRule = await findPriceRule(paperTypeId, sizeId, printingSideId, qty);
   const amount = calcOrderAmount(paperType, priceRule, qty);
 
   if (amount <= 0) {

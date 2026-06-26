@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AdminPagination, AdminSearchBar } from "@/components/AdminTableTools";
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { adminApi, uploadAssetUrl, formatRupees } from "@/lib/api";
+import { saveArtworkToBusinessFolder } from "@/lib/artwork-save";
 import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
 import { btnClass, pendingRowClass, pendingSectionTitleClass, ui } from "@/lib/ui";
@@ -57,7 +58,7 @@ function ArtworkFileRow({ label, url, name, mime, downloaded, onDownload, busy }
         disabled={!fullUrl || busy}
         onClick={onDownload}
       >
-        {downloaded ? "Download Completed" : "Download Pending"}
+        {downloaded ? "Download Completed" : busy ? "Saving..." : "Download Pending"}
       </button>
       {showThumb ? (
         <a href={fullUrl} target="_blank" rel="noreferrer" className="mb-2 block w-full">
@@ -170,14 +171,31 @@ function OrderProcessingCard({ order, onRefresh }) {
 
   async function handleArtworkDownload(side) {
     const url = side === "back" ? order.artworkBackUrl : order.artworkUrl;
+    const name = side === "back" ? order.artworkBackName : order.artworkName;
+    const mime = side === "back" ? order.artworkBackMime : order.artworkMime;
     if (!url) return;
+
     setArtworkBusy(side);
     try {
-      window.open(uploadAssetUrl(url), "_blank", "noopener,noreferrer");
+      const result = await saveArtworkToBusinessFolder({
+        order,
+        side,
+        url,
+        originalName: name,
+        mime,
+      });
+
       await adminApi.markArtworkDownloaded(order.id, side, { silent: true });
       await onRefresh();
+
+      if (result.method === "folder") {
+        toast.success(`Saved to ${result.displayPath}`);
+      } else {
+        toast.success(`Downloaded ${result.filename}. Use Chrome or Edge to pick a folder next time.`);
+      }
     } catch (error) {
-      toast.error(error.message);
+      if (error?.name === "AbortError") return;
+      toast.error(error.message || "Could not save artwork.");
     } finally {
       setArtworkBusy(null);
     }

@@ -50,9 +50,12 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
   const [loading, setLoading] = useState(false);
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [summary, setSummary] = useState({
-    totalJobOutstanding: 0,
-    totalPaymentReceived: 0,
-    finalBalance: 0,
+    totalBilled: 0,
+    totalReceived: 0,
+    currentOutstanding: 0,
+    receivableBalance: 0,
+    previousOutstanding: 0,
+    pendingOrderAmount: 0,
   });
 
   const approvedCustomers = useMemo(
@@ -78,7 +81,7 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
   useEffect(() => {
     if (!selectedId) {
       setLedgerEntries([]);
-      setSummary({ totalJobOutstanding: 0, totalPaymentReceived: 0, finalBalance: 0 });
+      setSummary({ totalBilled: 0, totalReceived: 0, currentOutstanding: 0, receivableBalance: 0, previousOutstanding: 0, pendingOrderAmount: 0 });
       return;
     }
 
@@ -88,9 +91,12 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
       .then((data) => {
         setLedgerEntries(data.ledgerEntries || []);
         setSummary(data.summary || {
-          totalJobOutstanding: 0,
-          totalPaymentReceived: 0,
-          finalBalance: 0,
+          totalBilled: 0,
+          totalReceived: 0,
+          currentOutstanding: 0,
+          receivableBalance: 0,
+          previousOutstanding: 0,
+          pendingOrderAmount: 0,
         });
       })
       .catch((error) => {
@@ -185,18 +191,22 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
         ) : null}
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <LedgerSummaryCard
-          label="Total Job / Outstanding"
-          value={formatRupees(summary.totalJobOutstanding)}
+          label="Current Outstanding"
+          value={formatRupees(summary.previousOutstanding ?? summary.currentOutstanding)}
         />
         <LedgerSummaryCard
-          label="Total Payment Received"
-          value={formatRupees(summary.totalPaymentReceived)}
+          label="Total Billed (All Jobs)"
+          value={formatRupees(summary.totalBilled ?? summary.totalJobOutstanding)}
         />
         <LedgerSummaryCard
-          label="Final Balance"
-          value={formatRupees(summary.finalBalance)}
+          label="Total Payments Received"
+          value={formatRupees(summary.totalReceived ?? summary.totalPaymentReceived)}
+        />
+        <LedgerSummaryCard
+          label="Ledger Balance"
+          value={formatRupees(summary.ledgerNetOutstanding ?? summary.finalBalance)}
         />
       </div>
 

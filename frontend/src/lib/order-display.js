@@ -107,31 +107,51 @@ export function formatReceivableDate(value) {
   return formatLedgerTableDate(value);
 }
 
-export function mergeLedgerEntries(entries = [], pendingRequests = [], account = null) {
-  let runningOutstanding = entries.length
-    ? Number(entries[entries.length - 1].outstandingAfter ?? 0)
-    : Number(account?.previousOutstanding ?? 0);
+function sortLedgerEntries(a, b) {
+  const dateDelta = new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime();
+  if (dateDelta !== 0) return dateDelta;
+  return String(a.createdAt || a.id).localeCompare(String(b.createdAt || b.id));
+}
+
+export function buildLedgerDisplayRows(entries = [], pendingRequests = [], account = null) {
+  const sorted = [...entries].sort(sortLedgerEntries);
+  let running = sorted.length > 0
+    ? Number(sorted[0].oldOutstandingBefore || 0)
+    : Number(account?.previousOutstanding || 0);
+
+  const displayRows = sorted.map((entry) => {
+    const debit = Number(entry.debit || 0);
+    const credit = Number(entry.credit || 0);
+    running = Math.max(0, running + debit - credit);
+    return {
+      ...entry,
+      outstandingAfter: running,
+    };
+  });
 
   const pendingRows = pendingRequests
     .filter((req) => req.type === "ORDER_PAYMENT" && req.status === "PENDING" && req.pendingOrderData)
     .map((req) => {
       const d = req.pendingOrderData;
       const amount = Number(d.amount) || Number(req.amount) || 0;
-      runningOutstanding += amount;
+      running += amount;
       return {
         id: `pending-ledger-${req.id}`,
         entryDate: req.createdAt,
+        createdAt: req.createdAt,
         label: `AfterApproval - ${d.product || "LEAFLET / PAMPLET"}`,
         debit: amount,
         credit: 0,
-        outstandingAfter: runningOutstanding,
+        outstandingAfter: running,
         pending: true,
       };
     });
 
-  return [...entries, ...pendingRows].sort(
-    (a, b) => new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime()
-  );
+  return [...displayRows, ...pendingRows].sort(sortLedgerEntries);
+}
+
+export function mergeLedgerEntries(entries = [], pendingRequests = [], account = null) {
+  return buildLedgerDisplayRows(entries, pendingRequests, account);
 }
 
 export function mergeOrderHistory(orders = [], pendingRequests = []) {

@@ -170,14 +170,15 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
             <p className={ui.muted}>Could not load customer details.</p>
           ) : (
             <div className="grid gap-4">
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <SummaryCard label="Credit Limit" value={formatRupees(account?.creditLimit)} />
                 <SummaryCard label="Used Credit" value={formatRupees(account?.usedCredit)} />
                 <SummaryCard label="Available Credit" value={formatRupees(account?.availableCredit)} />
-                <SummaryCard label="Previous Outstanding" value={formatRupees(account?.previousOutstanding)} />
+                <SummaryCard label="Current Outstanding" value={formatRupees(summary.previousOutstanding)} />
+                <SummaryCard label="Pending Orders" value={formatRupees(summary.pendingOrderAmount)} />
                 <SummaryCard label="Receivable Balance" value={formatRupees(summary.receivableBalance)} />
-                <SummaryCard label="Total Job / Outstanding" value={formatRupees(summary.totalJobOutstanding)} />
-                <SummaryCard label="Total Payment Received" value={formatRupees(summary.totalPaymentReceived)} />
+                <SummaryCard label="Total Billed (All Jobs)" value={formatRupees(summary.totalBilled)} />
+                <SummaryCard label="Total Payments Received" value={formatRupees(summary.totalReceived)} />
               </div>
 
               <div className={`${ui.navTabsScroll} w-full`}>

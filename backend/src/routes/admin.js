@@ -1,5 +1,6 @@
 const express = require("express");
 const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
+const { pendingOrderTotal, summarizeAccountLedger } = require("../lib/ledger");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -154,11 +155,11 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
   }
 
   const account = request.account;
-  let createdOrder = null;
 
   if (request.type === "ORDER_PAYMENT" && request.pendingOrderData) {
     const data = request.pendingOrderData;
     const orderNumber = await nextOrderNumber();
+    const receiptNumber = await nextReceiptNumber();
     const qty = Number(data.quantity);
 
     if (data.paperTypeId && Number.isFinite(qty) && qty > 0) {
@@ -168,7 +169,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
       }
     }
 
-    createdOrder = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           accountId: account.id,
@@ -200,43 +201,71 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
         });
       }
 
+      let runningOutstanding = Number(account.previousOutstanding || 0);
+      const openingOutstanding = runningOutstanding;
+
+      runningOutstanding += Number(order.amount);
       await tx.ledgerEntry.create({
         data: {
           accountId: account.id,
           label: `Order ${orderNumber} - ${order.product}`,
           amount: order.amount,
           debit: order.amount,
-          outstandingAfter: account.previousOutstanding + order.amount,
+          credit: 0,
+          oldOutstandingBefore: openingOutstanding,
+          outstandingAfter: runningOutstanding,
           balanceAfter: account.balance,
-          oldOutstandingBefore: account.oldOutstanding,
         },
       });
 
-      return order;
+      const outstandingAfterJob = runningOutstanding;
+      runningOutstanding = Math.max(0, runningOutstanding - Number(request.amount));
+      await tx.ledgerEntry.create({
+        data: {
+          accountId: account.id,
+          label: `Payment Received against ${orderNumber} Receipt No: ${receiptNumber}`,
+          amount: request.amount,
+          debit: 0,
+          credit: request.amount,
+          oldOutstandingBefore: outstandingAfterJob,
+          outstandingAfter: runningOutstanding,
+          balanceAfter: account.balance,
+          receiptNumber,
+        },
+      });
+
+      const updatedAccount = await tx.account.update({
+        where: { id: account.id },
+        data: { previousOutstanding: runningOutstanding },
+      });
+
+      const updatedRequest = await tx.walletRequest.update({
+        where: { id: request.id },
+        data: { status: "APPROVED" },
+      });
+
+      return { order, updatedAccount, updatedRequest };
+    });
+
+    return res.json({
+      request: result.updatedRequest,
+      account: publicAccount(result.updatedAccount),
+      order: publicOrder(result.order),
     });
   }
 
-  const afterOrderOutstanding =
-    createdOrder ? account.previousOutstanding + Number(createdOrder.amount) : account.previousOutstanding;
-  const newOutstanding =
-    request.type === "OUTSTANDING_PAYMENT"
-      ? Math.max(0, account.previousOutstanding - request.amount)
-      : createdOrder
-        ? Math.max(0, afterOrderOutstanding - request.amount)
-        : request.type === "WALLET_TOPUP"
-          ? Math.max(0, account.previousOutstanding - request.amount)
-          : account.previousOutstanding;
-
   const receiptNumber = await nextReceiptNumber();
+  const newOutstanding =
+    request.type === "OUTSTANDING_PAYMENT" || request.type === "WALLET_TOPUP"
+      ? Math.max(0, account.previousOutstanding - request.amount)
+      : account.previousOutstanding;
 
   const paymentLabel =
-    createdOrder?.orderNumber
-      ? `Payment Received against ${createdOrder.orderNumber} Receipt No: ${receiptNumber}`
-      : request.type === "ORDER_PAYMENT"
-        ? `Payment Received Receipt No: ${receiptNumber}`
-        : request.type === "OUTSTANDING_PAYMENT"
-          ? `Outstanding Payment Receipt No: ${receiptNumber}`
-          : `Wallet Top-up Receipt No: ${receiptNumber}`;
+    request.type === "ORDER_PAYMENT"
+      ? `Payment Received Receipt No: ${receiptNumber}`
+      : request.type === "OUTSTANDING_PAYMENT"
+        ? `Outstanding Payment Receipt No: ${receiptNumber}`
+        : `Wallet Top-up Receipt No: ${receiptNumber}`;
 
   const accountUpdate = { previousOutstanding: newOutstanding };
   if (Number(account.creditLimit) > 0 && request.type !== "ORDER_PAYMENT") {
@@ -258,7 +287,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
         label: paymentLabel,
         amount: request.amount,
         credit: request.amount,
-        oldOutstandingBefore: account.oldOutstanding,
+        oldOutstandingBefore: account.previousOutstanding,
         outstandingAfter: newOutstanding,
         balanceAfter: account.balance,
         receiptNumber,
@@ -269,7 +298,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
   res.json({
     request: updatedRequest,
     account: publicAccount(updatedAccount),
-    order: createdOrder ? publicOrder(createdOrder) : null,
+    order: null,
   });
 });
 
@@ -448,16 +477,7 @@ router.get("/accounts/:id/details", authAdmin, async (req, res) => {
     }),
   ]);
 
-  const totalJobOutstanding = ledgerEntries.reduce((sum, entry) => sum + (entry.debit || 0), 0);
-  const totalPaymentReceived = ledgerEntries.reduce((sum, entry) => sum + (entry.credit || 0), 0);
-  const finalBalance = ledgerEntries.length
-    ? ledgerEntries[ledgerEntries.length - 1].outstandingAfter
-    : account.previousOutstanding;
-
-  const pendingOrderAmount = pendingPayments.reduce((sum, request) => {
-    const amount = Number(request.pendingOrderData?.amount || request.amount || 0);
-    return Number.isFinite(amount) && amount > 0 ? sum + amount : sum;
-  }, 0);
+  const summary = summarizeAccountLedger(ledgerEntries, account, pendingPayments);
 
   res.json({
     account: publicAccount(account),
@@ -465,13 +485,7 @@ router.get("/accounts/:id/details", authAdmin, async (req, res) => {
     orders: orders.map((order) => publicOrder(order)),
     pendingPayments,
     walletRequests,
-    summary: {
-      totalJobOutstanding,
-      totalPaymentReceived,
-      finalBalance,
-      receivableBalance: Number(account.previousOutstanding || 0) + pendingOrderAmount,
-      pendingOrderAmount,
-    },
+    summary,
   });
 });
 
@@ -498,20 +512,12 @@ router.get("/ledger/:accountId", authAdmin, async (req, res) => {
     orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
   });
 
-  const totalJobOutstanding = entries.reduce((sum, entry) => sum + (entry.debit || 0), 0);
-  const totalPaymentReceived = entries.reduce((sum, entry) => sum + (entry.credit || 0), 0);
-  const finalBalance = entries.length
-    ? entries[entries.length - 1].outstandingAfter
-    : account.previousOutstanding;
+  const summary = summarizeAccountLedger(entries, account);
 
   res.json({
     account: publicAccount(account),
     ledgerEntries: entries,
-    summary: {
-      totalJobOutstanding,
-      totalPaymentReceived,
-      finalBalance,
-    },
+    summary,
   });
 });
 

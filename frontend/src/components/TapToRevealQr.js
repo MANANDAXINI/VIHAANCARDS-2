@@ -4,8 +4,8 @@ import { useState } from "react";
 import { uploadAssetUrl } from "@/lib/api";
 import { ui } from "@/lib/ui";
 
-export default function TapToRevealQr({ imageUrl }) {
-  const [revealed, setRevealed] = useState(false);
+export default function TapToRevealQr({ imageUrl, defaultRevealed = false }) {
+  const [revealed, setRevealed] = useState(defaultRevealed);
 
   if (!imageUrl) {
     return (

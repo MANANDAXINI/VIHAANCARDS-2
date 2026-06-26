@@ -212,10 +212,10 @@ export default function OrderPage() {
       sessionStorage.removeItem("pd_order_review");
       toast.success(
         data.order?.orderNumber
-          ? `Order ${data.order.orderNumber} placed successfully.`
-          : "Order placed successfully."
+          ? `Order ${data.order.orderNumber} placed on credit. Payment verified.`
+          : "Order placed on credit. Payment verified."
       );
-      router.push("/account");
+      router.push("/account?tab=both");
     } catch (error) {
       if (error.status === 402) {
         sessionStorage.setItem("pd_pending_order", JSON.stringify(error.data.pendingOrderData));
@@ -225,6 +225,7 @@ export default function OrderPage() {
           availableCredit: error.data.availableCredit,
           walletBalance: error.data.walletBalance,
           totalAvailable: error.data.totalAvailable,
+          hasCreditFromAdmin: error.data.hasCreditFromAdmin,
         }));
         router.push("/order/review");
         return;

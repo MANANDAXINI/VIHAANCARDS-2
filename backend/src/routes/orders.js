@@ -108,23 +108,33 @@ router.post("/", authCustomer, upload.fields([
     }
 
     const account = req.account;
+    const hasCreditFromAdmin = Number(account.creditLimit) > 0;
     const walletBalance = Math.max(0, account.balance);
-    const availableCredit = Math.max(0, account.creditLimit - account.usedCredit);
+    const availableCredit = hasCreditFromAdmin
+      ? Math.max(0, account.creditLimit - account.usedCredit)
+      : 0;
     const canUseCredit = useCredit === "true" || useCredit === true;
-    const totalAvailable = walletBalance + (canUseCredit ? availableCredit : 0);
-    const hasEnoughFunds = canUseCredit && totalAvailable >= orderAmount;
+    const totalAvailable = hasCreditFromAdmin
+      ? walletBalance + (canUseCredit ? availableCredit : 0)
+      : 0;
+    const hasEnoughFunds = hasCreditFromAdmin && canUseCredit && totalAvailable >= orderAmount;
 
     const orderFields = buildOrderPayload(selection, req, orderAmount);
 
     if (!hasEnoughFunds) {
-      const shortfall = Math.max(0, orderAmount - totalAvailable);
+      const shortfall = hasCreditFromAdmin
+        ? Math.max(0, orderAmount - totalAvailable)
+        : orderAmount;
       return res.status(402).json({
-        error: "Insufficient credit. Payment required.",
+        error: hasCreditFromAdmin
+          ? "Insufficient credit. Payment required."
+          : "Payment required for this order.",
         shortfall,
         availableCredit,
         walletBalance,
         totalAvailable,
         orderAmount,
+        hasCreditFromAdmin,
         pendingOrderData: {
           ...orderFields,
           paperTypeId,

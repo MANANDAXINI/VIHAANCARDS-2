@@ -51,13 +51,16 @@ function StatLine({ label, value, hint }) {
 
 function CreditWalletPanel({ account, onUpdated }) {
   const [creditLimit, setCreditLimit] = useState(String(account.creditLimit || ""));
+  const [outstandingAdd, setOutstandingAdd] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(todayInputValue());
   const [savingLimit, setSavingLimit] = useState(false);
+  const [addingOutstanding, setAddingOutstanding] = useState(false);
   const [receivingPayment, setReceivingPayment] = useState(false);
 
   useEffect(() => {
     setCreditLimit(String(account.creditLimit || ""));
+    setOutstandingAdd("");
     setPaymentAmount("");
     setPaymentDate(todayInputValue());
   }, [account.id, account.creditLimit]);
@@ -77,6 +80,25 @@ function CreditWalletPanel({ account, onUpdated }) {
       toast.error(error.message);
     } finally {
       setSavingLimit(false);
+    }
+  }
+
+  async function addOutstanding() {
+    const amount = Number(outstandingAdd);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid outstanding amount.");
+      return;
+    }
+    setAddingOutstanding(true);
+    try {
+      await adminApi.addOutstanding(account.id, { amount }, { silent: true });
+      toast.success("Outstanding added.");
+      setOutstandingAdd("");
+      await onUpdated();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setAddingOutstanding(false);
     }
   }
 
@@ -144,6 +166,31 @@ function CreditWalletPanel({ account, onUpdated }) {
               onClick={saveLimit}
             >
               {savingLimit ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 p-4">
+          <h4 className="mb-1 text-sm font-bold text-slate-800">Add Outstanding</h4>
+          <p className={`${ui.small} ${ui.muted} mb-3`}>
+            Add old balance or pending dues to previous outstanding.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              className={`${ui.input} min-w-[10rem] flex-1`}
+              type="number"
+              min="0"
+              placeholder="Outstanding amount"
+              value={outstandingAdd}
+              onChange={(e) => setOutstandingAdd(e.target.value)}
+            />
+            <button
+              type="button"
+              className={btnClass("amber")}
+              disabled={addingOutstanding}
+              onClick={addOutstanding}
+            >
+              {addingOutstanding ? "Adding..." : "Add Outstanding"}
             </button>
           </div>
         </section>

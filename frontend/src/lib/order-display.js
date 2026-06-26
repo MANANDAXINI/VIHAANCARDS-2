@@ -28,7 +28,24 @@ export function formatJobProcess(status) {
   if (s === "DISPATCHED" || s === "COMPLETED") return "JOB COMPLETED";
   if (s === "IN_PRINTING") return JOB_PRINTING_LABEL;
   if (s === "PAYMENT_VERIFIED") return JOB_VERIFIED_LABEL;
+  if (s === "PENDING" || s === "PAYMENT_SUBMITTED" || s === "PAYMENT_PENDING") return "Pending";
   return "Pending";
+}
+
+export function isPendingPaymentOrder(order) {
+  return Boolean(order?.pendingApproval || order?.pendingPayment);
+}
+
+export function formatJobProcessForOrder(order) {
+  if (isPendingPaymentOrder(order)) return "Pending";
+  return formatJobProcess(order?.status);
+}
+
+export function jobProcessClassForOrder(order) {
+  if (isPendingPaymentOrder(order)) {
+    return `${ui.pill} bg-amber-100 text-amber-800`;
+  }
+  return jobProcessClass(order?.status);
 }
 
 export function jobProcessClass(status) {
@@ -42,10 +59,14 @@ export function jobProcessClass(status) {
   if (s === "PAYMENT_VERIFIED") {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-700 sm:text-xs";
   }
+  if (s === "PENDING" || s === "PAYMENT_SUBMITTED" || s === "PAYMENT_PENDING") {
+    return `${ui.pill} bg-amber-100 text-amber-800`;
+  }
   return `${ui.pill} bg-amber-100 text-amber-800`;
 }
 
 export function formatDespatchLabel(order) {
+  if (isPendingPaymentOrder(order)) return "Pending";
   const s = String(order?.status || "").toUpperCase();
   if (s === "DISPATCHED" || s === "COMPLETED") {
     const date = order.dispatchDate ? formatLedgerTableDate(order.dispatchDate) : "";
@@ -74,19 +95,24 @@ export function formatLedgerBalance(entry) {
   return `Rs. ${balance.toLocaleString("en-IN")}`;
 }
 
-export function mergeLedgerEntries(entries = [], pendingRequests = []) {
+export function mergeLedgerEntries(entries = [], pendingRequests = [], account = null) {
+  let runningOutstanding = entries.length
+    ? Number(entries[entries.length - 1].outstandingAfter ?? 0)
+    : Number(account?.previousOutstanding ?? 0);
+
   const pendingRows = pendingRequests
     .filter((req) => req.type === "ORDER_PAYMENT" && req.status === "PENDING" && req.pendingOrderData)
     .map((req) => {
       const d = req.pendingOrderData;
       const amount = Number(d.amount) || Number(req.amount) || 0;
+      runningOutstanding += amount;
       return {
         id: `pending-ledger-${req.id}`,
         entryDate: req.createdAt,
         label: `AfterApproval - ${d.product || "LEAFLET / PAMPLET"}`,
         debit: amount,
         credit: 0,
-        outstandingAfter: amount,
+        outstandingAfter: runningOutstanding,
         pending: true,
       };
     });
@@ -104,6 +130,7 @@ export function mergeOrderHistory(orders = [], pendingRequests = []) {
       return {
         id: `pending-${req.id}`,
         pendingApproval: true,
+        pendingPayment: true,
         orderNumber: null,
         product: d.product || "LEAFLET / PAMPLET",
         paperGsm: d.paperGsm,
@@ -119,7 +146,8 @@ export function mergeOrderHistory(orders = [], pendingRequests = []) {
         artworkBackMime: d.artworkBackMime,
         artworkUrl: d.artworkPath ? `/api/files/${d.artworkPath}` : null,
         artworkBackUrl: d.artworkBackPath ? `/api/files/${d.artworkBackPath}` : null,
-        status: "PAYMENT_SUBMITTED",
+        status: "PENDING",
+        paymentStatus: "PENDING",
         lrNumber: "",
         transportDetails: "",
         dispatchDate: null,

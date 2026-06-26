@@ -14,6 +14,7 @@ function ReviewContent() {
   const user = useAuthUser();
   const [review, setReview] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (ready && !user) router.replace("/?auth=login");
@@ -35,16 +36,32 @@ function ReviewContent() {
     }
   }, [router]);
 
+  useEffect(() => {
+    if (!review?.success || review?.paymentSubmitted) return undefined;
+
+    setRedirecting(true);
+    const timer = setTimeout(() => {
+      sessionStorage.removeItem("pd_pending_order");
+      sessionStorage.removeItem("pd_order_review");
+      router.replace("/account?tab=both");
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [review, router]);
+
   if (!ready || !user || !review) {
     return <div className={`${ui.page} ${ui.container} ${ui.muted}`}>Loading...</div>;
   }
 
   const isSuccess = Boolean(review.success);
+  const isPaymentSubmitted = Boolean(review.paymentSubmitted);
   const order = review.order || pendingOrder;
+  const needsPayment = !isSuccess && !isPaymentSubmitted;
 
   function goToPayment() {
-    if (!review.shortfall) return;
-    router.push(`/payment?shortfall=${review.shortfall}`);
+    const payAmount = review.shortfall || review.orderAmount || pendingOrder?.amount;
+    if (!payAmount) return;
+    router.push(`/payment?shortfall=${payAmount}`);
   }
 
   return (
@@ -52,11 +69,21 @@ function ReviewContent() {
       <SiteHeader user={user} />
       <main className={ui.page}>
         <div className={ui.pageNarrow}>
-          <h1 className={ui.h1}>{isSuccess ? "Order Confirmed" : "Review Your Order"}</h1>
+          <h1 className={ui.h1}>
+            {isPaymentSubmitted
+              ? "Payment Submitted"
+              : isSuccess
+                ? "Order Confirmed"
+                : "Review Your Order"}
+          </h1>
           <p className={ui.muted}>
-            {isSuccess
-              ? "Your order was placed successfully using available credit."
-              : "Check details below. Payment is only for this order."}
+            {isPaymentSubmitted
+              ? "Your payment is pending admin verification. Your order will appear after approval."
+              : isSuccess
+                ? redirecting
+                  ? "Order placed on credit. Redirecting to your ledger..."
+                  : "Your order was placed successfully using available credit."
+                : "Review your order details. Proceed to payment and send payment screenshot to 7507543214 for admin approval."}
           </p>
 
           <div className={ui.card}>
@@ -71,7 +98,7 @@ function ReviewContent() {
                   ["Printing Side", order.printingSide],
                   ["Artwork", order.artworkName || "Uploaded"],
                   ["Order Amount", formatRupees(order.amount || review.orderAmount)],
-                  ...(!isSuccess
+                  ...(needsPayment && review.hasCreditFromAdmin
                     ? [
                         ["Wallet Balance", formatRupees(review.walletBalance || 0)],
                         ["Available Credit", formatRupees(review.availableCredit || 0)],
@@ -79,8 +106,14 @@ function ReviewContent() {
                         ["Payment Required", formatRupees(review.shortfall)],
                       ]
                     : []),
+                  ...(needsPayment && !review.hasCreditFromAdmin
+                    ? [["Payment Required", formatRupees(review.shortfall || review.orderAmount)]]
+                    : []),
                   ...(isSuccess && review.order?.orderNumber
                     ? [["Order #", review.order.orderNumber]]
+                    : []),
+                  ...(isPaymentSubmitted
+                    ? [["Status", "Payment Pending — Awaiting Admin Approval"]]
                     : []),
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-baseline justify-between gap-4 border-b border-slate-100 pb-2 last:border-0">
@@ -94,16 +127,23 @@ function ReviewContent() {
             )}
 
             <div className="flex flex-wrap gap-3">
-              {isSuccess ? (
+              {isPaymentSubmitted ? (
                 <>
-                  <Link href="/account" className={btnClass("primary")}>View My Orders</Link>
+                  <Link href="/account?tab=both" className={btnClass("primary")}>View Ledger</Link>
+                  <Link href="/order" className={btnClass("ghost")}>Place Another Order</Link>
+                </>
+              ) : isSuccess ? (
+                <>
+                  <Link href="/account?tab=both" className={btnClass("primary")}>View Ledger Now</Link>
                   <Link href="/order" className={btnClass("ghost")}>Place Another Order</Link>
                 </>
               ) : (
                 <>
                   <button className={`${btnClass("primary")} w-full sm:w-auto`} type="button" onClick={goToPayment}>
-                    <span className="sm:hidden">Pay {formatRupees(review.shortfall)}</span>
-                    <span className="hidden sm:inline">{`Proceed to Payment — ${formatRupees(review.shortfall)}`}</span>
+                    <span className="sm:hidden">Pay &amp; Send SS</span>
+                    <span className="hidden sm:inline">
+                      {`Proceed to Payment — ${formatRupees(review.shortfall || review.orderAmount || pendingOrder?.amount)}`}
+                    </span>
                   </button>
                   <Link href="/order" className={btnClass("ghost")}>Edit Order</Link>
                 </>

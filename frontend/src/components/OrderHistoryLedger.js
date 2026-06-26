@@ -4,7 +4,7 @@ import { formatRupees } from "@/lib/api";
 import { OrderArtworkCell } from "@/components/OrderArtworkThumb";
 import {
   formatDespatchLabel,
-  formatJobProcess,
+  formatJobProcessForOrder,
   formatLedgerBalance,
   formatLedgerCredit,
   formatLedgerDebit,
@@ -12,7 +12,8 @@ import {
   formatOrderDescription,
   formatOrderDisplayNumber,
   formatTransportLine,
-  jobProcessClass,
+  isPendingPaymentOrder,
+  jobProcessClassForOrder,
 } from "@/lib/order-display";
 import { ui } from "@/lib/ui";
 
@@ -37,7 +38,7 @@ function PaymentLedgerTable({ ledgerEntries = [] }) {
               <tr><td className={ui.td} colSpan="6">No ledger entries yet.</td></tr>
             ) : (
               ledgerEntries.map((entry, index) => (
-                <tr key={entry.id}>
+                <tr key={entry.id} className={entry.pending ? "bg-amber-50/60" : ""}>
                   <td className={ui.td}>{index + 1}</td>
                   <td className={ui.td}>{formatLedgerTableDate(entry.entryDate)}</td>
                   <td className={ui.td}>{entry.label}</td>
@@ -78,7 +79,7 @@ function OrderHistoryTable({ orders = [] }) {
               <tr><td className={ui.td} colSpan="9">No orders yet.</td></tr>
             ) : (
               orders.map((order) => (
-                <tr key={order.id}>
+                <tr key={order.id} className={isPendingPaymentOrder(order) ? "bg-amber-50/60" : ""}>
                   <td className={ui.td}>{formatOrderDisplayNumber(order)}</td>
                   <td className={ui.td}>{formatLedgerTableDate(order.createdAt)}</td>
                   <td className={ui.td}>{order.product || "LEAFLET / PAMPLET"}</td>
@@ -86,7 +87,7 @@ function OrderHistoryTable({ orders = [] }) {
                   <td className={ui.td}><OrderArtworkCell order={order} /></td>
                   <td className={`${ui.td} font-semibold`}>{formatRupees(order.amount)}</td>
                   <td className={ui.td}>
-                    <span className={jobProcessClass(order.status)}>{formatJobProcess(order.status)}</span>
+                    <span className={jobProcessClassForOrder(order)}>{formatJobProcessForOrder(order)}</span>
                   </td>
                   <td className={ui.td}>{formatDespatchLabel(order)}</td>
                   <td className={ui.td}>{formatTransportLine(order)}</td>
@@ -102,10 +103,10 @@ function OrderHistoryTable({ orders = [] }) {
           <li className={`${ui.mobileCard} ${ui.muted}`}>No orders yet.</li>
         ) : (
           orders.map((order) => (
-            <li key={`m-${order.id}`} className={ui.mobileCard}>
+            <li key={`m-${order.id}`} className={`${ui.mobileCard} ${isPendingPaymentOrder(order) ? "border-amber-200 bg-amber-50/60" : ""}`}>
               <div className={ui.mobileCardRow}>
                 <strong>{formatOrderDisplayNumber(order)}</strong>
-                <span className={jobProcessClass(order.status)}>{formatJobProcess(order.status)}</span>
+                <span className={jobProcessClassForOrder(order)}>{formatJobProcessForOrder(order)}</span>
               </div>
               <p className={ui.muted}>{formatLedgerTableDate(order.createdAt)} · {order.product}</p>
               <p>{formatOrderDescription(order)}</p>
@@ -134,7 +135,15 @@ export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], ac
   if (activeTab === "ledger") {
     return <PaymentLedgerTable ledgerEntries={ledgerEntries} />;
   }
-  return <OrderHistoryTable orders={orders} />;
+  if (activeTab === "orders") {
+    return <OrderHistoryTable orders={orders} />;
+  }
+  return (
+    <div className="grid gap-6">
+      <PaymentLedgerTable ledgerEntries={ledgerEntries} />
+      <OrderHistoryTable orders={orders} />
+    </div>
+  );
 }
 
 export { PaymentLedgerTable, OrderHistoryTable };

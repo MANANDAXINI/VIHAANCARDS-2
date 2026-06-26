@@ -1,9 +1,30 @@
 const express = require("express");
+const multer = require("multer");
 const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
 const { pendingOrderTotal, summarizeAccountLedger } = require("../lib/ledger");
+const { parseParcelRowsFromWorkbook, buildDispatchUpdateData } = require("../lib/parcel-import");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
+const parcelUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = String(file.originalname || "").toLowerCase();
+    const allowed =
+      name.endsWith(".xlsx")
+      || name.endsWith(".xls")
+      || name.endsWith(".csv")
+      || file.mimetype.includes("spreadsheet")
+      || file.mimetype.includes("excel")
+      || file.mimetype === "text/csv";
+    if (!allowed) {
+      cb(new Error("Upload an Excel file (.xlsx, .xls) or CSV."));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 router.get("/accounts/pending", authAdmin, async (_req, res) => {
   const accounts = await prisma.account.findMany({
@@ -569,6 +590,92 @@ router.get("/outstanding-receivable", authAdmin, async (_req, res) => {
     grandTotal,
     totalEntries: rows.length,
   });
+});
+
+router.post("/parcel-update/upload", authAdmin, parcelUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file?.buffer) {
+      return res.status(400).json({ error: "Excel file is required." });
+    }
+
+    const rows = parseParcelRowsFromWorkbook(req.file.buffer);
+    if (!rows.length) {
+      return res.status(400).json({ error: "No parcel rows found in the uploaded file." });
+    }
+
+    const results = [];
+    let updatedCount = 0;
+    let failedCount = 0;
+
+    for (const row of rows) {
+      if (!row.orderNumber) {
+        failedCount += 1;
+        results.push({
+          rowNumber: row.rowNumber,
+          orderNumber: "",
+          status: "failed",
+          message: "Order number is missing.",
+        });
+        continue;
+      }
+
+      const order = await prisma.order.findFirst({
+        where: { orderNumber: row.orderNumber },
+        include: { account: true },
+      });
+
+      if (!order) {
+        failedCount += 1;
+        results.push({
+          rowNumber: row.rowNumber,
+          orderNumber: row.orderNumber,
+          status: "failed",
+          message: "Order not found.",
+        });
+        continue;
+      }
+
+      const built = buildDispatchUpdateData(order, row);
+      if (built.error) {
+        failedCount += 1;
+        results.push({
+          rowNumber: row.rowNumber,
+          orderNumber: row.orderNumber,
+          status: "failed",
+          message: built.error,
+        });
+        continue;
+      }
+
+      const updated = await prisma.order.update({
+        where: { id: order.id },
+        data: built.data,
+      });
+
+      updatedCount += 1;
+      results.push({
+        rowNumber: row.rowNumber,
+        orderNumber: updated.orderNumber,
+        status: "updated",
+        customer: order.account?.business || order.account?.name || "—",
+        lrNumber: updated.lrNumber,
+        transportDetails: updated.transportDetails,
+        dispatchDate: updated.dispatchDate,
+        orderStatus: updated.status,
+      });
+    }
+
+    res.json({
+      fileName: req.file.originalname,
+      totalRows: rows.length,
+      updatedCount,
+      failedCount,
+      results,
+    });
+  } catch (error) {
+    console.error("Parcel upload error:", error);
+    res.status(400).json({ error: error.message || "Could not process Excel file." });
+  }
 });
 
 module.exports = router;

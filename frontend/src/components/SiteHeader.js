@@ -43,6 +43,7 @@ export default function SiteHeader({ user }) {
       {user && customerAccess && (
         <div className="hidden gap-2 border-t border-slate-200 bg-slate-50 px-4 py-2 max-[560px]:flex">
           <Link href="/order" className={`${btnClass("primary", true)} flex-1`}>Order</Link>
+          <Link href="/payment/outstanding" className={`${btnClass("amber", true)} flex-1`}>Pay</Link>
           <Link href="/account" className={`${btnClass("ghost", true)} flex-1`}>Orders</Link>
           <Link href="/profile" className={`${btnClass("ghost", true)} flex-1`}>Profile</Link>
         </div>

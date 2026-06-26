@@ -123,6 +123,7 @@ export const adminApi = {
   },
   outstandingReceivable: () => api("/api/admin/outstanding-receivable"),
   customerAccountDetails: (accountId) => api(`/api/admin/accounts/${accountId}/details`),
+  uploadParcelUpdate: (formData, options) => api("/api/admin/parcel-update/upload", { method: "POST", body: formData, ...options }),
 };
 
 export const catalogApi = {

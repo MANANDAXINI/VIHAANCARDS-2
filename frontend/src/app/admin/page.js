@@ -11,11 +11,13 @@ import AdminNav from "@/components/AdminNav";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import BusinessPickList from "@/components/BusinessPickList";
 import AdminCustomerCreditWallet from "@/components/AdminCustomerCreditWallet";
+import AdminCustomerCreditOverview from "@/components/AdminCustomerCreditOverview";
 import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
 import AdminRatesSection from "@/components/AdminRatesSection";
+import AdminParcelUpdateSection from "@/components/AdminParcelUpdateSection";
 import {
   AdminQrSection,
   formatPhone,
@@ -705,6 +707,10 @@ export default function AdminPage() {
           {activeTab === "outstanding" && <AdminOutstandingSection />}
 
           {activeTab === "qr" && <AdminQrSection />}
+
+          {activeTab === "parcel" && (
+            <AdminParcelUpdateSection onRefresh={load} />
+          )}
         </div>
       </main>
     </>

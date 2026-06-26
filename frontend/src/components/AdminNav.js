@@ -12,6 +12,7 @@ const ADMIN_TABS = [
   { id: "outstanding", label: "Outstanding" },
   { id: "orders", label: "Orders", countKey: "orders" },
   { id: "qr", label: "Payment QR" },
+  { id: "parcel", label: "Parcel Update" },
 ];
 
 export default function AdminNav({ active, onChange, counts = {} }) {

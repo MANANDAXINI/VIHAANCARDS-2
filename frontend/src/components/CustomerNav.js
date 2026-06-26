@@ -11,7 +11,8 @@ const GUEST_LINKS = [
 
 const CUSTOMER_LINKS = [
   { href: "/", label: "Home", match: (path) => path === "/" },
-  { href: "/order", label: "Place Order", match: (path) => path.startsWith("/order") },
+  { href: "/order", label: "Place Order", match: (path) => path.startsWith("/order") && !path.startsWith("/order/review") },
+  { href: "/payment/outstanding", label: "Make Payment", match: (path) => path.startsWith("/payment") },
   { href: "/account", label: "Order History", match: (path) => path === "/account" },
   { href: "/profile", label: "Profile", match: (path) => path === "/profile" },
 ];

@@ -25,11 +25,21 @@ router.get("/ledger", authCustomer, async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
+    const pendingOutstandingPayments = await prisma.walletRequest.findMany({
+      where: {
+        accountId: req.account.id,
+        type: "OUTSTANDING_PAYMENT",
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
     res.json({
       account: publicCustomerAccount(req.account),
       ledgerEntries: entries,
       orders: orders.map((order) => publicOrder(order, { secureFiles: true })),
       pendingPayments,
+      pendingOutstandingPayments,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

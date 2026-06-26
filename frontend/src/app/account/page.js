@@ -124,6 +124,7 @@ function AccountContent() {
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/order" className={btnClass("primary")}>New Order</Link>
+            <Link href="/payment/outstanding" className={btnClass("amber")}>Make Payment</Link>
           </div>
         </div>
       </main>

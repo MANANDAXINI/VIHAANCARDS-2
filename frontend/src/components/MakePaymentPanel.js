@@ -19,6 +19,10 @@ function WalletStat({ label, value, highlight = false }) {
 export default function MakePaymentPanel({
   user,
   amount = 0,
+  maxAmount,
+  amountEditable = false,
+  onAmountChange,
+  outstandingTotal,
   amountLabel = "Amount to Pay",
   title = "Make Payment",
   eyebrow = "Wallet",
@@ -33,6 +37,23 @@ export default function MakePaymentPanel({
   qrImageUrl = null,
 }) {
   const note = paymentNote || `Pay the amount below and send your payment screenshot to ${WHATSAPP_NUMBER} for admin approval.`;
+  const totalOutstanding = Number(outstandingTotal ?? maxAmount ?? amount) || 0;
+  const payCap = Number(maxAmount ?? amount) || 0;
+  const payAmount = Number(amount) || 0;
+
+  function handleAmountInput(event) {
+    const next = Number(event.target.value);
+    if (!onAmountChange) return;
+    if (!Number.isFinite(next)) {
+      onAmountChange(0);
+      return;
+    }
+    onAmountChange(Math.min(Math.max(0, next), payCap));
+  }
+
+  function payFullAmount() {
+    if (onAmountChange) onAmountChange(payCap);
+  }
 
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
@@ -46,14 +67,21 @@ export default function MakePaymentPanel({
           <WalletStat label="Customer" value={user?.business || user?.name || "—"} />
           <WalletStat
             label="Remaining Outstanding"
-            value={formatRupees(amount)}
+            value={formatRupees(totalOutstanding)}
             highlight
           />
         </div>
 
         <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-4 sm:px-5">
-          <p className="text-sm font-bold uppercase tracking-wide text-amber-900">{amountLabel}</p>
-          <p className="mt-1 text-3xl font-bold text-amber-950">{formatRupees(amount)}</p>
+          <p className="text-sm font-bold uppercase tracking-wide text-amber-900">
+            {amountEditable ? "Pay Now (you choose amount)" : amountLabel}
+          </p>
+          <p className="mt-1 text-3xl font-bold text-amber-950">{formatRupees(payAmount)}</p>
+          {amountEditable && payCap > payAmount ? (
+            <p className={`${ui.small} mt-1 text-amber-900`}>
+              Balance after this payment: {formatRupees(Math.max(0, payCap - payAmount))}
+            </p>
+          ) : null}
           <p className={`${ui.small} mt-2 text-slate-700`}>{note}</p>
         </div>
 
@@ -79,15 +107,29 @@ export default function MakePaymentPanel({
         </div>
 
         <label className={ui.field}>
-          <span className={ui.label}>Amount</span>
+          <span className={ui.label}>
+            {amountEditable ? "Enter amount to pay now" : "Amount"}
+          </span>
           <input
             className={`${ui.input} border-amber-300 bg-amber-50 font-bold text-amber-950`}
             type="number"
-            min="0"
-            value={amount}
-            readOnly
+            min="1"
+            max={payCap || undefined}
+            step="1"
+            value={payAmount || ""}
+            readOnly={!amountEditable}
+            onChange={amountEditable ? handleAmountInput : undefined}
           />
         </label>
+
+        {amountEditable && payCap > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={btnClass("ghost", true)} onClick={payFullAmount}>
+              Pay full {formatRupees(payCap)}
+            </button>
+            <span className={`${ui.small} ${ui.muted}`}>Max: {formatRupees(payCap)}</span>
+          </div>
+        ) : null}
 
         {amountHint ? (
           <p className={`${ui.small} ${ui.muted}`}>{amountHint}</p>
@@ -105,7 +147,7 @@ export default function MakePaymentPanel({
         <button
           className={`${btnClass("amber")} w-full`}
           type="submit"
-          disabled={submitting || submitDisabled || amount <= 0}
+          disabled={submitting || submitDisabled || payAmount <= 0}
         >
           {submitting ? "Submitting..." : "Submit Payment Request"}
         </button>

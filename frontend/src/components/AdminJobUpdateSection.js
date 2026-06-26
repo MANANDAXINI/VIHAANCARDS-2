@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import FilePickButton from "@/components/FilePickButton";
 import { adminApi } from "@/lib/api";
 import { parseJobFolderFiles } from "@/lib/job-folder-parse";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
 export default function AdminJobUpdateSection({ onRefresh }) {
-  const inputRef = useRef(null);
+  const inputKeyRef = useRef(0);
   const [folderName, setFolderName] = useState("");
   const [parsedFiles, setParsedFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -21,6 +22,8 @@ export default function AdminJobUpdateSection({ onRefresh }) {
 
   function handleFolderSelect(event) {
     const fileList = Array.from(event.target.files || []);
+    inputKeyRef.current += 1;
+
     if (!fileList.length) {
       setParsedFiles([]);
       setFolderName("");
@@ -71,57 +74,45 @@ export default function AdminJobUpdateSection({ onRefresh }) {
     }
   }
 
+  const folderSummary = folderName
+    ? `${folderName} · ${parsedFiles.length} file(s) · ${orderNumbers.length} job(s)`
+    : "";
+
   return (
     <div className="grid gap-4">
       <div>
         <h2 className={ui.adminH1}>Job Update</h2>
         <p className={ui.muted}>
-          Select the parent folder that contains business folders. Each business folder should contain
-          job files starting with the PD order number, for example{" "}
-          <code className="text-xs">PD-00019_BusinessName_...</code>.
+          Select the parent folder that contains business folders with job files starting with PD order numbers.
         </p>
       </div>
 
       <section className={ui.adminCard}>
-        <h3 className={ui.adminH3}>Select Job Folder</h3>
+        <h3 className={ui.adminH3}>Upload Job Folder</h3>
         <p className={`${ui.small} ${ui.muted}`}>
-          Expected structure: <strong>ParentFolder / BusinessName / PD-00019_....pdf</strong>
+          Expected: <strong>ParentFolder / BusinessName / PD-00019_....pdf</strong>
         </p>
 
         <form className="mt-4 grid gap-4" onSubmit={handleCompleteJobs}>
-          <input
-            ref={inputRef}
-            type="file"
-            className="hidden"
-            multiple
-            webkitdirectory=""
-            directory=""
+          <FilePickButton
+            key={inputKeyRef.current}
+            mode="folder"
+            buttonLabel="Choose Job Folder"
+            title="Upload completed jobs folder"
+            description="Pick the main folder that contains business subfolders and PD job files."
+            selectedText={folderSummary || undefined}
             onChange={handleFolderSelect}
+            disabled={submitting}
+            variant="amber"
           />
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={btnClass("secondary")}
-              onClick={() => inputRef.current?.click()}
-            >
-              Choose Folder
-            </button>
-            <button
-              type="submit"
-              className={btnClass("primary")}
-              disabled={submitting || orderNumbers.length === 0}
-            >
-              {submitting ? "Updating..." : `Mark ${orderNumbers.length || 0} Job(s) Completed`}
-            </button>
-          </div>
-
-          {folderName ? (
-            <p className={`${ui.small} ${ui.muted}`}>
-              Folder: <strong>{folderName}</strong> · Files matched: <strong>{parsedFiles.length}</strong> ·
-              Unique jobs: <strong>{orderNumbers.length}</strong>
-            </p>
-          ) : null}
+          <button
+            type="submit"
+            className={`${btnClass("primary")} w-full sm:w-auto`}
+            disabled={submitting || orderNumbers.length === 0}
+          >
+            {submitting ? "Updating..." : `Mark ${orderNumbers.length || 0} Job(s) Completed`}
+          </button>
         </form>
       </section>
 

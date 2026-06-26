@@ -1,16 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import FilePickButton from "@/components/FilePickButton";
 import { adminApi } from "@/lib/api";
 import { formatLedgerTableDate } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
 export default function AdminParcelUpdateSection({ onRefresh }) {
+  const inputKeyRef = useRef(0);
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [summary, setSummary] = useState(null);
   const [results, setResults] = useState([]);
+
+  function handleFilePick(event) {
+    const picked = event.target.files?.[0] || null;
+    setFile(picked);
+    setSummary(null);
+    setResults([]);
+    inputKeyRef.current += 1;
+  }
 
   async function handleUpload(event) {
     event.preventDefault();
@@ -54,32 +64,23 @@ export default function AdminParcelUpdateSection({ onRefresh }) {
         <h3 className={ui.adminH3}>Upload Excel</h3>
         <p className={`${ui.small} ${ui.muted}`}>
           Required columns: <strong>orderno</strong>, <strong>lr no</strong>, <strong>transport no</strong>, <strong>date</strong>.
-          Column names can vary slightly (e.g. order no, transprt no, dispatch date).
         </p>
 
         <form className="mt-4 grid gap-4" onSubmit={handleUpload}>
-          <label className={ui.field}>
-            <span className={ui.label}>Excel file (.xlsx, .xls, .csv)</span>
-            <input
-              className={ui.input}
-              type="file"
-              accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
-              onChange={(event) => {
-                setFile(event.target.files?.[0] || null);
-                setSummary(null);
-                setResults([]);
-              }}
-            />
-          </label>
+          <FilePickButton
+            key={inputKeyRef.current}
+            buttonLabel="Choose Excel File"
+            title="Upload parcel Excel"
+            description="Accepted: .xlsx, .xls, .csv"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+            selectedText={file?.name}
+            onChange={handleFilePick}
+            disabled={uploading}
+          />
 
-          <div className="flex flex-wrap gap-2">
-            <button type="submit" className={btnClass("primary")} disabled={uploading || !file}>
-              {uploading ? "Uploading..." : "Upload & Update Parcels"}
-            </button>
-            {file ? (
-              <span className={`${ui.small} self-center ${ui.muted}`}>{file.name}</span>
-            ) : null}
-          </div>
+          <button type="submit" className={`${btnClass("primary")} w-full sm:w-auto`} disabled={uploading || !file}>
+            {uploading ? "Uploading..." : "Upload & Update Parcels"}
+          </button>
         </form>
       </section>
 

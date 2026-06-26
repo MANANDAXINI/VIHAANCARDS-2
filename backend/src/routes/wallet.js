@@ -59,6 +59,27 @@ router.post("/wallet-request", authCustomer, async (req, res) => {
     if (type === "outstanding") walletType = "OUTSTANDING_PAYMENT";
     if (type === "order" || pendingOrderData) walletType = "ORDER_PAYMENT";
 
+    if (walletType === "OUTSTANDING_PAYMENT") {
+      const pendingOutstanding = await prisma.walletRequest.findMany({
+        where: {
+          accountId: req.account.id,
+          type: "OUTSTANDING_PAYMENT",
+          status: "PENDING",
+        },
+        select: { amount: true },
+      });
+      const pendingTotal = pendingOutstanding.reduce(
+        (sum, request) => sum + Number(request.amount || 0),
+        0
+      );
+      const payable = Math.max(0, Number(req.account.previousOutstanding || 0) - pendingTotal);
+      if (paymentAmount > payable) {
+        return res.status(400).json({
+          error: `Payment cannot exceed remaining outstanding of Rs. ${payable.toLocaleString("en-IN")}.`,
+        });
+      }
+    }
+
     const request = await prisma.walletRequest.create({
       data: {
         accountId: req.account.id,

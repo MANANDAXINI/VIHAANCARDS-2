@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import FilePickButton from "@/components/FilePickButton";
 import { btnClass, ui } from "@/lib/ui";
 
 export default function ArtworkUploadField({
@@ -42,14 +43,25 @@ export default function ArtworkUploadField({
         {required ? <span className="text-red-600"> *</span> : null}
         {hint ? <span className={`${ui.muted} font-normal`}> {hint}</span> : null}
       </label>
+
       <input
         ref={inputRef}
-        className={ui.input}
+        className="sr-only"
         type="file"
         accept={accept}
         onChange={handleFileChange}
         required={required && !file}
       />
+
+      {!file ? (
+        <FilePickButton
+          inputRef={inputRef}
+          buttonLabel="Choose Artwork File"
+          title="Upload artwork"
+          description="PDF, JPG, PNG or WEBP — tap the button to browse files on your device."
+          onChange={handleFileChange}
+        />
+      ) : null}
 
       {file ? (
         <div className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -82,17 +94,24 @@ export default function ArtworkUploadField({
               </div>
             </div>
           )}
-          <button
-            type="button"
-            className={`${btnClass("ghost", true)} mt-2 w-full sm:w-auto`}
-            onClick={clearFile}
-          >
-            Remove file
-          </button>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={btnClass("secondary", true)}
+              onClick={() => inputRef.current?.click()}
+            >
+              Replace file
+            </button>
+            <button
+              type="button"
+              className={btnClass("ghost", true)}
+              onClick={clearFile}
+            >
+              Remove file
+            </button>
+          </div>
         </div>
-      ) : (
-        <p className={`${ui.small} ${ui.muted}`}>No file selected</p>
-      )}
+      ) : null}
     </div>
   );
 }

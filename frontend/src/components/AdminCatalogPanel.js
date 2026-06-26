@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
+import FilePickButton from "@/components/FilePickButton";
 import { adminCatalogApi, uploadAssetUrl, formatDate } from "@/lib/api";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { toast } from "@/lib/toast";
@@ -562,6 +563,7 @@ export function AdminQuantitiesSection() {
 
 export function AdminQrSection() {
   const [qr, setQr] = useState(null);
+  const [qrFile, setQrFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -576,19 +578,18 @@ export function AdminQrSection() {
 
   async function uploadQr(event) {
     event.preventDefault();
-    const file = event.target.image?.files?.[0];
-    if (!file) {
+    if (!qrFile) {
       toast.error("Please choose a QR image file.");
       return;
     }
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("image", qrFile);
     setUploading(true);
     try {
       await adminCatalogApi.uploadQr(formData);
       await load();
       toast.success(qr?.imageUrl ? "QR replaced successfully." : "QR uploaded successfully.");
-      event.target.reset();
+      setQrFile(null);
     } catch (e) {
       toast.error(e.message);
     } finally {
@@ -639,12 +640,17 @@ export function AdminQrSection() {
         )}
 
         <form onSubmit={uploadQr} className="grid gap-4">
-          <div className={ui.field}>
-            <label className={ui.label}>{qr?.imageUrl ? "Replace QR image" : "Upload QR image"}</label>
-            <input className={ui.input} type="file" name="image" accept="image/*" required />
-          </div>
+          <FilePickButton
+            buttonLabel={qr?.imageUrl ? "Choose New QR Image" : "Choose QR Image"}
+            title={qr?.imageUrl ? "Replace payment QR" : "Upload payment QR"}
+            description="JPG or PNG image shown on the customer payment page."
+            accept="image/*"
+            selectedText={qrFile?.name}
+            onChange={(event) => setQrFile(event.target.files?.[0] || null)}
+            disabled={uploading}
+          />
           <div>
-            <button className={btnClass("primary")} type="submit" disabled={uploading}>
+            <button className={btnClass("primary")} type="submit" disabled={uploading || !qrFile}>
               {uploading ? "Uploading..." : qr?.imageUrl ? "Replace QR" : "Upload QR"}
             </button>
           </div>

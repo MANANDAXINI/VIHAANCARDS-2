@@ -18,7 +18,9 @@ export default function OutstandingPaymentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [qrImageUrl, setQrImageUrl] = useState(null);
-  const [amount, setAmount] = useState(0);
+  const [maxPayable, setMaxPayable] = useState(0);
+  const [totalOutstanding, setTotalOutstanding] = useState(0);
+  const [payAmount, setPayAmount] = useState(0);
   const [pendingSubmitted, setPendingSubmitted] = useState(0);
 
   useEffect(() => {
@@ -39,7 +41,9 @@ export default function OutstandingPaymentPage() {
         const account = ledgerData.account || user;
         const pending = ledgerData.pendingOutstandingPayments || [];
         const payable = computePayableOutstanding(account, pending);
-        setAmount(payable);
+        setTotalOutstanding(Number(account?.previousOutstanding || 0));
+        setMaxPayable(payable);
+        setPayAmount(payable);
         setPendingSubmitted(
           Number(account?.previousOutstanding || 0) - payable
         );
@@ -47,24 +51,33 @@ export default function OutstandingPaymentPage() {
       })
       .catch((error) => {
         toast.error(error.message || "Could not load outstanding balance.");
-        setAmount(computePayableOutstanding(user, []));
+        const payable = computePayableOutstanding(user, []);
+        setTotalOutstanding(Number(user?.previousOutstanding || 0));
+        setMaxPayable(payable);
+        setPayAmount(payable);
       })
       .finally(() => setLoading(false));
   }, [ready, user]);
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (amount <= 0) {
-      toast.error("No outstanding balance to pay.");
+    if (payAmount <= 0) {
+      toast.error("Enter a valid payment amount.");
+      return;
+    }
+    if (payAmount > maxPayable) {
+      toast.error(`Payment cannot exceed remaining outstanding of Rs. ${maxPayable.toLocaleString("en-IN")}.`);
       return;
     }
 
     setSubmitting(true);
     try {
       await walletApi.request({
-        amount,
+        amount: payAmount,
         type: "outstanding",
-        note: "Outstanding balance payment",
+        note: payAmount < totalOutstanding
+          ? `Partial outstanding payment (${payAmount} of ${totalOutstanding})`
+          : "Outstanding balance payment",
       }, { silent: true });
       await refresh();
       toast.success(`Payment submitted. Send screenshot to ${WHATSAPP_NUMBER}. Status will show Pending until admin approves.`);
@@ -80,7 +93,7 @@ export default function OutstandingPaymentPage() {
     return <div className={`${ui.page} ${ui.container} ${ui.muted}`}>Loading...</div>;
   }
 
-  if (amount <= 0) {
+  if (maxPayable <= 0) {
     return (
       <>
         <SiteHeader user={user} />
@@ -111,12 +124,16 @@ export default function OutstandingPaymentPage() {
       <main className={ui.page}>
         <MakePaymentPanel
           user={user}
-          amount={amount}
+          amount={payAmount}
+          maxAmount={maxPayable}
+          outstandingTotal={totalOutstanding}
+          amountEditable
+          onAmountChange={setPayAmount}
           amountLabel="Outstanding Amount to Pay"
           eyebrow="Outstanding"
           title="Make Payment"
-          paymentNote={`Pay your remaining outstanding balance and send your payment screenshot to ${WHATSAPP_NUMBER} for admin approval.`}
-          amountHint="This is your full remaining outstanding balance after any payments already submitted for approval."
+          paymentNote={`Pay any amount up to your remaining outstanding balance. Send your payment screenshot to ${WHATSAPP_NUMBER} for admin approval.`}
+          amountHint="You can pay part now (e.g. Rs. 2,500) and the rest later after your job is completed."
           backHref="/account?tab=ledger"
           backLabel="Back to Account"
           submitting={submitting}

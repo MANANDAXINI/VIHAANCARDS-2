@@ -7,8 +7,8 @@ import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
 function formatWalletAmount(value) {
-  const amount = Number(value || 0);
-  if (!amount) return "Rs. —";
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "Rs. —";
   return formatRupees(amount);
 }
 
@@ -63,7 +63,7 @@ function CreditWalletPanel({ account, onUpdated }) {
     setOutstandingAdd("");
     setPaymentAmount("");
     setPaymentDate(todayInputValue());
-  }, [account.id, account.creditLimit]);
+  }, [account.id, account.creditLimit, account.previousOutstanding, account.usedCredit]);
 
   async function saveLimit() {
     const limit = Number(creditLimit);
@@ -132,11 +132,10 @@ function CreditWalletPanel({ account, onUpdated }) {
         <p className={`${ui.small} ${ui.muted} mb-3`}>
           Outstanding updates automatically when orders are placed or payments are received.
         </p>
-        <StatLine label="Wallet Balance" value={formatWalletAmount(account.balance)} />
         <StatLine
           label="Credit Limit"
           value={formatWalletAmount(account.creditLimit)}
-          hint={`Available: ${formatWalletAmount(account.availableCredit)}`}
+          hint={`Available: ${formatWalletAmount(account.availableCredit)} · Used: ${formatWalletAmount(account.usedCredit)}`}
         />
         <StatLine
           label="Previous Outstanding"

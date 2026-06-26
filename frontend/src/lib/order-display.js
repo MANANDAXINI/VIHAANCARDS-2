@@ -95,6 +95,18 @@ export function formatLedgerBalance(entry) {
   return `Rs. ${balance.toLocaleString("en-IN")}`;
 }
 
+export function formatReceivableAmount(value) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function formatReceivableDate(value) {
+  return formatLedgerTableDate(value);
+}
+
 export function mergeLedgerEntries(entries = [], pendingRequests = [], account = null) {
   let runningOutstanding = entries.length
     ? Number(entries[entries.length - 1].outstandingAfter ?? 0)

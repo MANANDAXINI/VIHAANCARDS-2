@@ -109,21 +109,17 @@ router.post("/", authCustomer, upload.fields([
 
     const account = req.account;
     const hasCreditFromAdmin = Number(account.creditLimit) > 0;
-    const walletBalance = Math.max(0, account.balance);
     const availableCredit = hasCreditFromAdmin
       ? Math.max(0, account.creditLimit - account.usedCredit)
       : 0;
     const canUseCredit = useCredit === "true" || useCredit === true;
-    const totalAvailable = hasCreditFromAdmin
-      ? walletBalance + (canUseCredit ? availableCredit : 0)
-      : 0;
-    const hasEnoughFunds = hasCreditFromAdmin && canUseCredit && totalAvailable >= orderAmount;
+    const hasEnoughFunds = hasCreditFromAdmin && canUseCredit && availableCredit >= orderAmount;
 
     const orderFields = buildOrderPayload(selection, req, orderAmount);
 
     if (!hasEnoughFunds) {
       const shortfall = hasCreditFromAdmin
-        ? Math.max(0, orderAmount - totalAvailable)
+        ? Math.max(0, orderAmount - availableCredit)
         : orderAmount;
       return res.status(402).json({
         error: hasCreditFromAdmin
@@ -131,8 +127,7 @@ router.post("/", authCustomer, upload.fields([
           : "Payment required for this order.",
         shortfall,
         availableCredit,
-        walletBalance,
-        totalAvailable,
+        totalAvailable: availableCredit,
         orderAmount,
         hasCreditFromAdmin,
         pendingOrderData: {
@@ -144,10 +139,7 @@ router.post("/", authCustomer, upload.fields([
       });
     }
 
-    const fromBalance = Math.min(walletBalance, orderAmount);
-    const fromCredit = orderAmount - fromBalance;
-    const newBalance = walletBalance - fromBalance;
-    const newOutstanding = account.previousOutstanding + fromCredit;
+    const newOutstanding = account.previousOutstanding + orderAmount;
 
     const orderNumber = await nextOrderNumber();
     const order = await prisma.$transaction(async (tx) => {
@@ -169,8 +161,7 @@ router.post("/", authCustomer, upload.fields([
       await tx.account.update({
         where: { id: account.id },
         data: {
-          balance: newBalance,
-          usedCredit: { increment: fromCredit },
+          usedCredit: { increment: orderAmount },
           previousOutstanding: newOutstanding,
         },
       });
@@ -181,9 +172,9 @@ router.post("/", authCustomer, upload.fields([
           label: `Order ${orderNumber} - ${orderFields.product}`,
           amount: orderAmount,
           debit: orderAmount,
-          credit: fromBalance,
+          credit: 0,
           outstandingAfter: newOutstanding,
-          balanceAfter: newBalance,
+          balanceAfter: account.balance,
           oldOutstandingBefore: account.oldOutstanding,
         },
       });

@@ -212,8 +212,8 @@ export default function OrderPage() {
       sessionStorage.removeItem("pd_order_review");
       toast.success(
         data.order?.orderNumber
-          ? `Order ${data.order.orderNumber} placed on credit. Payment verified.`
-          : "Order placed on credit. Payment verified."
+          ? `Order ${data.order.orderNumber} placed successfully.`
+          : "Order placed successfully."
       );
       router.push("/account?tab=both");
     } catch (error) {
@@ -223,7 +223,6 @@ export default function OrderPage() {
           shortfall: error.data.shortfall,
           orderAmount: error.data.orderAmount,
           availableCredit: error.data.availableCredit,
-          walletBalance: error.data.walletBalance,
           totalAvailable: error.data.totalAvailable,
           hasCreditFromAdmin: error.data.hasCreditFromAdmin,
         }));

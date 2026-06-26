@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const { prisma, publicAccount } = require("../lib/prisma");
+const { prisma, publicCustomerAccount } = require("../lib/prisma");
 const { authCustomer, authSession, isAdminRole } = require("../middleware/auth");
 const { verifyGoogleIdToken } = require("../lib/firebase");
 const {
@@ -21,7 +21,7 @@ async function createSession(accountId) {
 }
 
 function sessionResponse(account, token, extra = {}) {
-  return { token, account: publicAccount(account), ...extra };
+  return { token, account: publicCustomerAccount(account), ...extra };
 }
 
 async function finishLogin(account, res, extra = {}) {
@@ -92,7 +92,7 @@ router.post("/register", async (req, res) => {
     });
 
     res.status(201).json({
-      account: publicAccount(account),
+      account: publicCustomerAccount(account),
       message: "Done! Admin will approve your account soon.",
     });
   } catch (error) {
@@ -272,7 +272,7 @@ router.post("/logout", authSession, async (req, res) => {
 });
 
 router.get("/me", authSession, (req, res) => {
-  res.json({ account: publicAccount(req.account) });
+  res.json({ account: publicCustomerAccount(req.account) });
 });
 
 router.put("/account", authCustomer, async (req, res) => {
@@ -309,7 +309,7 @@ router.put("/account", authCustomer, async (req, res) => {
       },
     });
 
-    res.json({ account: publicAccount(account) });
+    res.json({ account: publicCustomerAccount(account) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

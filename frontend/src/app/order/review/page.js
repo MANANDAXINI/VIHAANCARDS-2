@@ -81,8 +81,8 @@ function ReviewContent() {
               ? "Your payment is pending admin verification. Your order will appear after approval."
               : isSuccess
                 ? redirecting
-                  ? "Order placed on credit. Redirecting to your ledger..."
-                  : "Your order was placed successfully using available credit."
+                  ? "Order placed successfully. Redirecting to your ledger..."
+                  : "Your order was placed successfully."
                 : "Review your order details. Proceed to payment and send payment screenshot to 7507543214 for admin approval."}
           </p>
 
@@ -98,15 +98,7 @@ function ReviewContent() {
                   ["Printing Side", order.printingSide],
                   ["Artwork", order.artworkName || "Uploaded"],
                   ["Order Amount", formatRupees(order.amount || review.orderAmount)],
-                  ...(needsPayment && review.hasCreditFromAdmin
-                    ? [
-                        ["Wallet Balance", formatRupees(review.walletBalance || 0)],
-                        ["Available Credit", formatRupees(review.availableCredit || 0)],
-                        ["Total Available", formatRupees(review.totalAvailable || 0)],
-                        ["Payment Required", formatRupees(review.shortfall)],
-                      ]
-                    : []),
-                  ...(needsPayment && !review.hasCreditFromAdmin
+                  ...(needsPayment
                     ? [["Payment Required", formatRupees(review.shortfall || review.orderAmount)]]
                     : []),
                   ...(isSuccess && review.order?.orderNumber

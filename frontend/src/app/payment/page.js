@@ -104,13 +104,7 @@ function PaymentContent() {
     return <div className={`${ui.page} ${ui.container} ${ui.muted}`}>Loading...</div>;
   }
 
-  const hasCreditFromAdmin = Boolean(review?.hasCreditFromAdmin);
-  const availableCredit = Number(review?.availableCredit ?? user.availableCredit ?? 0);
-  const creditNote = !hasCreditFromAdmin
-    ? "Credit not assigned by admin. Full payment is required for this order."
-    : availableCredit <= 0
-      ? "Your credit limit is fully used. Pay the short amount below to place this order."
-      : "Available credit is not enough for this order. Pay the short amount below.";
+  const paymentNote = "Pay the amount below and send your payment screenshot to 7507543214 for admin approval.";
 
   return (
     <>
@@ -125,17 +119,13 @@ function PaymentContent() {
 
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <WalletStat label="Customer" value={user.business || user.name || "—"} />
-              <WalletStat label="A/C. Balance" value={formatRupees(user.balance || 0)} />
               <WalletStat label="Previous Outstanding" value={formatRupees(user.previousOutstanding || 0)} />
-              {hasCreditFromAdmin ? (
-                <WalletStat label="Available Credit" value={formatRupees(availableCredit)} />
-              ) : null}
             </div>
 
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 sm:px-5">
               <p className="text-sm font-bold uppercase tracking-wide text-slate-800">Short Amount</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">{formatRupees(amount)}</p>
-              <p className={`${ui.small} mt-2 text-slate-600`}>{creditNote}</p>
+              <p className={`${ui.small} mt-2 text-slate-600`}>{paymentNote}</p>
             </div>
 
             {pendingOrder ? (

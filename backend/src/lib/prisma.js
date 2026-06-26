@@ -6,6 +6,23 @@ function isPlaceholderPhone(phone) {
   return String(phone || "").startsWith("g-");
 }
 
+function publicCustomerAccount(account) {
+  if (!account) return null;
+  const phone = account.phone || "";
+  return {
+    id: account.id,
+    name: account.name,
+    business: account.business,
+    phone: isPlaceholderPhone(phone) ? "" : phone,
+    email: account.email,
+    address: account.address,
+    status: account.status,
+    role: account.role,
+    previousOutstanding: account.previousOutstanding,
+    profileNeedsPhone: isPlaceholderPhone(phone),
+  };
+}
+
 function publicAccount(account) {
   if (!account) return null;
   const phone = account.phone || "";
@@ -70,6 +87,7 @@ function publicOrder(order, options = {}) {
 module.exports = {
   prisma,
   publicAccount,
+  publicCustomerAccount,
   publicOrder,
   formatOrderNumber,
   formatReceiptNumber,

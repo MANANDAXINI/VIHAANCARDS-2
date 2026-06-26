@@ -1,5 +1,5 @@
 const express = require("express");
-const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
+const { prisma, publicCustomerAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
 const { authCustomer } = require("../middleware/auth");
 
 const router = express.Router();
@@ -26,7 +26,7 @@ router.get("/ledger", authCustomer, async (req, res) => {
     });
 
     res.json({
-      account: publicAccount(req.account),
+      account: publicCustomerAccount(req.account),
       ledgerEntries: entries,
       orders: orders.map((order) => publicOrder(order, { secureFiles: true })),
       pendingPayments,

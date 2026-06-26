@@ -65,13 +65,18 @@ router.post("/accounts/:id/outstanding", authAdmin, async (req, res) => {
 
   const newOutstanding = account.previousOutstanding + amount;
 
+  const updateData = {
+    previousOutstanding: newOutstanding,
+    oldOutstanding: newOutstanding,
+  };
+  if (Number(account.creditLimit) > 0) {
+    updateData.usedCredit = account.usedCredit + amount;
+  }
+
   const [updated, entry] = await prisma.$transaction([
     prisma.account.update({
       where: { id: account.id },
-      data: {
-        previousOutstanding: newOutstanding,
-        oldOutstanding: newOutstanding,
-      },
+      data: updateData,
     }),
     prisma.ledgerEntry.create({
       data: {
@@ -100,16 +105,18 @@ router.post("/accounts/:id/payment", authAdmin, async (req, res) => {
   if (!account) return res.status(404).json({ error: "Account not found." });
 
   const receiptNumber = await nextReceiptNumber();
-  const newBalance = account.balance + payment;
   const newOutstanding = Math.max(0, account.previousOutstanding - payment);
+  const updateData = {
+    previousOutstanding: newOutstanding,
+  };
+  if (Number(account.creditLimit) > 0) {
+    updateData.usedCredit = Math.max(0, account.usedCredit - payment);
+  }
 
   const [updated, entry] = await prisma.$transaction([
     prisma.account.update({
       where: { id: account.id },
-      data: {
-        balance: newBalance,
-        previousOutstanding: newOutstanding,
-      },
+      data: updateData,
     }),
     prisma.ledgerEntry.create({
       data: {
@@ -119,7 +126,7 @@ router.post("/accounts/:id/payment", authAdmin, async (req, res) => {
         credit: payment,
         oldOutstandingBefore: account.oldOutstanding,
         outstandingAfter: newOutstanding,
-        balanceAfter: newBalance,
+        balanceAfter: account.balance,
         receiptNumber,
         entryDate: receivedDate ? new Date(receivedDate) : new Date(),
       },
@@ -193,11 +200,6 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
         });
       }
 
-      await tx.account.update({
-        where: { id: account.id },
-        data: { usedCredit: { increment: Number(data.amount) } },
-      });
-
       await tx.ledgerEntry.create({
         data: {
           accountId: account.id,
@@ -216,13 +218,14 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
 
   const afterOrderOutstanding =
     createdOrder ? account.previousOutstanding + Number(createdOrder.amount) : account.previousOutstanding;
-  const newBalance = account.balance + request.amount;
   const newOutstanding =
     request.type === "OUTSTANDING_PAYMENT"
       ? Math.max(0, account.previousOutstanding - request.amount)
       : createdOrder
         ? Math.max(0, afterOrderOutstanding - request.amount)
-        : account.previousOutstanding;
+        : request.type === "WALLET_TOPUP"
+          ? Math.max(0, account.previousOutstanding - request.amount)
+          : account.previousOutstanding;
 
   const receiptNumber = await nextReceiptNumber();
 
@@ -235,13 +238,15 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
           ? `Outstanding Payment Receipt No: ${receiptNumber}`
           : `Wallet Top-up Receipt No: ${receiptNumber}`;
 
+  const accountUpdate = { previousOutstanding: newOutstanding };
+  if (Number(account.creditLimit) > 0 && request.type !== "ORDER_PAYMENT") {
+    accountUpdate.usedCredit = Math.max(0, account.usedCredit - request.amount);
+  }
+
   const [updatedAccount, updatedRequest] = await prisma.$transaction([
     prisma.account.update({
       where: { id: account.id },
-      data: {
-        balance: newBalance,
-        previousOutstanding: newOutstanding,
-      },
+      data: accountUpdate,
     }),
     prisma.walletRequest.update({
       where: { id: request.id },
@@ -255,7 +260,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
         credit: request.amount,
         oldOutstandingBefore: account.oldOutstanding,
         outstandingAfter: newOutstanding,
-        balanceAfter: newBalance,
+        balanceAfter: account.balance,
         receiptNumber,
       },
     }),
@@ -453,6 +458,56 @@ router.get("/ledger/:accountId", authAdmin, async (req, res) => {
       totalPaymentReceived,
       finalBalance,
     },
+  });
+});
+
+router.get("/outstanding-receivable", authAdmin, async (_req, res) => {
+  const accounts = await prisma.account.findMany({
+    where: {
+      status: "APPROVED",
+      role: { in: ["CUSTOMER", "BOTH"] },
+    },
+    orderBy: [{ business: "asc" }, { name: "asc" }],
+  });
+
+  const pendingPayments = await prisma.walletRequest.findMany({
+    where: {
+      type: "ORDER_PAYMENT",
+      status: "PENDING",
+    },
+    select: {
+      accountId: true,
+      amount: true,
+      pendingOrderData: true,
+    },
+  });
+
+  const pendingByAccount = pendingPayments.reduce((map, request) => {
+    const orderAmount = Number(request.pendingOrderData?.amount || request.amount || 0);
+    if (!Number.isFinite(orderAmount) || orderAmount <= 0) return map;
+    map.set(request.accountId, (map.get(request.accountId) || 0) + orderAmount);
+    return map;
+  }, new Map());
+
+  const rows = accounts.map((account) => {
+    const pendingAmount = pendingByAccount.get(account.id) || 0;
+    const balance = Number(account.previousOutstanding || 0) + pendingAmount;
+    return {
+      accountId: account.id,
+      account: account.business || account.name || "—",
+      mobile: account.phone || "",
+      balance,
+    };
+  });
+
+  const grandTotal = rows.reduce((sum, row) => sum + row.balance, 0);
+  const asOn = new Date();
+
+  res.json({
+    asOn: asOn.toISOString(),
+    rows,
+    grandTotal,
+    totalEntries: rows.length,
   });
 });
 

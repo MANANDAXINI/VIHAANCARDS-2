@@ -11,6 +11,7 @@ import AdminNav from "@/components/AdminNav";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import BusinessPickList from "@/components/BusinessPickList";
 import AdminCustomerCreditWallet from "@/components/AdminCustomerCreditWallet";
+import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
@@ -544,7 +545,8 @@ export default function AdminPage() {
 
               <div className={`${ui.navTabsScroll} w-full`}>
                 {[
-                  { id: "wallet", label: "Account / Wallet / Credit" },
+                  { id: "wallet", label: "Account / Wallet" },
+                  { id: "credit", label: "Customer Credit" },
                   { id: "processing", label: "Order Processing" },
                   { id: "ledger", label: "Customer Ledger" },
                 ].map((tab) => (
@@ -672,7 +674,12 @@ export default function AdminPage() {
                     </div>
                     <AdminPagination page={walletPaged.page} totalPages={walletPaged.totalPages} total={walletPaged.total} onPageChange={setWalletPage} />
                   </section>
+                </>
+              )}
 
+              {ordersSubTab === "credit" && (
+                <>
+                  <AdminCustomerCreditOverview accounts={accounts} />
                   <AdminCustomerCreditWallet accounts={accounts} onRefresh={load} />
                 </>
               )}
@@ -694,6 +701,8 @@ export default function AdminPage() {
               )}
             </div>
           )}
+
+          {activeTab === "outstanding" && <AdminOutstandingSection />}
 
           {activeTab === "qr" && <AdminQrSection />}
         </div>

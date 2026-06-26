@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { AdminPagination, AdminSearchBar } from "@/components/AdminTableTools";
 import { formatPhone } from "@/components/AdminCatalogPanel";
-import { adminApi, uploadAssetUrl, formatRupees } from "@/lib/api";
+import { ArtworkThumb } from "@/components/OrderArtworkThumb";
+import { adminApi, formatRupees } from "@/lib/api";
 import { saveArtworkToBusinessFolder } from "@/lib/artwork-save";
 import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
@@ -46,28 +47,25 @@ function SectionLabel({ children }) {
 }
 
 function ArtworkFileRow({ label, url, name, mime, downloaded, onDownload, busy }) {
-  const fullUrl = uploadAssetUrl(url);
-  const showThumb = fullUrl && (mime?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)/i.test(name || ""));
-
   return (
     <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2">
       <p className={`${ui.small} mb-1.5 font-semibold text-slate-700`}>{label}</p>
       <button
         type="button"
         className={`${btnClass(downloaded ? "teal" : "amber", true)} mb-2 w-full`}
-        disabled={!fullUrl || busy}
+        disabled={!url || busy}
         onClick={onDownload}
       >
         {downloaded ? "Download Completed" : busy ? "Saving..." : "Download Pending"}
       </button>
-      {showThumb ? (
-        <a href={fullUrl} target="_blank" rel="noreferrer" className="mb-2 block w-full">
-          <img
-            src={fullUrl}
-            alt={name || "Artwork"}
-            className="mx-auto h-14 w-full max-w-[8rem] rounded border border-slate-200 object-contain"
-          />
-        </a>
+      {url ? (
+        <ArtworkThumb
+          url={url}
+          mime={mime}
+          name={name}
+          className="h-14 w-14"
+          secure
+        />
       ) : null}
       <p className={`${ui.small} break-all text-slate-700`}>{name || "—"}</p>
     </div>

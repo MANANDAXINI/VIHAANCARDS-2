@@ -205,3 +205,5 @@ export function OrderMetaLine({ label, value }) {
     </p>
   );
 }
+
+export { ArtworkThumb };

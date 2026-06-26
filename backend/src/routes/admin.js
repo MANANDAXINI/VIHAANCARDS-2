@@ -7,6 +7,7 @@ const { normalizeOrderNumber } = require("../lib/job-folder-parse");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
+const secureOrder = (order) => publicOrder(order, { secureFiles: true });
 const parcelUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -272,7 +273,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
     return res.json({
       request: result.updatedRequest,
       account: publicAccount(result.updatedAccount),
-      order: publicOrder(result.order),
+      order: secureOrder(result.order),
     });
   }
 
@@ -339,7 +340,7 @@ router.get("/orders", authAdmin, async (_req, res) => {
   });
   res.json({
     orders: orders.map((order) => ({
-      ...publicOrder(order),
+      ...secureOrder(order),
       customerName: order.account.name,
       business: order.account.business,
       customerCity: order.account.address,
@@ -359,7 +360,7 @@ router.put("/orders/:id/proceed-printing", authAdmin, async (req, res) => {
     where: { id: req.params.id },
     data: { status: "IN_PRINTING" },
   });
-  res.json({ order: publicOrder(order) });
+  res.json({ order: secureOrder(order) });
 });
 
 router.put("/orders/:id/mark-artwork", authAdmin, async (req, res) => {
@@ -376,7 +377,7 @@ router.put("/orders/:id/mark-artwork", authAdmin, async (req, res) => {
     where: { id: req.params.id },
     data,
   });
-  res.json({ order: publicOrder(order) });
+  res.json({ order: secureOrder(order) });
 });
 
 router.put("/orders/:id/status", authAdmin, async (req, res) => {
@@ -388,7 +389,7 @@ router.put("/orders/:id/status", authAdmin, async (req, res) => {
       paymentStatus: paymentStatus || undefined,
     },
   });
-  res.json({ order: publicOrder(order) });
+  res.json({ order: secureOrder(order) });
 });
 
 router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
@@ -416,7 +417,7 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
       status: "DISPATCHED",
     },
   });
-  res.json({ order: publicOrder(order) });
+  res.json({ order: secureOrder(order) });
 });
 
 router.put("/orders/:id/deliver", authAdmin, async (req, res) => {
@@ -430,7 +431,7 @@ router.put("/orders/:id/deliver", authAdmin, async (req, res) => {
     where: { id: req.params.id },
     data: { status: "COMPLETED" },
   });
-  res.json({ order: publicOrder(order) });
+  res.json({ order: secureOrder(order) });
 });
 
 function istDateString(date = new Date()) {
@@ -465,7 +466,7 @@ router.get("/day-book", authAdmin, async (req, res) => {
     totalAmount,
     totalQuantity,
     orders: orders.map((order) => ({
-      ...publicOrder(order),
+      ...secureOrder(order),
       customerName: order.account.name,
       business: order.account.business,
     })),
@@ -504,7 +505,7 @@ router.get("/accounts/:id/details", authAdmin, async (req, res) => {
   res.json({
     account: publicAccount(account),
     ledgerEntries,
-    orders: orders.map((order) => publicOrder(order)),
+    orders: orders.map((order) => secureOrder(order)),
     pendingPayments,
     walletRequests,
     summary,

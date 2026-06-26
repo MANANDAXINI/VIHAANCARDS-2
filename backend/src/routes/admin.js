@@ -401,9 +401,19 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
 
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
+
   if (existing.status === "COMPLETED") {
-    return res.status(400).json({ error: "Completed orders cannot be updated." });
+    const order = await prisma.order.update({
+      where: { id: req.params.id },
+      data: {
+        lrNumber: lr,
+        transportDetails: String(transportDetails || "").trim(),
+        dispatchDate: dispatchDate ? new Date(dispatchDate) : existing.dispatchDate || new Date(),
+      },
+    });
+    return res.json({ order: secureOrder(order) });
   }
+
   if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED"].includes(existing.status)) {
     return res.status(400).json({ error: "Order must proceed to printing before dispatch." });
   }

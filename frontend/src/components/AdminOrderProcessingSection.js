@@ -138,7 +138,7 @@ function DispatchForm({ order, onSaved }) {
       <button
         type="button"
         className={`${btnClass("amber", true)} w-full`}
-        disabled={saving || order.status === "COMPLETED"}
+        disabled={saving}
         onClick={handleSave}
       >
         {saving ? "Saving..." : dispatched ? "Update" : "Save"}

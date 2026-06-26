@@ -120,8 +120,14 @@ function buildDispatchUpdateData(order, row) {
     return { error: "LR number is required." };
   }
 
+  const dispatchFields = {
+    lrNumber: lr,
+    transportDetails: row.transportDetails,
+    dispatchDate: row.dispatchDate || order.dispatchDate || new Date(),
+  };
+
   if (order.status === "COMPLETED") {
-    return { error: "Completed orders cannot be updated." };
+    return { data: dispatchFields };
   }
 
   if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED"].includes(order.status)) {
@@ -131,8 +137,7 @@ function buildDispatchUpdateData(order, row) {
   }
 
   const data = {
-    lrNumber: lr,
-    transportDetails: row.transportDetails,
+    ...dispatchFields,
     dispatchDate: row.dispatchDate || new Date(),
   };
 

@@ -18,6 +18,7 @@ import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
 import AdminRatesSection from "@/components/AdminRatesSection";
 import AdminParcelUpdateSection from "@/components/AdminParcelUpdateSection";
+import AdminJobUpdateSection from "@/components/AdminJobUpdateSection";
 import {
   AdminQrSection,
   formatPhone,
@@ -710,6 +711,10 @@ export default function AdminPage() {
 
           {activeTab === "parcel" && (
             <AdminParcelUpdateSection onRefresh={load} />
+          )}
+
+          {activeTab === "job-update" && (
+            <AdminJobUpdateSection onRefresh={load} />
           )}
         </div>
       </main>

@@ -3,6 +3,7 @@ const multer = require("multer");
 const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
 const { pendingOrderTotal, summarizeAccountLedger } = require("../lib/ledger");
 const { parseParcelRowsFromWorkbook, buildDispatchUpdateData } = require("../lib/parcel-import");
+const { normalizeOrderNumber } = require("../lib/job-folder-parse");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -676,6 +677,83 @@ router.post("/parcel-update/upload", authAdmin, parcelUpload.single("file"), asy
     console.error("Parcel upload error:", error);
     res.status(400).json({ error: error.message || "Could not process Excel file." });
   }
+});
+
+router.post("/job-update/complete", authAdmin, async (req, res) => {
+  const rawNumbers = Array.isArray(req.body?.orderNumbers) ? req.body.orderNumbers : [];
+  const orderNumbers = [...new Set(rawNumbers.map((value) => normalizeOrderNumber(value)).filter(Boolean))];
+
+  if (!orderNumbers.length) {
+    return res.status(400).json({ error: "No valid PD job IDs found to update." });
+  }
+
+  const results = [];
+  let updatedCount = 0;
+  let failedCount = 0;
+  let skippedCount = 0;
+
+  for (const orderNumber of orderNumbers) {
+    const order = await prisma.order.findFirst({
+      where: { orderNumber },
+      include: { account: true },
+    });
+
+    if (!order) {
+      failedCount += 1;
+      results.push({
+        orderNumber,
+        status: "failed",
+        message: "Order not found.",
+      });
+      continue;
+    }
+
+    if (order.status === "COMPLETED") {
+      skippedCount += 1;
+      results.push({
+        orderNumber,
+        status: "skipped",
+        customer: order.account?.business || order.account?.name || "—",
+        message: "Already marked job completed.",
+        orderStatus: order.status,
+      });
+      continue;
+    }
+
+    if (!["PAYMENT_VERIFIED", "IN_PRINTING", "DISPATCHED"].includes(order.status)) {
+      failedCount += 1;
+      results.push({
+        orderNumber,
+        status: "failed",
+        customer: order.account?.business || order.account?.name || "—",
+        message: `Order status ${order.status} cannot be completed.`,
+        orderStatus: order.status,
+      });
+      continue;
+    }
+
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: { status: "COMPLETED" },
+    });
+
+    updatedCount += 1;
+    results.push({
+      orderNumber: updated.orderNumber,
+      status: "updated",
+      customer: order.account?.business || order.account?.name || "—",
+      message: "Job marked completed.",
+      orderStatus: updated.status,
+    });
+  }
+
+  res.json({
+    totalJobs: orderNumbers.length,
+    updatedCount,
+    failedCount,
+    skippedCount,
+    results,
+  });
 });
 
 module.exports = router;

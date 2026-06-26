@@ -1,18 +1,14 @@
 const express = require("express");
 const multer = require("multer");
-const { prisma, publicOrder } = require("../lib/prisma");
-const { uploadDir } = require("../lib/uploads");
+const crypto = require("crypto");
+const { prisma } = require("../lib/prisma");
+const { saveUpload, deleteUpload } = require("../lib/storage");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, _file, cb) => cb(null, `payment-qr-${Date.now()}.jpg`),
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
@@ -234,14 +230,21 @@ router.post("/qr", authAdmin, upload.single("image"), async (req, res) => {
 
   const existing = await prisma.paymentQr.findUnique({ where: { id: 1 } });
   if (existing?.imagePath) {
-    const oldPath = path.join(uploadDir, existing.imagePath);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    await deleteUpload(existing.imagePath);
   }
+
+  const ext = req.file.mimetype === "image/png" ? ".png" : ".jpg";
+  const filename = `payment-qr-${Date.now()}_${crypto.randomBytes(4).toString("hex")}${ext}`;
+  await saveUpload({
+    buffer: req.file.buffer,
+    filename,
+    mime: req.file.mimetype,
+  });
 
   const qr = await prisma.paymentQr.upsert({
     where: { id: 1 },
-    update: { imagePath: req.file.filename, updatedAt: new Date() },
-    create: { id: 1, imagePath: req.file.filename },
+    update: { imagePath: filename, updatedAt: new Date() },
+    create: { id: 1, imagePath: filename },
   });
 
   res.json({ qr: { ...qr, imageUrl: `/uploads/${qr.imagePath}` } });
@@ -250,8 +253,7 @@ router.post("/qr", authAdmin, upload.single("image"), async (req, res) => {
 router.delete("/qr", authAdmin, async (_req, res) => {
   const existing = await prisma.paymentQr.findUnique({ where: { id: 1 } });
   if (existing?.imagePath) {
-    const oldPath = path.join(uploadDir, existing.imagePath);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    await deleteUpload(existing.imagePath);
   }
   await prisma.paymentQr.upsert({
     where: { id: 1 },

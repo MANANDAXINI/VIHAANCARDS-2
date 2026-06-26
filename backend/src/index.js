@@ -2,7 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
-const { uploadDir, findUploadFile, safeFilename, mimeFromFilename } = require("./lib/uploads");
+const { uploadDir, safeFilename, mimeFromFilename } = require("./lib/uploads");
+const { readUpload, storageModeLabel } = require("./lib/storage");
 
 const authRoutes = require("./routes/auth");
 const orderRoutes = require("./routes/orders");
@@ -51,6 +52,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 console.log(`Uploads directory: ${uploadDir}`);
+console.log(`File storage: ${storageModeLabel()}`);
 
 app.use(
   cors({
@@ -67,23 +69,29 @@ app.use(
 );
 app.use(express.json({ limit: "10mb" }));
 
-app.get("/uploads/:filename", (req, res, next) => {
-  const filename = safeFilename(req.params.filename);
-  const filePath = findUploadFile(filename);
-  if (!filePath) {
-    return res.status(404).json({
-      error: "File not found.",
-      filename,
-    });
+app.get("/uploads/:filename", async (req, res, next) => {
+  try {
+    const filename = safeFilename(req.params.filename);
+    const fileBuffer = await readUpload(filename);
+    if (!fileBuffer) {
+      return res.status(404).json({
+        error: "File not found.",
+        filename,
+      });
+    }
+    res.type(mimeFromFilename(filename));
+    return res.send(fileBuffer);
+  } catch (error) {
+    next(error);
   }
-  res.type(mimeFromFilename(filename));
-  return res.sendFile(filePath, (error) => {
-    if (error) next(error);
-  });
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "pixel-digital-api" });
+  res.json({
+    ok: true,
+    service: "pixel-digital-api",
+    storage: storageModeLabel(),
+  });
 });
 
 app.use("/api/files", filesRoutes);

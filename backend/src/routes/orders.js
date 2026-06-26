@@ -2,24 +2,40 @@ const express = require("express");
 const multer = require("multer");
 const crypto = require("crypto");
 const { prisma, publicOrder, nextOrderNumber } = require("../lib/prisma");
-const { uploadDir } = require("../lib/uploads");
+const { saveUpload } = require("../lib/storage");
 const { authCustomer } = require("../middleware/auth");
 const { resolveCatalogSelection } = require("../lib/catalog");
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, `${Date.now()}_${crypto.randomBytes(4).toString("hex")}_${safe}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
 });
+
+function buildUniqueFilename(originalName) {
+  const safe = String(originalName || "artwork").replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `${Date.now()}_${crypto.randomBytes(4).toString("hex")}_${safe}`;
+}
+
+async function persistUploadedFile(file) {
+  const filename = buildUniqueFilename(file.originalname);
+  await saveUpload({
+    buffer: file.buffer,
+    filename,
+    mime: file.mimetype,
+  });
+  file.filename = filename;
+  return filename;
+}
+
+async function persistOrderArtwork(files) {
+  const frontFile = files?.artwork?.[0];
+  const backFile = files?.artworkBack?.[0];
+
+  if (frontFile) await persistUploadedFile(frontFile);
+  if (backFile) await persistUploadedFile(backFile);
+}
 
 function needsBackUpload(sideName) {
   const n = String(sideName || "").toLowerCase();
@@ -100,6 +116,8 @@ router.post("/", authCustomer, upload.fields([
     if (needsBackUpload(selection.printingSide.name) && !req.files?.artworkBack?.[0]) {
       return res.status(400).json({ error: "Back artwork file is required for double-sided printing." });
     }
+
+    await persistOrderArtwork(req.files);
 
     const orderAmount = selection.amount;
     const clientAmount = Number(amount);

@@ -1,7 +1,8 @@
 const express = require("express");
 const { prisma } = require("../lib/prisma");
 const { authSession, isAdminRole } = require("../middleware/auth");
-const { findUploadFile, mimeFromFilename, safeFilename } = require("../lib/uploads");
+const { readUpload } = require("../lib/storage");
+const { mimeFromFilename, safeFilename } = require("../lib/uploads");
 
 const router = express.Router();
 
@@ -43,15 +44,13 @@ router.get("/:filename", authSession, async (req, res, next) => {
       return res.status(403).json({ error: "You do not have access to this file." });
     }
 
-    const filePath = findUploadFile(filename);
-    if (!filePath) {
+    const fileBuffer = await readUpload(filename);
+    if (!fileBuffer) {
       return res.status(404).json({ error: "File not found.", filename });
     }
 
     res.type(mimeFromFilename(filename));
-    return res.sendFile(filePath, (error) => {
-      if (error) next(error);
-    });
+    return res.send(fileBuffer);
   } catch (error) {
     next(error);
   }

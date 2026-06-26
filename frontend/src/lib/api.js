@@ -122,6 +122,7 @@ export const adminApi = {
     return api(`/api/admin/ledger/${accountId}${query ? `?${query}` : ""}`);
   },
   outstandingReceivable: () => api("/api/admin/outstanding-receivable"),
+  customerAccountDetails: (accountId) => api(`/api/admin/accounts/${accountId}/details`),
 };
 
 export const catalogApi = {

@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/api";
 import { formatReceivableAmount, formatReceivableDate } from "@/lib/order-display";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { toast } from "@/lib/toast";
+import AdminOutstandingCustomerDetails from "@/components/AdminOutstandingCustomerDetails";
 import { btnClass, ui } from "@/lib/ui";
 
 function formatMobileNo(phone) {
@@ -22,6 +23,7 @@ export default function AdminOutstandingSection() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
+  const [detailsRow, setDetailsRow] = useState(null);
   const [showAll, setShowAll] = useState(true);
 
   useAdminTableState(search, setPage);
@@ -97,6 +99,7 @@ export default function AdminOutstandingSection() {
           <table className={`${ui.table} min-w-[40rem]`}>
             <thead>
               <tr className="bg-slate-100">
+                <th className={`${ui.th} w-24`} />
                 <th className={ui.th}>Account</th>
                 <th className={ui.th}>Mobile No.</th>
                 <th className={`${ui.th} text-right`}>Balance</th>
@@ -104,18 +107,35 @@ export default function AdminOutstandingSection() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td className={ui.td} colSpan="3">Loading outstanding report...</td></tr>
+                <tr><td className={ui.td} colSpan="4">Loading outstanding report...</td></tr>
               ) : paged.items.length === 0 ? (
-                <tr><td className={ui.td} colSpan="3">No accounts found.</td></tr>
+                <tr><td className={ui.td} colSpan="4">No accounts found.</td></tr>
               ) : (
                 paged.items.map((row) => {
                   const selected = selectedId === row.accountId;
+                  const rowClass = selected ? "bg-slate-800 text-white" : "hover:bg-slate-50";
                   return (
                     <tr
                       key={row.accountId}
-                      className={selected ? "bg-slate-800 text-white" : "hover:bg-slate-50"}
+                      className={rowClass}
                       onClick={() => setSelectedId(row.accountId)}
                     >
+                      <td className={ui.td}>
+                        <button
+                          type="button"
+                          className={
+                            selected
+                              ? `${btnClass("secondary")} !min-h-8 !px-2.5 !py-1 !text-xs`
+                              : `${btnClass("ghost")} !min-h-8 !px-2.5 !py-1 !text-xs`
+                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setDetailsRow(row);
+                          }}
+                        >
+                          Details
+                        </button>
+                      </td>
                       <td className={`${ui.td} font-semibold uppercase tracking-wide`}>{row.account}</td>
                       <td className={ui.td}>{formatMobileNo(row.mobile)}</td>
                       <td className={`${ui.td} text-right font-semibold tabular-nums`}>
@@ -129,7 +149,7 @@ export default function AdminOutstandingSection() {
             {!loading && filtered.length > 0 ? (
               <tfoot>
                 <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold">
-                  <td className={ui.td} colSpan="2">Grand Total</td>
+                  <td className={ui.td} colSpan="3">Grand Total</td>
                   <td className={`${ui.td} text-right tabular-nums`}>
                     {formatReceivableAmount(displayTotal)}
                   </td>
@@ -146,6 +166,13 @@ export default function AdminOutstandingSection() {
           onPageChange={setPage}
         />
       </section>
+
+      <AdminOutstandingCustomerDetails
+        open={Boolean(detailsRow)}
+        accountId={detailsRow?.accountId}
+        accountName={detailsRow?.account}
+        onClose={() => setDetailsRow(null)}
+      />
     </div>
   );
 }

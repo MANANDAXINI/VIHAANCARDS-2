@@ -421,6 +421,60 @@ router.get("/day-book", authAdmin, async (req, res) => {
   });
 });
 
+router.get("/accounts/:id/details", authAdmin, async (req, res) => {
+  const account = await prisma.account.findUnique({ where: { id: req.params.id } });
+  if (!account) return res.status(404).json({ error: "Account not found." });
+
+  const [ledgerEntries, orders, pendingPayments, walletRequests] = await Promise.all([
+    prisma.ledgerEntry.findMany({
+      where: { accountId: account.id },
+      orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.order.findMany({
+      where: { accountId: account.id },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.walletRequest.findMany({
+      where: {
+        accountId: account.id,
+        type: "ORDER_PAYMENT",
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.walletRequest.findMany({
+      where: { accountId: account.id },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const totalJobOutstanding = ledgerEntries.reduce((sum, entry) => sum + (entry.debit || 0), 0);
+  const totalPaymentReceived = ledgerEntries.reduce((sum, entry) => sum + (entry.credit || 0), 0);
+  const finalBalance = ledgerEntries.length
+    ? ledgerEntries[ledgerEntries.length - 1].outstandingAfter
+    : account.previousOutstanding;
+
+  const pendingOrderAmount = pendingPayments.reduce((sum, request) => {
+    const amount = Number(request.pendingOrderData?.amount || request.amount || 0);
+    return Number.isFinite(amount) && amount > 0 ? sum + amount : sum;
+  }, 0);
+
+  res.json({
+    account: publicAccount(account),
+    ledgerEntries,
+    orders: orders.map((order) => publicOrder(order)),
+    pendingPayments,
+    walletRequests,
+    summary: {
+      totalJobOutstanding,
+      totalPaymentReceived,
+      finalBalance,
+      receivableBalance: Number(account.previousOutstanding || 0) + pendingOrderAmount,
+      pendingOrderAmount,
+    },
+  });
+});
+
 router.get("/ledger/:accountId", authAdmin, async (req, res) => {
   const account = await prisma.account.findUnique({ where: { id: req.params.accountId } });
   if (!account) return res.status(404).json({ error: "Account not found." });

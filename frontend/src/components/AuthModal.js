@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import BusinessPickList from "@/components/BusinessPickList";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
-import { WHATSAPP_NUMBER } from "@/components/MakePaymentPanel";
 import { useAuth } from "@/context/AuthContext";
 import { authApi } from "@/lib/api";
 import {
@@ -40,6 +39,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [forgotMessage, setForgotMessage] = useState("");
+  const [resetCodeHint, setResetCodeHint] = useState("");
   const [registerForm, setRegisterForm] = useState({
     name: "",
     business: "",
@@ -165,6 +165,25 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     goAfterLogin(data.account);
   }
 
+  function applyForgotResponse(data) {
+    setForgotBusinessOptions([]);
+    if (data.code) {
+      setResetCode(data.code);
+      setResetCodeHint(data.code);
+      setForgotMessage(
+        data.message || `Your reset code is shown below. It expires in ${data.expiresInMinutes || 30} minutes.`
+      );
+      setAuthView(AUTH_VIEWS.FORGOT_RESET);
+      toast.success("Reset code generated.");
+      return;
+    }
+    setResetCode("");
+    setResetCodeHint("");
+    setForgotMessage(data.message || "If this mobile is registered, enter the reset code you received.");
+    setAuthView(AUTH_VIEWS.FORGOT_RESET);
+    toast.info(data.message || "If this mobile is registered, a reset code has been generated.");
+  }
+
   async function handleForgotRequest(event) {
     event.preventDefault();
     const validation = validateForgotPassword({ phone });
@@ -189,12 +208,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         toast.info(data.message || "Select your business to continue.");
         return;
       }
-      setForgotBusinessOptions([]);
-      setForgotMessage(
-        data.message || `Contact us on WhatsApp at ${WHATSAPP_NUMBER} to receive your reset code.`
-      );
-      setAuthView(AUTH_VIEWS.FORGOT_RESET);
-      toast.success("Reset code requested.");
+      applyForgotResponse(data);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -212,11 +226,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         { silent: true }
       );
       setForgotBusinessOptions([]);
-      setForgotMessage(
-        data.message || `Contact us on WhatsApp at ${WHATSAPP_NUMBER} to receive your reset code.`
-      );
-      setAuthView(AUTH_VIEWS.FORGOT_RESET);
-      toast.success("Reset code requested.");
+      applyForgotResponse(data);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -256,6 +266,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
       setConfirmPassword("");
       setForgotAccountId("");
       setForgotMessage("");
+      setResetCodeHint("");
       switchMode("login");
     } catch (error) {
       toast.error(error.message);
@@ -303,9 +314,9 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
   const subtitle = authView === AUTH_VIEWS.REGISTER
     ? "Register your business. Admin will approve your account."
     : authView === AUTH_VIEWS.FORGOT_REQUEST
-      ? "Enter your registered mobile number. We will share a reset code on WhatsApp."
+      ? "Enter your registered mobile number to get a reset code."
       : authView === AUTH_VIEWS.FORGOT_RESET
-        ? `Enter the 6-digit code shared on WhatsApp ${WHATSAPP_NUMBER}.`
+        ? "Enter the reset code and choose a new password."
         : "Customers and admin use the same login.";
 
   const showAuthTabs = authView === AUTH_VIEWS.LOGIN || authView === AUTH_VIEWS.REGISTER;
@@ -517,7 +528,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                   {fieldErrors.phone && <p className={ui.fieldError}>{fieldErrors.phone}</p>}
                 </div>
                 <p className={`${ui.small} ${ui.muted}`}>
-                  We will share a 6-digit reset code on WhatsApp {WHATSAPP_NUMBER}.
+                  A 6-digit reset code will be shown on the next step if this mobile is registered.
                 </p>
                 <button className={`${btnClass("primary")} w-full`} type="submit" disabled={submitting}>
                   {submitting ? "Please wait..." : "Send Reset Code"}
@@ -537,6 +548,12 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                 <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
                   {forgotMessage}
                 </p>
+              ) : null}
+              {resetCodeHint ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+                  <p className={`${ui.small} font-medium text-emerald-900`}>Your reset code</p>
+                  <p className="mt-1 text-2xl font-bold tracking-[0.35em] text-emerald-950">{resetCodeHint}</p>
+                </div>
               ) : null}
               <div className={ui.field}>
                 <label className={ui.label}>Mobile Number</label>

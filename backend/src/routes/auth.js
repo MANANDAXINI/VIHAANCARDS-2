@@ -262,11 +262,18 @@ router.post("/google", async (req, res) => {
   }
 });
 
-const RESET_WHATSAPP = "7507543214";
 const RESET_CODE_MINUTES = 30;
 
-function resetSuccessMessage() {
-  return `If this mobile is registered, contact us on WhatsApp at ${RESET_WHATSAPP} to receive your reset code.`;
+function resetRequestMessage() {
+  return "If this mobile is registered, a reset code has been generated.";
+}
+
+function resetCodeResponse(code) {
+  return {
+    message: "Enter the code below to set a new password.",
+    code,
+    expiresInMinutes: RESET_CODE_MINUTES,
+  };
 }
 
 async function findPhoneAccounts(cleanPhone) {
@@ -296,7 +303,7 @@ async function createPasswordResetForAccount(account) {
     },
   });
 
-  return { ok: true };
+  return { ok: true, code };
 }
 
 router.post("/forgot-password", async (req, res) => {
@@ -311,19 +318,19 @@ router.post("/forgot-password", async (req, res) => {
 
     const accounts = await findPhoneAccounts(cleanPhone);
     if (!accounts.length) {
-      return res.json({ message: resetSuccessMessage() });
+      return res.json({ message: resetRequestMessage() });
     }
 
     if (accountId) {
       const account = accounts.find((item) => item.id === accountId);
       if (!account) {
-        return res.json({ message: resetSuccessMessage() });
+        return res.json({ message: resetRequestMessage() });
       }
       const result = await createPasswordResetForAccount(account);
       if (result.error) {
         return res.status(400).json({ error: result.error });
       }
-      return res.json({ message: resetSuccessMessage() });
+      return res.json(resetCodeResponse(result.code));
     }
 
     const phoneAccounts = accounts.filter(
@@ -339,13 +346,13 @@ router.post("/forgot-password", async (req, res) => {
         (item) => item.business.toLowerCase() === cleanBusiness.toLowerCase()
       );
       if (!account) {
-        return res.json({ message: resetSuccessMessage() });
+        return res.json({ message: resetRequestMessage() });
       }
       const result = await createPasswordResetForAccount(account);
       if (result.error) {
         return res.status(400).json({ error: result.error });
       }
-      return res.json({ message: resetSuccessMessage() });
+      return res.json(resetCodeResponse(result.code));
     }
 
     if (phoneAccounts.length > 1) {
@@ -361,7 +368,7 @@ router.post("/forgot-password", async (req, res) => {
       return res.status(400).json({ error: result.error });
     }
 
-    return res.json({ message: resetSuccessMessage() });
+    return res.json(resetCodeResponse(result.code));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

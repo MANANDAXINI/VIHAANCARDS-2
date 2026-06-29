@@ -613,7 +613,7 @@ export default function AdminPage() {
                         Password Reset Codes
                       </h3>
                       <p className={`${ui.small} ${ui.muted} mb-3`}>
-                        Share the code with the customer on WhatsApp. Codes expire in 30 minutes.
+                        Active password reset requests. Codes expire in 30 minutes.
                       </p>
                       <div className={ui.tableWrap}>
                         <table className={ui.table}>

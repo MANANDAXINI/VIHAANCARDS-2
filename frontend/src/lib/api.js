@@ -82,6 +82,8 @@ export const authApi = {
   register: (body, options) => api("/api/auth/register", { method: "POST", body, ...options }),
   login: (body, options) => api("/api/auth/login", { method: "POST", body, ...options }),
   googleLogin: (body, options) => api("/api/auth/google", { method: "POST", body, ...options }),
+  forgotPassword: (body, options) => api("/api/auth/forgot-password", { method: "POST", body, ...options }),
+  resetPassword: (body, options) => api("/api/auth/reset-password", { method: "POST", body, ...options }),
   logout: (options) => api("/api/auth/logout", { method: "POST", ...options }),
   me: (options) => api("/api/auth/me", options),
   updateAccount: (body, options) => api("/api/auth/account", { method: "PUT", body, ...options }),
@@ -98,6 +100,8 @@ export const walletApi = {
 };
 
 export const adminApi = {
+  navCounts: () => api("/api/admin/nav-counts"),
+  passwordResets: () => api("/api/admin/password-resets"),
   pendingAccounts: () => api("/api/admin/accounts/pending"),
   accounts: () => api("/api/admin/accounts"),
   approveAccount: (id, options) => api(`/api/admin/accounts/${id}/approve`, { method: "PUT", ...options }),

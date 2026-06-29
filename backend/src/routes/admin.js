@@ -28,6 +28,54 @@ const parcelUpload = multer({
   },
 });
 
+router.get("/nav-counts", authAdmin, async (_req, res) => {
+  const now = new Date();
+  const [pendingAccounts, pendingPayments, pendingPasswordResets, orders] = await Promise.all([
+    prisma.account.count({ where: { status: "PENDING" } }),
+    prisma.walletRequest.count({ where: { status: "PENDING" } }),
+    prisma.passwordReset.count({
+      where: { usedAt: null, expiresAt: { gt: now } },
+    }),
+    prisma.order.findMany({ select: { status: true } }),
+  ]);
+
+  const pendingOrders = orders.filter((order) => order.status !== "COMPLETED").length;
+
+  res.json({
+    counts: {
+      accounts: pendingAccounts,
+      payments: pendingPayments,
+      orders: pendingOrders,
+      wallet: pendingAccounts + pendingPayments + pendingPasswordResets,
+      passwordResets: pendingPasswordResets,
+    },
+  });
+});
+
+router.get("/password-resets", authAdmin, async (_req, res) => {
+  const now = new Date();
+  const resets = await prisma.passwordReset.findMany({
+    where: { usedAt: null, expiresAt: { gt: now } },
+    include: {
+      account: {
+        select: { id: true, name: true, business: true, phone: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  res.json({
+    resets: resets.map((reset) => ({
+      id: reset.id,
+      code: reset.code,
+      expiresAt: reset.expiresAt,
+      createdAt: reset.createdAt,
+      account: reset.account,
+    })),
+  });
+});
+
 router.get("/accounts/pending", authAdmin, async (_req, res) => {
   const accounts = await prisma.account.findMany({
     where: { status: "PENDING" },

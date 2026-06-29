@@ -2,9 +2,33 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { heroBtnPrimary, heroBtnSecondary, ui } from "@/lib/ui";
+import { toast } from "@/lib/toast";
 
 export default function HomeHero({ user, isApprovedCustomer, onOpenLogin, onOpenRegister }) {
+  const router = useRouter();
+
+  function handlePlaceOrder() {
+    if (isApprovedCustomer) {
+      router.push("/order");
+      return;
+    }
+    if (!user) {
+      onOpenLogin();
+      return;
+    }
+    if (user.status === "PENDING") {
+      toast.info("Your account is waiting for admin approval. You can place orders after approval.");
+      return;
+    }
+    if (user.role === "ADMIN" || user.role === "BOTH") {
+      router.push("/order");
+      return;
+    }
+    onOpenLogin();
+  }
+
   return (
     <section
       className="relative isolate flex min-h-[min(92vh,880px)] items-center overflow-hidden pt-32 pb-16 text-white max-[900px]:pt-40 max-[560px]:pt-44 max-[560px]:pb-12"
@@ -44,18 +68,17 @@ export default function HomeHero({ user, isApprovedCustomer, onOpenLogin, onOpen
           </p>
 
           <div className="hero-fade-up hero-fade-up-delay-3 mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
+            <button type="button" className={`${heroBtnPrimary()} w-full sm:w-auto`} onClick={handlePlaceOrder}>
+              Place Order
+            </button>
+
             {isApprovedCustomer ? (
-              <>
-                <Link href="/order" className={`${heroBtnPrimary()} w-full sm:w-auto`}>
-                  Place Order
-                </Link>
-                <Link href="/account" className={`${heroBtnSecondary()} w-full sm:w-auto`}>
-                  My Orders
-                </Link>
-              </>
+              <Link href="/account" className={`${heroBtnSecondary()} w-full sm:w-auto`}>
+                My Orders
+              </Link>
             ) : !user ? (
               <>
-                <button type="button" className={`${heroBtnPrimary()} w-full sm:w-auto`} onClick={onOpenRegister}>
+                <button type="button" className={`${heroBtnSecondary()} w-full sm:w-auto`} onClick={onOpenRegister}>
                   Create Account
                 </button>
                 <button type="button" className={`${heroBtnSecondary()} w-full sm:w-auto`} onClick={onOpenLogin}>
@@ -65,6 +88,7 @@ export default function HomeHero({ user, isApprovedCustomer, onOpenLogin, onOpen
             ) : (
               <p className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white/95 backdrop-blur-sm sm:text-base">
                 Welcome back, <strong className="font-semibold text-white">{user.business || user.name}</strong>
+                {user.status === "PENDING" ? " — approval pending" : ""}
               </p>
             )}
           </div>

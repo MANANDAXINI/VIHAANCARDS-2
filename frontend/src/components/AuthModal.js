@@ -5,21 +5,41 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import BusinessPickList from "@/components/BusinessPickList";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { WHATSAPP_NUMBER } from "@/components/MakePaymentPanel";
 import { useAuth } from "@/context/AuthContext";
 import { authApi } from "@/lib/api";
-import { validateLogin, validateRegister } from "@/lib/auth-validation";
+import {
+  validateForgotPassword,
+  validateLogin,
+  validateRegister,
+  validateResetPassword,
+} from "@/lib/auth-validation";
 import { getHomeForUser } from "@/lib/redirect";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
+const AUTH_VIEWS = {
+  LOGIN: "login",
+  REGISTER: "register",
+  FORGOT_REQUEST: "forgot-request",
+  FORGOT_RESET: "forgot-reset",
+};
+
 export default function AuthModal({ open, mode = "login", onClose, onModeChange }) {
   const router = useRouter();
   const { login } = useAuth();
+  const [authView, setAuthView] = useState(AUTH_VIEWS.LOGIN);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [businessOptions, setBusinessOptions] = useState([]);
+  const [forgotBusinessOptions, setForgotBusinessOptions] = useState([]);
+  const [forgotAccountId, setForgotAccountId] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [forgotMessage, setForgotMessage] = useState("");
   const [registerForm, setRegisterForm] = useState({
     name: "",
     business: "",
@@ -28,6 +48,11 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     address: "",
   });
   const [registerErrors, setRegisterErrors] = useState({});
+
+  useEffect(() => {
+    if (!open) return;
+    setAuthView(mode === "register" ? AUTH_VIEWS.REGISTER : AUTH_VIEWS.LOGIN);
+  }, [open, mode]);
 
   useEffect(() => {
     if (!open) return;
@@ -47,6 +72,15 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
   function goAfterLogin(account) {
     onClose();
     router.push(getHomeForUser(account));
+  }
+
+  function switchMode(nextMode) {
+    setAuthView(nextMode === "register" ? AUTH_VIEWS.REGISTER : AUTH_VIEWS.LOGIN);
+    setFieldErrors({});
+    setRegisterErrors({});
+    setBusinessOptions([]);
+    setForgotBusinessOptions([]);
+    onModeChange(nextMode);
   }
 
   function clearLoginError(key) {
@@ -131,6 +165,105 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     goAfterLogin(data.account);
   }
 
+  async function handleForgotRequest(event) {
+    event.preventDefault();
+    const validation = validateForgotPassword({ phone });
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      toast.error("Please fix the errors below.");
+      return;
+    }
+
+    setFieldErrors({});
+    setSubmitting(true);
+    try {
+      const data = await authApi.forgotPassword(
+        {
+          phone: validation.mobile,
+          ...(forgotAccountId ? { accountId: forgotAccountId } : {}),
+        },
+        { silent: true }
+      );
+      if (data.needsBusinessPick) {
+        setForgotBusinessOptions(data.accounts || []);
+        toast.info(data.message || "Select your business to continue.");
+        return;
+      }
+      setForgotBusinessOptions([]);
+      setForgotMessage(
+        data.message || `Contact us on WhatsApp at ${WHATSAPP_NUMBER} to receive your reset code.`
+      );
+      setAuthView(AUTH_VIEWS.FORGOT_RESET);
+      toast.success("Reset code requested.");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleForgotBusinessSelect(accountId) {
+    setForgotAccountId(accountId);
+    setSubmitting(true);
+    try {
+      const validation = validateForgotPassword({ phone });
+      const data = await authApi.forgotPassword(
+        { phone: validation.mobile, accountId },
+        { silent: true }
+      );
+      setForgotBusinessOptions([]);
+      setForgotMessage(
+        data.message || `Contact us on WhatsApp at ${WHATSAPP_NUMBER} to receive your reset code.`
+      );
+      setAuthView(AUTH_VIEWS.FORGOT_RESET);
+      toast.success("Reset code requested.");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleResetPassword(event) {
+    event.preventDefault();
+    const validation = validateResetPassword({
+      phone,
+      code: resetCode,
+      password: newPassword,
+      confirmPassword,
+    });
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      toast.error("Please fix the errors below.");
+      return;
+    }
+
+    setFieldErrors({});
+    setSubmitting(true);
+    try {
+      const data = await authApi.resetPassword(
+        {
+          phone: validation.mobile,
+          code: validation.code,
+          password: validation.password,
+          ...(forgotAccountId ? { accountId: forgotAccountId } : {}),
+        },
+        { silent: true }
+      );
+      toast.success(data.message || "Password updated.");
+      setResetCode("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setForgotAccountId("");
+      setForgotMessage("");
+      switchMode("login");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleRegister(event) {
     event.preventDefault();
     const validation = validateRegister(registerForm);
@@ -151,13 +284,31 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         address: registerForm.address.trim(),
       }, { silent: true });
       toast.success(data.message);
-      onModeChange("login");
+      switchMode("login");
     } catch (error) {
       toast.error(error.message);
     } finally {
       setSubmitting(false);
     }
   }
+
+  const title = authView === AUTH_VIEWS.REGISTER
+    ? "Create account"
+    : authView === AUTH_VIEWS.FORGOT_REQUEST
+      ? "Forgot password"
+      : authView === AUTH_VIEWS.FORGOT_RESET
+        ? "Reset password"
+        : "Login";
+
+  const subtitle = authView === AUTH_VIEWS.REGISTER
+    ? "Register your business. Admin will approve your account."
+    : authView === AUTH_VIEWS.FORGOT_REQUEST
+      ? "Enter your registered mobile number. We will share a reset code on WhatsApp."
+      : authView === AUTH_VIEWS.FORGOT_RESET
+        ? `Enter the 6-digit code shared on WhatsApp ${WHATSAPP_NUMBER}.`
+        : "Customers and admin use the same login.";
+
+  const showAuthTabs = authView === AUTH_VIEWS.LOGIN || authView === AUTH_VIEWS.REGISTER;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-4 pt-[max(5.5rem,env(safe-area-inset-top))] sm:items-center sm:p-6">
@@ -180,13 +331,9 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
               PIXEL DIGITAL
             </p>
             <h2 id="auth-modal-title" className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
-              {mode === "register" ? "Create account" : "Login"}
+              {title}
             </h2>
-            <p className={`mt-1 text-sm ${ui.muted}`}>
-              {mode === "register"
-                ? "Register your business. Admin will approve your account."
-                : "Customers and admin use the same login."}
-            </p>
+            <p className={`mt-1 text-sm ${ui.muted}`}>{subtitle}</p>
           </div>
           <button
             type="button"
@@ -198,25 +345,27 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
           </button>
         </div>
 
-        <div className="flex gap-1 border-b border-slate-100 px-5 pt-3 sm:px-6">
-          <button
-            type="button"
-            className={mode === "login" ? tabBtnActive() : tabBtn()}
-            onClick={() => onModeChange("login")}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            className={mode === "register" ? tabBtnActive() : tabBtn()}
-            onClick={() => onModeChange("register")}
-          >
-            Register
-          </button>
-        </div>
+        {showAuthTabs ? (
+          <div className="flex gap-1 border-b border-slate-100 px-5 pt-3 sm:px-6">
+            <button
+              type="button"
+              className={authView === AUTH_VIEWS.LOGIN ? tabBtnActive() : tabBtn()}
+              onClick={() => switchMode("login")}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className={authView === AUTH_VIEWS.REGISTER ? tabBtnActive() : tabBtn()}
+              onClick={() => switchMode("register")}
+            >
+              Register
+            </button>
+          </div>
+        ) : null}
 
         <div className="max-h-[min(70vh,640px)] overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-          {mode === "login" ? (
+          {authView === AUTH_VIEWS.LOGIN ? (
             businessOptions.length > 0 ? (
               <BusinessPickList
                 accounts={businessOptions}
@@ -246,7 +395,21 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                     {fieldErrors.phone && <p className={ui.fieldError}>{fieldErrors.phone}</p>}
                   </div>
                   <div className={ui.field}>
-                    <label className={ui.label} htmlFor="modal-login-password">Password</label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className={ui.label} htmlFor="modal-login-password">Password</label>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-blue-600 hover:underline"
+                        onClick={() => {
+                          setFieldErrors({});
+                          setForgotBusinessOptions([]);
+                          setForgotAccountId("");
+                          setAuthView(AUTH_VIEWS.FORGOT_REQUEST);
+                        }}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
                     <input
                       id="modal-login-password"
                       className={`${ui.input} ${fieldErrors.password ? ui.inputError : ""}`}
@@ -267,7 +430,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                 </form>
               </div>
             )
-          ) : (
+          ) : authView === AUTH_VIEWS.REGISTER ? (
             <div className="grid gap-4">
               <GoogleSignInButton
                 label="Sign up with Google"
@@ -311,28 +474,149 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                   {submitting ? "Please wait..." : "Register"}
                 </button>
               </form>
-            </div>
-          )}
-
-          <p className={`mt-5 text-center ${ui.small} ${ui.muted}`}>
-            {mode === "login" ? (
-              <>
-                New customer?{" "}
-                <button type="button" className="font-semibold text-blue-600 hover:underline" onClick={() => onModeChange("register")}>
-                  Register here
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button type="button" className="font-semibold text-blue-600 hover:underline" onClick={() => onModeChange("login")}>
+              <p className={`${ui.small} ${ui.muted}`}>
+                Already registered?{" "}
+                <button type="button" className="font-semibold text-blue-600 hover:underline" onClick={() => switchMode("login")}>
                   Login
                 </button>
-              </>
-            )}
-            <br />
-            Admin? <Link href="/admin" className="font-semibold text-blue-600 hover:underline" onClick={onClose}>Go to Admin Panel</Link>
-          </p>
+                {" "}or{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-blue-600 hover:underline"
+                  onClick={() => {
+                    setPhone(registerForm.phone);
+                    setAuthView(AUTH_VIEWS.FORGOT_REQUEST);
+                  }}
+                >
+                  Forgot password
+                </button>
+              </p>
+            </div>
+          ) : authView === AUTH_VIEWS.FORGOT_REQUEST ? (
+            forgotBusinessOptions.length > 0 ? (
+              <BusinessPickList
+                accounts={forgotBusinessOptions}
+                onSelect={handleForgotBusinessSelect}
+                onBack={() => setForgotBusinessOptions([])}
+              />
+            ) : (
+              <form className="grid gap-4" onSubmit={handleForgotRequest} noValidate>
+                <div className={ui.field}>
+                  <label className={ui.label}>Mobile Number</label>
+                  <input
+                    className={`${ui.input} ${fieldErrors.phone ? ui.inputError : ""}`}
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                      clearLoginError("phone");
+                    }}
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                  />
+                  {fieldErrors.phone && <p className={ui.fieldError}>{fieldErrors.phone}</p>}
+                </div>
+                <p className={`${ui.small} ${ui.muted}`}>
+                  We will share a 6-digit reset code on WhatsApp {WHATSAPP_NUMBER}.
+                </p>
+                <button className={`${btnClass("primary")} w-full`} type="submit" disabled={submitting}>
+                  {submitting ? "Please wait..." : "Send Reset Code"}
+                </button>
+                <button
+                  type="button"
+                  className={`${btnClass("ghost")} w-full`}
+                  onClick={() => switchMode("login")}
+                >
+                  Back to Login
+                </button>
+              </form>
+            )
+          ) : (
+            <form className="grid gap-4" onSubmit={handleResetPassword} noValidate>
+              {forgotMessage ? (
+                <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                  {forgotMessage}
+                </p>
+              ) : null}
+              <div className={ui.field}>
+                <label className={ui.label}>Mobile Number</label>
+                <input className={ui.input} value={phone} readOnly />
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Reset Code</label>
+                <input
+                  className={`${ui.input} ${fieldErrors.code ? ui.inputError : ""}`}
+                  value={resetCode}
+                  onChange={(e) => {
+                    setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                    clearLoginError("code");
+                  }}
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="6-digit code"
+                />
+                {fieldErrors.code && <p className={ui.fieldError}>{fieldErrors.code}</p>}
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>New Password</label>
+                <input
+                  className={`${ui.input} ${fieldErrors.password ? ui.inputError : ""}`}
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    clearLoginError("password");
+                  }}
+                />
+                {fieldErrors.password && <p className={ui.fieldError}>{fieldErrors.password}</p>}
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Confirm Password</label>
+                <input
+                  className={`${ui.input} ${fieldErrors.confirmPassword ? ui.inputError : ""}`}
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    clearLoginError("confirmPassword");
+                  }}
+                />
+                {fieldErrors.confirmPassword && <p className={ui.fieldError}>{fieldErrors.confirmPassword}</p>}
+              </div>
+              <button className={`${btnClass("primary")} w-full`} type="submit" disabled={submitting}>
+                {submitting ? "Please wait..." : "Update Password"}
+              </button>
+              <button
+                type="button"
+                className={`${btnClass("ghost")} w-full`}
+                onClick={() => setAuthView(AUTH_VIEWS.FORGOT_REQUEST)}
+              >
+                Request New Code
+              </button>
+            </form>
+          )}
+
+          {showAuthTabs ? (
+            <p className={`mt-5 text-center ${ui.small} ${ui.muted}`}>
+              {authView === AUTH_VIEWS.LOGIN ? (
+                <>
+                  New customer?{" "}
+                  <button type="button" className="font-semibold text-blue-600 hover:underline" onClick={() => switchMode("register")}>
+                    Register here
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button type="button" className="font-semibold text-blue-600 hover:underline" onClick={() => switchMode("login")}>
+                    Login
+                  </button>
+                </>
+              )}
+              <br />
+              Admin? <Link href="/admin" className="font-semibold text-blue-600 hover:underline" onClick={onClose}>Go to Admin Panel</Link>
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

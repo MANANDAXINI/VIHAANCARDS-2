@@ -36,6 +36,7 @@ import {
   accountStatusClass,
   btnClass,
   isOrderPending,
+  pendingCountClass,
   pendingRowClass,
   pendingSectionTitleClass,
   tabClass,
@@ -84,6 +85,14 @@ export default function AdminPage() {
   const [walletPage, setWalletPage] = useState(1);
   const [walletActionId, setWalletActionId] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
+  const [navCounts, setNavCounts] = useState({
+    accounts: 0,
+    payments: 0,
+    orders: 0,
+    wallet: 0,
+    passwordResets: 0,
+  });
+  const [passwordResets, setPasswordResets] = useState([]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -102,17 +111,21 @@ export default function AdminPage() {
 
   async function load() {
     try {
-      const [p, a, w, o] = await Promise.all([
+      const [p, a, w, o, countsData, resetData] = await Promise.all([
         adminApi.pendingAccounts(),
         adminApi.accounts(),
         adminApi.walletRequests(),
         adminApi.orders(),
+        adminApi.navCounts().catch(() => ({ counts: {} })),
+        adminApi.passwordResets().catch(() => ({ resets: [] })),
       ]);
       setPending(p.accounts);
       setAccounts(a.accounts);
       setWalletRequests(w.requests);
       setPayments(w.requests.filter((r) => r.status === "PENDING"));
       setOrders(o.orders);
+      setNavCounts(countsData.counts || navCounts);
+      setPasswordResets(resetData.resets || []);
     } catch (error) {
       toast.error(error.message);
     }
@@ -286,10 +299,12 @@ export default function AdminPage() {
     );
   }
 
-  const navCounts = {
-    accounts: pending.length,
-    payments: payments.length,
-    orders: orders.filter((o) => isOrderPending(o.status)).length,
+  const displayNavCounts = {
+    accounts: navCounts.accounts ?? pending.length,
+    payments: navCounts.payments ?? payments.length,
+    orders: navCounts.orders ?? orders.filter((o) => isOrderPending(o.status)).length,
+    wallet: navCounts.wallet ?? (pending.length + payments.length + (navCounts.passwordResets || 0)),
+    passwordResets: navCounts.passwordResets ?? passwordResets.length,
   };
 
   const pendingFiltered = filterItems(pending, pendingSearch, ["name", "business", "phone", "role"]);
@@ -317,7 +332,7 @@ export default function AdminPage() {
             <p className={`text-sm ${ui.muted}`}>Logged in as <strong>{user.business}</strong> — {roleLabel(user.role)}</p>
           </div>
 
-          <AdminNav active={activeTab} onChange={setActiveTab} counts={navCounts} />
+          <AdminNav active={activeTab} onChange={setActiveTab} counts={displayNavCounts} />
 
           {activeTab === "dashboard" && (
             <AdminDashboard
@@ -326,7 +341,7 @@ export default function AdminPage() {
               accounts={accounts}
               payments={payments}
               orders={orders}
-              counts={navCounts}
+              counts={displayNavCounts}
               onNavigate={setActiveTab}
               onApproveAccount={approveAccount}
               approvingId={approvingId}
@@ -548,24 +563,85 @@ export default function AdminPage() {
 
               <div className={`${ui.navTabsScroll} w-full`}>
                 {[
-                  { id: "wallet", label: "Account / Wallet" },
+                  { id: "wallet", label: "Account / Wallet", countKey: "wallet" },
                   { id: "credit", label: "Customer Credit" },
-                  { id: "processing", label: "Order Processing" },
+                  { id: "processing", label: "Order Processing", countKey: "orders" },
                   { id: "ledger", label: "Customer Ledger" },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className={tabClass(ordersSubTab === tab.id)}
-                    onClick={() => setOrdersSubTab(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                ].map((tab) => {
+                  const count = tab.countKey ? displayNavCounts[tab.countKey] : null;
+                  const hasPending = count != null && count > 0;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={tabClass(ordersSubTab === tab.id)}
+                      onClick={() => setOrdersSubTab(tab.id)}
+                    >
+                      {tab.label}
+                      {hasPending ? (
+                        <span className={`ml-1.5 ${pendingCountClass()}`}>({count})</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
 
               {ordersSubTab === "wallet" && (
                 <>
+                  <section className={`${ui.adminCard} ${displayNavCounts.wallet > 0 ? "border-red-200" : ""}`}>
+                    <h3 className={pendingSectionTitleClass(displayNavCounts.wallet > 0)}>
+                      Account / Wallet Overview
+                      {displayNavCounts.wallet > 0 ? (
+                        <span className={`ml-2 ${pendingCountClass()}`}>({displayNavCounts.wallet} pending)</span>
+                      ) : null}
+                    </h3>
+                    <p className={`${ui.small} ${ui.muted} px-4 pb-3`}>
+                      Pending approvals: {displayNavCounts.accounts} account
+                      {displayNavCounts.accounts === 1 ? "" : "s"}
+                      {" · "}
+                      {displayNavCounts.payments} wallet payment
+                      {displayNavCounts.payments === 1 ? "" : "s"}
+                      {" · "}
+                      {displayNavCounts.passwordResets} password reset
+                      {displayNavCounts.passwordResets === 1 ? "" : "s"}
+                    </p>
+                  </section>
+
+                  {passwordResets.length > 0 ? (
+                    <section className={`${ui.adminCard} ${displayNavCounts.passwordResets > 0 ? "border-red-200" : ""}`}>
+                      <h3 className={pendingSectionTitleClass(displayNavCounts.passwordResets > 0)}>
+                        Password Reset Codes
+                      </h3>
+                      <p className={`${ui.small} ${ui.muted} mb-3`}>
+                        Share the code with the customer on WhatsApp. Codes expire in 30 minutes.
+                      </p>
+                      <div className={ui.tableWrap}>
+                        <table className={ui.table}>
+                          <thead>
+                            <tr>
+                              <th className={ui.th}>Customer</th>
+                              <th className={ui.th}>Mobile</th>
+                              <th className={ui.th}>Code</th>
+                              <th className={ui.th}>Expires</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {passwordResets.map((reset) => (
+                              <tr key={reset.id} className={pendingRowClass(true)}>
+                                <td className={ui.td}>{reset.account?.business || reset.account?.name || "—"}</td>
+                                <td className={ui.td}>{formatPhone(reset.account?.phone)}</td>
+                                <td className={`${ui.td} font-bold text-red-700`}>{reset.code}</td>
+                                <td className={ui.td}>
+                                  {reset.expiresAt ? new Date(reset.expiresAt).toLocaleString("en-IN") : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  ) : null}
+
                   <section className={`${ui.adminCard} ${pending.length > 0 ? "border-red-200" : ""}`}>
                     <h3 className={pendingSectionTitleClass(pending.length > 0)}>Account Approval Requests</h3>
                     <div className={ui.tableWrap}>
@@ -695,7 +771,7 @@ export default function AdminPage() {
                   ordersPaged={ordersPaged}
                   onOrdersPageChange={setOrdersPage}
                   onRefresh={load}
-                  pendingCount={navCounts.orders}
+                  pendingCount={displayNavCounts.orders}
                 />
               )}
 

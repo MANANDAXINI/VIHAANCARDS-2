@@ -262,6 +262,190 @@ router.post("/google", async (req, res) => {
   }
 });
 
+const RESET_WHATSAPP = "7507543214";
+const RESET_CODE_MINUTES = 30;
+
+function resetSuccessMessage() {
+  return `If this mobile is registered, contact us on WhatsApp at ${RESET_WHATSAPP} to receive your reset code.`;
+}
+
+async function findPhoneAccounts(cleanPhone) {
+  return prisma.account.findMany({ where: { phone: cleanPhone } });
+}
+
+async function createPasswordResetForAccount(account) {
+  if (account.authProvider === "GOOGLE" && !isAdminRole(account.role)) {
+    return { error: "This account uses Google Sign-In. Please login with Google." };
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = await bcrypt.hash(code, 10);
+  const expiresAt = new Date(Date.now() + RESET_CODE_MINUTES * 60 * 1000);
+
+  await prisma.passwordReset.updateMany({
+    where: { accountId: account.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+
+  await prisma.passwordReset.create({
+    data: {
+      accountId: account.id,
+      codeHash,
+      code,
+      expiresAt,
+    },
+  });
+
+  return { ok: true };
+}
+
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const cleanPhone = String(req.body.phone || "").trim().replace(/\D/g, "");
+    const cleanBusiness = String(req.body.business || "").trim();
+    const accountId = String(req.body.accountId || "").trim();
+
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+      return res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
+    }
+
+    const accounts = await findPhoneAccounts(cleanPhone);
+    if (!accounts.length) {
+      return res.json({ message: resetSuccessMessage() });
+    }
+
+    if (accountId) {
+      const account = accounts.find((item) => item.id === accountId);
+      if (!account) {
+        return res.json({ message: resetSuccessMessage() });
+      }
+      const result = await createPasswordResetForAccount(account);
+      if (result.error) {
+        return res.status(400).json({ error: result.error });
+      }
+      return res.json({ message: resetSuccessMessage() });
+    }
+
+    const phoneAccounts = accounts.filter(
+      (account) => account.authProvider !== "GOOGLE" || isAdminRole(account.role)
+    );
+
+    if (!phoneAccounts.length) {
+      return res.status(400).json({ error: "Please use Google Sign-In for this mobile number." });
+    }
+
+    if (cleanBusiness) {
+      const account = phoneAccounts.find(
+        (item) => item.business.toLowerCase() === cleanBusiness.toLowerCase()
+      );
+      if (!account) {
+        return res.json({ message: resetSuccessMessage() });
+      }
+      const result = await createPasswordResetForAccount(account);
+      if (result.error) {
+        return res.status(400).json({ error: result.error });
+      }
+      return res.json({ message: resetSuccessMessage() });
+    }
+
+    if (phoneAccounts.length > 1) {
+      return res.json({
+        needsBusinessPick: true,
+        message: "This mobile has multiple businesses. Select one to reset password.",
+        accounts: phoneAccounts.map(businessPickSummary),
+      });
+    }
+
+    const result = await createPasswordResetForAccount(phoneAccounts[0]);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    return res.json({ message: resetSuccessMessage() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const cleanPhone = String(req.body.phone || "").trim().replace(/\D/g, "");
+    const cleanBusiness = String(req.body.business || "").trim();
+    const accountId = String(req.body.accountId || "").trim();
+    const code = String(req.body.code || "").trim();
+    const cleanPassword = String(req.body.password || "");
+
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+      return res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
+    }
+    if (!/^[0-9]{6}$/.test(code)) {
+      return res.status(400).json({ error: "Enter the 6-digit reset code." });
+    }
+    if (cleanPassword.length < 4) {
+      return res.status(400).json({ error: "Password must be at least 4 characters." });
+    }
+
+    const accounts = await findPhoneAccounts(cleanPhone);
+    let account = null;
+
+    if (accountId) {
+      account = accounts.find((item) => item.id === accountId) || null;
+    } else if (cleanBusiness) {
+      account = accounts.find(
+        (item) => item.business.toLowerCase() === cleanBusiness.toLowerCase()
+      ) || null;
+    } else if (accounts.length === 1) {
+      account = accounts[0];
+    }
+
+    if (!account) {
+      return res.status(400).json({ error: "Invalid reset request. Check mobile and business." });
+    }
+
+    if (account.authProvider === "GOOGLE" && !isAdminRole(account.role)) {
+      return res.status(400).json({ error: "Please use Google Sign-In for this account." });
+    }
+
+    const reset = await prisma.passwordReset.findFirst({
+      where: {
+        accountId: account.id,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!reset) {
+      return res.status(400).json({ error: "Reset code expired or not found. Request a new code." });
+    }
+
+    const validCode = await bcrypt.compare(code, reset.codeHash);
+    if (!validCode) {
+      return res.status(400).json({ error: "Invalid reset code." });
+    }
+
+    const passwordHash = await bcrypt.hash(cleanPassword, 10);
+    await prisma.$transaction([
+      prisma.account.update({
+        where: { id: account.id },
+        data: { passwordHash },
+      }),
+      prisma.passwordReset.update({
+        where: { id: reset.id },
+        data: { usedAt: new Date() },
+      }),
+      prisma.passwordReset.updateMany({
+        where: { accountId: account.id, usedAt: null, NOT: { id: reset.id } },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    res.json({ message: "Password updated. You can login with your new password." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/logout", authSession, async (req, res) => {
   try {
     await prisma.session.deleteMany({ where: { token: req.token } });

@@ -76,9 +76,23 @@ model Account {
   orders          Order[]
   walletRequests  WalletRequest[]
   ledgerEntries   LedgerEntry[]
+  passwordResets  PasswordReset[]
 
   @@unique([phone, business])
   @@index([phone])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  codeHash  String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId, createdAt])
 }
 
 model Session {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { formatPhone } from "@/components/AdminCatalogPanel";
 import { adminApi } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
@@ -82,7 +83,7 @@ export default function AdminReceivePaymentSection({ accounts = [], onRefresh })
             ) : (
               customers.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.business || account.name}
+                  {account.business || account.name} — {formatPhone(account.phone)}
                 </option>
               ))
             )}

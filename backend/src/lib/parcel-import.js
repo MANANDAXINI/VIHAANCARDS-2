@@ -126,11 +126,11 @@ function buildDispatchUpdateData(order, row) {
     dispatchDate: row.dispatchDate || order.dispatchDate || new Date(),
   };
 
-  if (order.status === "COMPLETED") {
+  if (order.status === "COMPLETED" || order.status === "PRINTING_PROCESS_STARTED") {
     return { data: dispatchFields };
   }
 
-  if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED"].includes(order.status)) {
+  if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED", "PRINTING_PROCESS_STARTED"].includes(order.status)) {
     return {
       error: `Order status ${order.status} cannot be updated. Proceed to printing first.`,
     };

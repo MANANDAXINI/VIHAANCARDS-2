@@ -22,10 +22,13 @@ export function formatOrderDescription(order) {
 
 export const JOB_VERIFIED_LABEL = "PAYMENT VERIFIED AND JOB MOVED TO NEXT PROCESS";
 export const JOB_PRINTING_LABEL = "PROCEEDED TO PRINTING";
+export const JOB_PROCESS_STARTED_LABEL = "PRINTING & OTHER PROCESS STARTED";
 
 export function formatJobProcess(status) {
   const s = String(status || "").toUpperCase();
-  if (s === "DISPATCHED" || s === "COMPLETED") return "JOB COMPLETED";
+  if (s === "COMPLETED") return "JOB COMPLETED";
+  if (s === "DISPATCHED") return "DESPATCHED";
+  if (s === "PRINTING_PROCESS_STARTED") return JOB_PROCESS_STARTED_LABEL;
   if (s === "IN_PRINTING") return JOB_PRINTING_LABEL;
   if (s === "PAYMENT_VERIFIED") return JOB_VERIFIED_LABEL;
   if (s === "PENDING" || s === "PAYMENT_SUBMITTED" || s === "PAYMENT_PENDING") return "Pending";
@@ -50,7 +53,13 @@ export function jobProcessClassForOrder(order) {
 
 export function jobProcessClass(status) {
   const s = String(status || "").toUpperCase();
-  if (s === "DISPATCHED" || s === "COMPLETED") {
+  if (s === "COMPLETED") {
+    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-emerald-600 sm:text-xs";
+  }
+  if (s === "DISPATCHED") {
+    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-indigo-600 sm:text-xs";
+  }
+  if (s === "PRINTING_PROCESS_STARTED") {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-600 sm:text-xs";
   }
   if (s === "IN_PRINTING") {
@@ -68,7 +77,7 @@ export function jobProcessClass(status) {
 export function formatDespatchLabel(order) {
   if (isPendingPaymentOrder(order)) return "Pending";
   const s = String(order?.status || "").toUpperCase();
-  if (s === "DISPATCHED" || s === "COMPLETED") {
+  if (s === "DISPATCHED" || s === "COMPLETED" || s === "PRINTING_PROCESS_STARTED") {
     const date = order.dispatchDate ? formatLedgerTableDate(order.dispatchDate) : "";
     return date ? `Despatched ${date}` : "Despatched";
   }

@@ -115,6 +115,7 @@ export function pendingRowClass(isPending) {
 export function orderStatusClass(status) {
   const s = String(status || "").toUpperCase();
   if (s === "DISPATCHED") return `${ui.pill} bg-indigo-100 text-indigo-800`;
+  if (s === "PRINTING_PROCESS_STARTED") return `${ui.pill} bg-teal-100 text-teal-800`;
   if (s === "COMPLETED") return `${ui.pill} bg-emerald-100 text-emerald-800`;
   if (s === "PAYMENT_VERIFIED" || s === "IN_PRINTING") return `${ui.pill} bg-blue-100 text-blue-800`;
   if (s === "PAYMENT_SUBMITTED" || s === "ORDER_CREATED") return `${ui.pill} bg-amber-100 text-amber-800`;

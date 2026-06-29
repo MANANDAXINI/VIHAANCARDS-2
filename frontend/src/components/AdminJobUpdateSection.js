@@ -65,7 +65,7 @@ export default function AdminJobUpdateSection({ onRefresh }) {
         skippedCount: data.skippedCount,
       });
       setResults(data.results || []);
-      toast.success(`Marked ${data.updatedCount} job(s) as completed.`);
+      toast.success(`Updated ${data.updatedCount} job(s) — printing & other process started.`);
       onRefresh?.();
     } catch (error) {
       toast.error(error.message || "Job update failed.");
@@ -111,7 +111,7 @@ export default function AdminJobUpdateSection({ onRefresh }) {
             className={`${btnClass("primary")} w-full sm:w-auto`}
             disabled={submitting || orderNumbers.length === 0}
           >
-            {submitting ? "Updating..." : `Mark ${orderNumbers.length || 0} Job(s) Completed`}
+            {submitting ? "Updating..." : `Start Printing Process (${orderNumbers.length || 0} job${orderNumbers.length === 1 ? "" : "s"})`}
           </button>
         </form>
       </section>
@@ -146,7 +146,7 @@ export default function AdminJobUpdateSection({ onRefresh }) {
         <section className={ui.adminCard}>
           <div className="flex flex-wrap gap-4 text-sm">
             <p><strong>Jobs found:</strong> {summary.totalJobs}</p>
-            <p className="text-teal-700"><strong>Completed:</strong> {summary.updatedCount}</p>
+            <p className="text-teal-700"><strong>Process started:</strong> {summary.updatedCount}</p>
             <p className="text-amber-700"><strong>Skipped:</strong> {summary.skippedCount}</p>
             <p className="text-red-700"><strong>Failed:</strong> {summary.failedCount}</p>
           </div>

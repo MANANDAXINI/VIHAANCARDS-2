@@ -30,12 +30,12 @@ function toDateInputValue(value) {
 
 function isPaymentVerified(order) {
   return String(order?.paymentStatus || "").toUpperCase() === "VERIFIED"
-    || ["PAYMENT_VERIFIED", "IN_PRINTING", "DISPATCHED", "COMPLETED"].includes(String(order?.status || "").toUpperCase());
+    || ["PAYMENT_VERIFIED", "IN_PRINTING", "PRINTING_PROCESS_STARTED", "DISPATCHED", "COMPLETED"].includes(String(order?.status || "").toUpperCase());
 }
 
 function hasProceededToPrinting(status) {
   const s = String(status || "").toUpperCase();
-  return s === "IN_PRINTING" || s === "DISPATCHED" || s === "COMPLETED";
+  return s === "IN_PRINTING" || s === "PRINTING_PROCESS_STARTED" || s === "DISPATCHED" || s === "COMPLETED";
 }
 
 function SectionLabel({ children }) {
@@ -77,7 +77,7 @@ function DispatchForm({ order, onSaved }) {
   const [transportDetails, setTransportDetails] = useState(order.transportDetails || "");
   const [dispatchDate, setDispatchDate] = useState(toDateInputValue(order.dispatchDate));
   const [saving, setSaving] = useState(false);
-  const dispatched = ["DISPATCHED", "COMPLETED"].includes(String(order.status || "").toUpperCase());
+  const dispatched = ["DISPATCHED", "PRINTING_PROCESS_STARTED", "COMPLETED"].includes(String(order.status || "").toUpperCase());
 
   useEffect(() => {
     setLrNumber(order.lrNumber || "");

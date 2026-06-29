@@ -450,7 +450,7 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
 
-  if (existing.status === "COMPLETED") {
+  if (existing.status === "COMPLETED" || existing.status === "PRINTING_PROCESS_STARTED") {
     const order = await prisma.order.update({
       where: { id: req.params.id },
       data: {
@@ -462,7 +462,7 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
     return res.json({ order: secureOrder(order) });
   }
 
-  if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED"].includes(existing.status)) {
+  if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED", "PRINTING_PROCESS_STARTED"].includes(existing.status)) {
     return res.status(400).json({ error: "Order must proceed to printing before dispatch." });
   }
 
@@ -767,13 +767,13 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
       continue;
     }
 
-    if (order.status === "COMPLETED") {
+    if (order.status === "PRINTING_PROCESS_STARTED" || order.status === "COMPLETED") {
       skippedCount += 1;
       results.push({
         orderNumber,
         status: "skipped",
         customer: order.account?.business || order.account?.name || "—",
-        message: "Already marked job completed.",
+        message: "Already marked printing & other process started.",
         orderStatus: order.status,
       });
       continue;
@@ -785,7 +785,7 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
         orderNumber,
         status: "failed",
         customer: order.account?.business || order.account?.name || "—",
-        message: `Order status ${order.status} cannot be completed.`,
+        message: `Order status ${order.status} cannot be updated.`,
         orderStatus: order.status,
       });
       continue;
@@ -793,7 +793,7 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
 
     const updated = await prisma.order.update({
       where: { id: order.id },
-      data: { status: "COMPLETED" },
+      data: { status: "PRINTING_PROCESS_STARTED" },
     });
 
     updatedCount += 1;
@@ -801,7 +801,7 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
       orderNumber: updated.orderNumber,
       status: "updated",
       customer: order.account?.business || order.account?.name || "—",
-      message: "Job marked completed.",
+      message: "Printing & other process started.",
       orderStatus: updated.status,
     });
   }

@@ -64,15 +64,21 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Password must be at least 4 characters." });
     }
 
-    const existing = await prisma.account.findFirst({
-      where: {
-        phone: cleanPhone,
-        business: { equals: cleanBusiness, mode: "insensitive" },
-      },
+    const existingPhone = await prisma.account.findFirst({
+      where: { phone: cleanPhone },
     });
-    if (existing) {
+    if (existingPhone) {
       return res.status(409).json({
-        error: "This business is already registered with this mobile number. Login and select it, or use a different business name.",
+        error: "This mobile number is already registered. Login or use forgot password.",
+      });
+    }
+
+    const existingBusiness = await prisma.account.findFirst({
+      where: { business: { equals: cleanBusiness, mode: "insensitive" } },
+    });
+    if (existingBusiness) {
+      return res.status(409).json({
+        error: "This business name is already registered. Use a different business name.",
       });
     }
 
@@ -154,15 +160,17 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Wrong mobile or password." });
     }
 
+    if (matching.length > 1) {
+      return res.status(409).json({
+        error: "This mobile number has multiple accounts. Contact admin — only one business is allowed per mobile number.",
+      });
+    }
+
     if (matching.length === 1) {
       return finishLogin(matching[0], res);
     }
 
-    return res.json({
-      needsBusinessPick: true,
-      message: "This mobile has multiple businesses. Select one to continue.",
-      accounts: matching.map(businessPickSummary),
-    });
+    return res.status(401).json({ error: "Wrong mobile or password." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -356,10 +364,8 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     if (phoneAccounts.length > 1) {
-      return res.json({
-        needsBusinessPick: true,
-        message: "This mobile has multiple businesses. Select one to reset password.",
-        accounts: phoneAccounts.map(businessPickSummary),
+      return res.status(409).json({
+        error: "This mobile number has multiple accounts. Contact admin — only one business is allowed per mobile number.",
       });
     }
 
@@ -481,12 +487,21 @@ router.put("/account", authCustomer, async (req, res) => {
     const duplicate = await prisma.account.findFirst({
       where: {
         phone: cleanPhone,
-        business: { equals: cleanBusiness, mode: "insensitive" },
         NOT: { id: req.account.id },
       },
     });
     if (duplicate) {
-      return res.status(409).json({ error: "Another account already uses this mobile and business name." });
+      return res.status(409).json({ error: "Another account already uses this mobile number." });
+    }
+
+    const duplicateBusiness = await prisma.account.findFirst({
+      where: {
+        business: { equals: cleanBusiness, mode: "insensitive" },
+        NOT: { id: req.account.id },
+      },
+    });
+    if (duplicateBusiness) {
+      return res.status(409).json({ error: "Another account already uses this business name." });
     }
 
     const account = await prisma.account.update({

@@ -12,6 +12,7 @@ import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/component
 import BusinessPickList from "@/components/BusinessPickList";
 import AdminCustomerCreditWallet from "@/components/AdminCustomerCreditWallet";
 import AdminCustomerCreditOverview from "@/components/AdminCustomerCreditOverview";
+import AdminReceivePaymentSection from "@/components/AdminReceivePaymentSection";
 import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
@@ -552,6 +553,10 @@ export default function AdminPage() {
               </div>
               <AdminPagination page={paymentsPaged.page} totalPages={paymentsPaged.totalPages} total={paymentsPaged.total} onPageChange={setPaymentsPage} />
             </section>
+          )}
+
+          {activeTab === "payment" && (
+            <AdminReceivePaymentSection accounts={accounts} onRefresh={load} />
           )}
 
           {activeTab === "orders" && (

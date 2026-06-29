@@ -17,6 +17,38 @@ import {
 } from "@/lib/order-display";
 import { ui } from "@/lib/ui";
 
+function CustomerPaymentsTable({ ledgerEntries = [] }) {
+  const payments = ledgerEntries.filter((entry) => Number(entry.credit || 0) > 0);
+
+  return (
+    <section className={ui.cardFlat}>
+      <h2 className={`${ui.h3} border-b border-slate-200 px-4 py-3`}>Payments</h2>
+      <div className={ui.tableWrap}>
+        <table className={ui.table}>
+          <thead>
+            <tr>
+              <th className={ui.th}>AMOUNT</th>
+              <th className={ui.th}>DATE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.length === 0 ? (
+              <tr><td className={ui.td} colSpan="2">No payments yet.</td></tr>
+            ) : (
+              payments.map((entry) => (
+                <tr key={entry.id}>
+                  <td className={`${ui.td} font-semibold`}>{formatRupees(entry.credit)}</td>
+                  <td className={ui.td}>{formatLedgerTableDate(entry.entryDate)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function PaymentLedgerTable({ ledgerEntries = [] }) {
   return (
     <section className={ui.cardFlat}>
@@ -132,6 +164,9 @@ function OrderHistoryTable({ orders = [] }) {
 }
 
 export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], activeTab = "orders" }) {
+  if (activeTab === "payments") {
+    return <CustomerPaymentsTable ledgerEntries={ledgerEntries} />;
+  }
   if (activeTab === "ledger") {
     return <PaymentLedgerTable ledgerEntries={ledgerEntries} />;
   }
@@ -140,10 +175,11 @@ export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], ac
   }
   return (
     <div className="grid gap-6">
+      <CustomerPaymentsTable ledgerEntries={ledgerEntries} />
       <PaymentLedgerTable ledgerEntries={ledgerEntries} />
       <OrderHistoryTable orders={orders} />
     </div>
   );
 }
 
-export { PaymentLedgerTable, OrderHistoryTable };
+export { PaymentLedgerTable, OrderHistoryTable, CustomerPaymentsTable };

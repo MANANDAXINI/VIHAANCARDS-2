@@ -12,6 +12,7 @@ import { walletApi } from "@/lib/api";
 
 const ACCOUNT_TABS = [
   { id: "both", label: "Ledger & Orders" },
+  { id: "payments", label: "Payments" },
   { id: "ledger", label: "Payment Ledger" },
   { id: "orders", label: "Order History" },
 ];
@@ -28,7 +29,7 @@ function AccountContent() {
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab === "ledger" || tab === "orders" || tab === "both") {
+    if (tab === "ledger" || tab === "orders" || tab === "both" || tab === "payments") {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -70,13 +71,17 @@ function AccountContent() {
     [orders]
   );
 
-  const pageTitle = activeTab === "ledger"
+  const pageTitle = activeTab === "payments"
+    ? "Payments"
+    : activeTab === "ledger"
     ? "Payment Ledger"
     : activeTab === "orders"
       ? "Order History"
       : "Account Ledger";
   const pageDescription =
-    activeTab === "ledger"
+    activeTab === "payments"
+      ? "Payments recorded on your account."
+      : activeTab === "ledger"
       ? `Your payment and outstanding balance history.${ledgerCount > 0 ? ` (${ledgerCount} entries)` : ""}`
       : activeTab === "orders"
         ? `Track your orders, artwork, and job status.${orderCount > 0 ? ` (${orderCount} order${orderCount === 1 ? "" : "s"})` : ""}`

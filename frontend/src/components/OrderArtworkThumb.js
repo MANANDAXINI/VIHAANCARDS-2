@@ -12,7 +12,6 @@ function isImageArtwork(mime, name) {
 function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
-  const fullUrl = uploadAssetUrl(url);
   const showImage = isImageArtwork(mime, name);
 
   useEffect(() => {
@@ -38,7 +37,30 @@ function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" })
     };
   }, [url]);
 
+  async function handleOpen(event) {
+    if (src) return;
+    event.preventDefault();
+    try {
+      const blobUrl = await fetchArtworkBlobUrl(url);
+      if (!blobUrl) {
+        setFailed(true);
+        return;
+      }
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      setFailed(true);
+    }
+  }
+
   if (!url) return null;
+
+  const linkProps = {
+    href: src || undefined,
+    target: "_blank",
+    rel: "noreferrer",
+    onClick: handleOpen,
+    ...(src && !showImage && name ? { download: name } : {}),
+  };
 
   return (
     <div className="flex w-full flex-col gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
@@ -48,7 +70,7 @@ function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" })
           File unavailable
         </div>
       ) : showImage ? (
-        <a href={fullUrl || undefined} target="_blank" rel="noreferrer" className="block w-full">
+        <a {...linkProps} className="block w-full">
           {src ? (
             <img
               src={src}
@@ -61,9 +83,7 @@ function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" })
         </a>
       ) : (
         <a
-          href={fullUrl || undefined}
-          target={fullUrl ? "_blank" : undefined}
-          rel={fullUrl ? "noreferrer" : undefined}
+          {...linkProps}
           className={`${className} mx-auto grid w-full max-w-[8rem] place-items-center rounded border border-slate-200 bg-slate-100 px-1 text-center text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500`}
         >
           {src || !failed ? "File" : "—"}

@@ -2,7 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
 const { pendingOrderTotal, summarizeAccountLedger } = require("../lib/ledger");
-const { parseParcelRowsFromWorkbook, buildDispatchUpdateData } = require("../lib/parcel-import");
+const { parseParcelRowsFromWorkbook, buildDispatchUpdateData, parseExcelDate } = require("../lib/parcel-import");
 const { normalizeOrderNumber } = require("../lib/job-folder-parse");
 const { authAdmin } = require("../middleware/auth");
 
@@ -737,6 +737,55 @@ router.post("/parcel-update/upload", authAdmin, parcelUpload.single("file"), asy
   } catch (error) {
     console.error("Parcel upload error:", error);
     res.status(400).json({ error: error.message || "Could not process Excel file." });
+  }
+});
+
+router.post("/parcel-update/single", authAdmin, async (req, res) => {
+  try {
+    const orderNumber = normalizeOrderNumber(req.body?.orderNumber);
+    const lrNumber = String(req.body?.lrNumber || "").trim();
+    const transportDetails = String(req.body?.transportDetails || "").trim();
+    const dispatchDate = parseExcelDate(req.body?.dispatchDate);
+
+    if (!orderNumber) {
+      return res.status(400).json({ error: "Order number is required." });
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { orderNumber },
+      include: { account: true },
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: `Order ${orderNumber} not found.` });
+    }
+
+    const built = buildDispatchUpdateData(order, {
+      lrNumber,
+      transportDetails,
+      dispatchDate,
+    });
+
+    if (built.error) {
+      return res.status(400).json({ error: built.error });
+    }
+
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: built.data,
+    });
+
+    res.json({
+      orderNumber: updated.orderNumber,
+      customer: order.account?.business || order.account?.name || "—",
+      lrNumber: updated.lrNumber,
+      transportDetails: updated.transportDetails,
+      dispatchDate: updated.dispatchDate,
+      orderStatus: updated.status,
+    });
+  } catch (error) {
+    console.error("Single parcel update error:", error);
+    res.status(400).json({ error: error.message || "Could not update parcel details." });
   }
 });
 

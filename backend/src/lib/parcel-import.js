@@ -151,5 +151,6 @@ function buildDispatchUpdateData(order, row) {
 module.exports = {
   parseParcelRowsFromWorkbook,
   normalizeOrderNumber,
+  parseExcelDate,
   buildDispatchUpdateData,
 };

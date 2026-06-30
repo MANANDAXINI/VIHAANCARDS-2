@@ -40,12 +40,14 @@ router.get("/nav-counts", authAdmin, async (_req, res) => {
   ]);
 
   const pendingOrders = orders.filter((order) => order.status !== "COMPLETED").length;
+  const completedOrders = orders.length - pendingOrders;
 
   res.json({
     counts: {
       accounts: pendingAccounts,
       payments: pendingPayments,
       orders: pendingOrders,
+      completedOrders,
       wallet: pendingAccounts + pendingPayments + pendingPasswordResets,
       passwordResets: pendingPasswordResets,
     },

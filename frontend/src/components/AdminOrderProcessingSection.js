@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AdminPagination, AdminSearchBar } from "@/components/AdminTableTools";
+import { useEffect, useMemo, useState } from "react";
+import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { ArtworkThumb } from "@/components/OrderArtworkThumb";
 import { adminApi, formatRupees } from "@/lib/api";
 import { saveArtworkToBusinessFolder } from "@/lib/artwork-save";
+import { filterItems, paginateItems } from "@/lib/admin-table";
 import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
-import { btnClass, pendingRowClass, pendingSectionTitleClass, ui } from "@/lib/ui";
+import {
+  btnClass,
+  isOrderCompleted,
+  pendingRowClass,
+  pendingSectionTitleClass,
+  ui,
+} from "@/lib/ui";
 
 const PROCESSING_COLUMNS = [
   "Order",
@@ -19,6 +26,18 @@ const PROCESSING_COLUMNS = [
   "Job Process",
   "Dispatch",
   "Artwork",
+];
+
+const ORDER_SEARCH_KEYS = [
+  "orderNumber",
+  "business",
+  "customerName",
+  "paperGsm",
+  "size",
+  "quantity",
+  "status",
+  "amount",
+  "product",
 ];
 
 function toDateInputValue(value) {
@@ -200,7 +219,7 @@ function OrderProcessingCard({ order, onRefresh }) {
   }
 
   return (
-    <article className={`rounded-lg border border-slate-200 bg-white p-3 sm:p-4 ${pendingRowClass(order.status !== "COMPLETED")}`}>
+    <article className={`rounded-lg border border-slate-200 bg-white p-3 sm:p-4 ${pendingRowClass(!isOrderCompleted(order.status))}`}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 xl:items-start xl:gap-3">
         <div className="min-w-0">
           <SectionLabel>Order</SectionLabel>
@@ -299,21 +318,46 @@ function OrderProcessingCard({ order, onRefresh }) {
 
 export default function AdminOrderProcessingSection({
   orders = [],
-  ordersSearch,
-  onOrdersSearchChange,
-  ordersPaged,
-  onOrdersPageChange,
+  view = "pending",
   onRefresh,
-  pendingCount = 0,
 }) {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
+  useAdminTableState(search, setPage);
+
+  useEffect(() => {
+    setPage(1);
+  }, [view]);
+
+  const pendingOrders = useMemo(
+    () => orders.filter((order) => !isOrderCompleted(order.status)),
+    [orders]
+  );
+  const completedOrders = useMemo(
+    () => orders.filter((order) => isOrderCompleted(order.status)),
+    [orders]
+  );
+
+  const activeOrders = view === "completed" ? completedOrders : pendingOrders;
+  const filtered = useMemo(
+    () => filterItems(activeOrders, search, ORDER_SEARCH_KEYS),
+    [activeOrders, search]
+  );
+  const paged = useMemo(() => paginateItems(filtered, page), [filtered, page]);
+
+  const isPendingView = view !== "completed";
+  const title = isPendingView ? "Pending Orders" : "Completed Orders";
+  const count = activeOrders.length;
+
   return (
-    <section className={`${ui.adminCard} w-full ${pendingCount > 0 ? "border-red-200" : ""}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className={pendingSectionTitleClass(pendingCount > 0)}>
-          Order Processing ({orders.length})
+    <section className={`${ui.adminCard} w-full ${isPendingView && count > 0 ? "border-red-200" : ""}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+        <h3 className={isPendingView && count > 0 ? pendingSectionTitleClass(true) : ui.adminH3}>
+          {title} ({count})
         </h3>
         <div className="w-full sm:max-w-xs">
-          <AdminSearchBar value={ordersSearch} onChange={onOrdersSearchChange} placeholder="Search orders..." />
+          <AdminSearchBar value={search} onChange={setSearch} placeholder="Search orders..." />
         </div>
       </div>
 
@@ -325,24 +369,26 @@ export default function AdminOrderProcessingSection({
         ))}
       </div>
 
-      <div className="grid w-full gap-3">
-        {ordersPaged.items.length === 0 ? (
+      <div className="grid w-full gap-3 px-4 pb-4">
+        {paged.items.length === 0 ? (
           <p className={`rounded-lg border border-slate-200 bg-white px-4 py-8 text-center ${ui.muted}`}>
-            No orders
+            {view === "completed" ? "No completed orders." : "No pending orders."}
           </p>
         ) : (
-          ordersPaged.items.map((order) => (
+          paged.items.map((order) => (
             <OrderProcessingCard key={order.id} order={order} onRefresh={onRefresh} />
           ))
         )}
       </div>
 
-      <AdminPagination
-        page={ordersPaged.page}
-        totalPages={ordersPaged.totalPages}
-        total={ordersPaged.total}
-        onPageChange={onOrdersPageChange}
-      />
+      <div className="px-4 pb-4">
+        <AdminPagination
+          page={paged.page}
+          totalPages={paged.totalPages}
+          total={paged.total}
+          onPageChange={setPage}
+        />
+      </div>
     </section>
   );
 }

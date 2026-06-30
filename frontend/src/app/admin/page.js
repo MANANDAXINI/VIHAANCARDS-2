@@ -36,6 +36,7 @@ import {
 import {
   accountStatusClass,
   btnClass,
+  isOrderCompleted,
   isOrderPending,
   pendingCountClass,
   pendingRowClass,
@@ -75,11 +76,9 @@ export default function AdminPage() {
   const [pendingSearch, setPendingSearch] = useState("");
   const [accountsSearch, setAccountsSearch] = useState("");
   const [paymentsSearch, setPaymentsSearch] = useState("");
-  const [ordersSearch, setOrdersSearch] = useState("");
   const [pendingPage, setPendingPage] = useState(1);
   const [accountsPage, setAccountsPage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
-  const [ordersPage, setOrdersPage] = useState(1);
   const [ordersSubTab, setOrdersSubTab] = useState("wallet");
   const [walletRequests, setWalletRequests] = useState([]);
   const [walletSearch, setWalletSearch] = useState("");
@@ -90,6 +89,7 @@ export default function AdminPage() {
     accounts: 0,
     payments: 0,
     orders: 0,
+    completedOrders: 0,
     wallet: 0,
     passwordResets: 0,
   });
@@ -103,7 +103,6 @@ export default function AdminPage() {
   useAdminTableState(pendingSearch, setPendingPage);
   useAdminTableState(accountsSearch, setAccountsPage);
   useAdminTableState(paymentsSearch, setPaymentsPage);
-  useAdminTableState(ordersSearch, setOrdersPage);
   useAdminTableState(walletSearch, setWalletPage);
 
   useEffect(() => {
@@ -197,7 +196,7 @@ export default function AdminPage() {
       await adminApi.approveWallet(id);
       toast.success("Payment verified. Order moved to job process.");
       setActiveTab("orders");
-      setOrdersSubTab("processing");
+      setOrdersSubTab("pending-orders");
       await load();
     } catch (error) {
       toast.error(error.message);
@@ -304,6 +303,7 @@ export default function AdminPage() {
     accounts: navCounts.accounts ?? pending.length,
     payments: navCounts.payments ?? payments.length,
     orders: navCounts.orders ?? orders.filter((o) => isOrderPending(o.status)).length,
+    completedOrders: navCounts.completedOrders ?? orders.filter((o) => isOrderCompleted(o.status)).length,
     wallet: navCounts.wallet ?? (pending.length + payments.length + (navCounts.passwordResets || 0)),
     passwordResets: navCounts.passwordResets ?? passwordResets.length,
   };
@@ -319,9 +319,6 @@ export default function AdminPage() {
 
   const walletFiltered = filterItems(walletRequests, walletSearch, ["account.business", "account.phone", "amount", "type", "status"]);
   const walletPaged = paginateItems(walletFiltered, walletPage);
-
-  const ordersFiltered = filterItems(orders, ordersSearch, ["orderNumber", "business", "customerName", "paperGsm", "size", "quantity", "status", "amount", "product"]);
-  const ordersPaged = paginateItems(ordersFiltered, ordersPage);
 
   return (
     <>
@@ -570,11 +567,12 @@ export default function AdminPage() {
                 {[
                   { id: "wallet", label: "Account / Wallet", countKey: "wallet" },
                   { id: "credit", label: "Customer Credit" },
-                  { id: "processing", label: "Order Processing", countKey: "orders" },
+                  { id: "pending-orders", label: "Pending Orders", countKey: "orders", highlight: true },
+                  { id: "completed-orders", label: "Completed Orders", countKey: "completedOrders" },
                   { id: "ledger", label: "Customer Ledger" },
                 ].map((tab) => {
                   const count = tab.countKey ? displayNavCounts[tab.countKey] : null;
-                  const hasPending = count != null && count > 0;
+                  const showCount = count != null;
                   return (
                     <button
                       key={tab.id}
@@ -583,8 +581,10 @@ export default function AdminPage() {
                       onClick={() => setOrdersSubTab(tab.id)}
                     >
                       {tab.label}
-                      {hasPending ? (
-                        <span className={`ml-1.5 ${pendingCountClass()}`}>({count})</span>
+                      {showCount ? (
+                        <span className={`ml-1.5 ${tab.highlight && count > 0 ? pendingCountClass() : "text-slate-600"}`}>
+                          ({count})
+                        </span>
                       ) : null}
                     </button>
                   );
@@ -768,15 +768,11 @@ export default function AdminPage() {
                 </>
               )}
 
-              {ordersSubTab === "processing" && (
+              {(ordersSubTab === "pending-orders" || ordersSubTab === "completed-orders") && (
                 <AdminOrderProcessingSection
                   orders={orders}
-                  ordersSearch={ordersSearch}
-                  onOrdersSearchChange={setOrdersSearch}
-                  ordersPaged={ordersPaged}
-                  onOrdersPageChange={setOrdersPage}
+                  view={ordersSubTab === "completed-orders" ? "completed" : "pending"}
                   onRefresh={load}
-                  pendingCount={displayNavCounts.orders}
                 />
               )}
 

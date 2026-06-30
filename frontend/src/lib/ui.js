@@ -132,3 +132,7 @@ export function formatOrderStatus(status) {
 export function isOrderPending(status) {
   return String(status || "").toUpperCase() !== "COMPLETED";
 }
+
+export function isOrderCompleted(status) {
+  return String(status || "").toUpperCase() === "COMPLETED";
+}

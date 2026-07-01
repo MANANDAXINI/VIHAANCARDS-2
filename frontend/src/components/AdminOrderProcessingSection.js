@@ -5,6 +5,7 @@ import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/component
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { ArtworkThumb } from "@/components/OrderArtworkThumb";
 import { adminApi, formatRupees } from "@/lib/api";
+import { saveArtworkToBusinessFolder } from "@/lib/artwork-save";
 import { downloadOrderSlipImage } from "@/lib/order-slip-image";
 import { notifyCustomerDispatch } from "@/lib/dispatch-notify";
 import { filterItems, paginateItems } from "@/lib/admin-table";

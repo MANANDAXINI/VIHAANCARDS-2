@@ -5,7 +5,8 @@ import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/component
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { ArtworkThumb } from "@/components/OrderArtworkThumb";
 import { adminApi, formatRupees } from "@/lib/api";
-import { saveArtworkToBusinessFolder } from "@/lib/artwork-save";
+import { downloadOrderSlipImage } from "@/lib/order-slip-image";
+import { notifyCustomerDispatch } from "@/lib/dispatch-notify";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
@@ -111,18 +112,40 @@ function DispatchForm({ order, onSaved }) {
     }
     setSaving(true);
     try {
-      await adminApi.dispatch(order.id, {
+      const overrides = {
         lrNumber: lrNumber.trim(),
         transportDetails: transportDetails.trim(),
         dispatchDate: dispatchDate || new Date().toISOString().slice(0, 10),
-      }, { silent: true });
-      toast.success("Dispatch details saved.");
+      };
+      const response = await adminApi.dispatch(order.id, overrides, { silent: true });
+      const updatedOrder = { ...order, ...response.order, ...overrides };
+
+      downloadOrderSlipImage(updatedOrder, overrides);
+      const { opened } = notifyCustomerDispatch(updatedOrder, overrides);
+
+      if (opened) {
+        toast.success("Dispatch saved. Order image downloaded — WhatsApp opened for customer.");
+      } else {
+        toast.success("Dispatch saved and order image downloaded. Customer phone not available for WhatsApp.");
+      }
       onSaved();
     } catch (error) {
       toast.error(error.message);
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleDownloadSlip() {
+    if (!lrNumber.trim()) {
+      toast.error("Enter LR number before downloading the order image.");
+      return;
+    }
+    downloadOrderSlipImage(order, {
+      lrNumber: lrNumber.trim(),
+      transportDetails: transportDetails.trim(),
+      dispatchDate: dispatchDate || new Date().toISOString().slice(0, 10),
+    });
   }
 
   return (
@@ -154,6 +177,13 @@ function DispatchForm({ order, onSaved }) {
           onChange={(e) => setDispatchDate(e.target.value)}
         />
       </label>
+      <button
+        type="button"
+        className={`${btnClass("secondary", true)} w-full`}
+        onClick={handleDownloadSlip}
+      >
+        Download Order Image
+      </button>
       <button
         type="button"
         className={`${btnClass("amber", true)} w-full`}

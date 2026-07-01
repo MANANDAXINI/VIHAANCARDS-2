@@ -8,6 +8,17 @@ const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 const secureOrder = (order) => publicOrder(order, { secureFiles: true });
+
+function adminOrderPayload(order) {
+  const account = order.account;
+  return {
+    ...secureOrder(order),
+    customerName: account?.name,
+    business: account?.business,
+    customerCity: account?.address,
+    customerPhone: account?.phone,
+  };
+}
 const parcelUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -460,8 +471,9 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
         transportDetails: String(transportDetails || "").trim(),
         dispatchDate: dispatchDate ? new Date(dispatchDate) : existing.dispatchDate || new Date(),
       },
+      include: { account: true },
     });
-    return res.json({ order: secureOrder(order) });
+    return res.json({ order: adminOrderPayload(order) });
   }
 
   if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED", "PRINTING_PROCESS_STARTED"].includes(existing.status)) {
@@ -476,8 +488,9 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
       dispatchDate: dispatchDate ? new Date(dispatchDate) : new Date(),
       status: "DISPATCHED",
     },
+    include: { account: true },
   });
-  res.json({ order: secureOrder(order) });
+  res.json({ order: adminOrderPayload(order) });
 });
 
 router.put("/orders/:id/deliver", authAdmin, async (req, res) => {
@@ -773,14 +786,12 @@ router.post("/parcel-update/single", authAdmin, async (req, res) => {
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: built.data,
+      include: { account: true },
     });
 
     res.json({
-      orderNumber: updated.orderNumber,
-      customer: order.account?.business || order.account?.name || "—",
-      lrNumber: updated.lrNumber,
-      transportDetails: updated.transportDetails,
-      dispatchDate: updated.dispatchDate,
+      ...adminOrderPayload(updated),
+      customer: updated.account?.business || updated.account?.name || "—",
       orderStatus: updated.status,
     });
   } catch (error) {

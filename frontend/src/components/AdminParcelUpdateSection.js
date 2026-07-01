@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import FilePickButton from "@/components/FilePickButton";
 import { adminApi } from "@/lib/api";
+import { notifyCustomerDispatch } from "@/lib/dispatch-notify";
+import { downloadOrderSlipImage } from "@/lib/order-slip-image";
 import { formatLedgerTableDate } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
@@ -40,17 +42,22 @@ function SingleParcelUpdateForm({ onRefresh, onUpdated }) {
 
     setSaving(true);
     try {
-      const data = await adminApi.updateSingleParcel(
-        {
-          orderNumber: normalizedOrder,
-          lrNumber: lrNumber.trim(),
-          transportDetails: transportDetails.trim(),
-          dispatchDate: dispatchDate || todayInputValue(),
-        },
-        { silent: true }
-      );
+      const overrides = {
+        orderNumber: normalizedOrder,
+        lrNumber: lrNumber.trim(),
+        transportDetails: transportDetails.trim(),
+        dispatchDate: dispatchDate || todayInputValue(),
+      };
+      const data = await adminApi.updateSingleParcel(overrides, { silent: true });
 
-      toast.success(`Updated ${data.orderNumber}.`);
+      downloadOrderSlipImage(data, overrides);
+      const { opened } = notifyCustomerDispatch(data, overrides);
+
+      if (opened) {
+        toast.success(`Updated ${data.orderNumber}. Order image downloaded — WhatsApp opened.`);
+      } else {
+        toast.success(`Updated ${data.orderNumber}. Order image downloaded.`);
+      }
       onUpdated?.(data);
       onRefresh?.();
       resetForm();
@@ -109,6 +116,23 @@ function SingleParcelUpdateForm({ onRefresh, onUpdated }) {
 
       <button type="submit" className={`${btnClass("amber", true)} w-full`} disabled={saving}>
         {saving ? "Updating..." : "Update"}
+      </button>
+      <button
+        type="button"
+        className={`${btnClass("secondary", true)} w-full`}
+        disabled={saving || !orderNumber.trim() || !lrNumber.trim()}
+        onClick={() => {
+          downloadOrderSlipImage(
+            { orderNumber: orderNumber.trim() },
+            {
+              lrNumber: lrNumber.trim(),
+              transportDetails: transportDetails.trim(),
+              dispatchDate: dispatchDate || todayInputValue(),
+            }
+          );
+        }}
+      >
+        Download Order Image
       </button>
     </form>
   );

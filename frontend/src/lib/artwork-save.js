@@ -65,7 +65,20 @@ export async function fetchArtworkBlob(url) {
   });
 
   if (!response.ok) {
-    throw new Error("Could not load artwork file.");
+    let message = "Could not load artwork file.";
+    try {
+      const data = await response.json();
+      if (data.error === "File not found.") {
+        message = "Artwork file is missing on the server. It may have been uploaded before cloud storage was enabled — ask the customer to re-upload, or upload again from admin.";
+      } else if (data.error === "Login required.") {
+        message = "Session expired. Please log out and log in again, then retry.";
+      } else if (data.error) {
+        message = data.error;
+      }
+    } catch {
+      // ignore JSON parse errors
+    }
+    throw new Error(message);
   }
 
   return response.blob();

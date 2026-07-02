@@ -39,9 +39,17 @@ export function buildDispatchWhatsAppMessage(order, overrides = {}) {
 export function openWhatsAppToCustomer(phone, message) {
   const waPhone = normalizeWhatsAppPhone(phone);
   if (!waPhone || !message) return false;
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
 
-  const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  const url = `whatsapp://send?phone=${waPhone}&text=${encodeURIComponent(message)}`;
+  const link = document.createElement("a");
+  link.href = url;
+  link.style.display = "none";
+  link.setAttribute("aria-hidden", "true");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
   return true;
 }
 

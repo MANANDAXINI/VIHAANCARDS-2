@@ -2,20 +2,18 @@ import { formatOrderDescription } from "@/lib/order-display";
 import { fetchArtworkBlob } from "@/lib/artwork-save";
 
 const MAROON = "#8B1A1A";
-const BORDER = "#1f2937";
-const ORDER_BOX_FILL = "#f3f4f6";
+const ORDER_BOX_FILL = "#ececec";
 const EXPORT_SCALE = 2;
-const FONT_LINK_ID = "pd-job-order-fonts";
 
 const FONTS = {
-  mainTitle: '700 54px Oswald, "Segoe UI", Arial, sans-serif',
-  jobOrder: '700 46px Oswald, "Segoe UI", Arial, sans-serif',
-  section: '600 28px Oswald, "Segoe UI", Arial, sans-serif',
-  label: '600 24px "Open Sans", "Segoe UI", Arial, sans-serif',
-  orderNoValue: '700 60px Oswald, "Segoe UI", Arial, sans-serif',
-  customerValue: '700 40px "Open Sans", "Segoe UI", Arial, sans-serif',
-  sideLabel: '600 24px Oswald, "Segoe UI", Arial, sans-serif',
-  footer: '700 32px "Open Sans", "Segoe UI", Arial, sans-serif',
+  mainTitle: '700 22px "Times New Roman", Times, Georgia, serif',
+  jobOrder: "700 20px Arial, Helvetica, sans-serif",
+  section: "700 13px Arial, Helvetica, sans-serif",
+  label: "700 11px Arial, Helvetica, sans-serif",
+  orderNoValue: "700 24px Arial, Helvetica, sans-serif",
+  customerValue: "700 18px Arial, Helvetica, sans-serif",
+  sideLabel: "700 11px Arial, Helvetica, sans-serif",
+  footer: "700 14px Arial, Helvetica, sans-serif",
 };
 
 function upper(value) {
@@ -26,29 +24,6 @@ function buildProductLine(order) {
   const product = order.product || "LEAFLET / PAMPLET";
   const specs = formatOrderDescription(order);
   return `${product} - ${specs}`;
-}
-
-async function ensureJobOrderFonts() {
-  if (typeof document === "undefined") return;
-
-  if (!document.getElementById(FONT_LINK_ID)) {
-    const link = document.createElement("link");
-    link.id = FONT_LINK_ID;
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Open+Sans:wght@600;700&display=swap";
-    document.head.appendChild(link);
-  }
-
-  await Promise.all([
-    document.fonts.load('700 54px Oswald'),
-    document.fonts.load('700 46px Oswald'),
-    document.fonts.load('600 28px Oswald'),
-    document.fonts.load('600 24px Oswald'),
-    document.fonts.load('700 60px Oswald'),
-    document.fonts.load('600 24px "Open Sans"'),
-    document.fonts.load('700 40px "Open Sans"'),
-    document.fonts.load('700 32px "Open Sans"'),
-  ]).catch(() => {});
 }
 
 async function loadArtworkImage(url) {
@@ -73,15 +48,12 @@ async function loadArtworkImage(url) {
   }
 }
 
-function drawCenteredText(ctx, text, x, y, width, font, color = MAROON, letterSpacing = 0) {
+function drawCenteredText(ctx, text, x, y, width, font, color = MAROON) {
   ctx.save();
   ctx.font = font;
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  if (letterSpacing > 0 && "letterSpacing" in ctx) {
-    ctx.letterSpacing = `${letterSpacing}px`;
-  }
   ctx.fillText(text, x + width / 2, y);
   ctx.restore();
 }
@@ -111,16 +83,26 @@ function drawArtworkPlaceholder(ctx, x, y, width, height) {
 
 function strokeRect(ctx, x, y, width, height, lineWidth = 1.5) {
   ctx.save();
-  ctx.strokeStyle = BORDER;
+  ctx.strokeStyle = MAROON;
   ctx.lineWidth = lineWidth;
   ctx.strokeRect(x, y, width, height);
   ctx.restore();
 }
 
+function fillRoundRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+  ctx.fill();
+}
+
 export async function downloadOrderSlipImage(order, overrides = {}) {
   if (typeof document === "undefined") return;
-
-  await ensureJobOrderFonts();
 
   const [frontImg, backImg] = await Promise.all([
     loadArtworkImage(order.artworkUrl),
@@ -144,14 +126,13 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
   ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.textRendering = "optimizeLegibility";
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
-  const titleH = 46;
-  const jobOrderH = 42;
-  const footerH = 48;
+  const titleH = 50;
+  const jobOrderH = 38;
+  const footerH = 44;
   const bodyH = innerH - titleH - jobOrderH - footerH;
 
   const leftW = Math.round(innerW * 0.38);
@@ -168,9 +149,7 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
     innerX,
     innerY + titleH / 2,
     innerW,
-    FONTS.mainTitle,
-    MAROON,
-    1.2
+    FONTS.mainTitle
   );
   strokeRect(ctx, innerX, innerY + titleH, innerW, jobOrderH);
   drawCenteredText(
@@ -179,67 +158,63 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
     innerX,
     innerY + titleH + jobOrderH / 2,
     innerW,
-    FONTS.jobOrder,
-    MAROON,
-    0.8
+    FONTS.jobOrder
   );
 
   strokeRect(ctx, leftX, bodyY, leftW, bodyH);
   strokeRect(ctx, rightX, bodyY, rightW, bodyH);
 
-  const orderInfoH = 152;
+  const orderInfoH = 148;
 
-  drawCenteredText(ctx, "ORDER INFORMATION", leftX, bodyY + 24, leftW, FONTS.section, MAROON, 0.6);
+  drawCenteredText(ctx, "ORDER INFORMATION", leftX, bodyY + 22, leftW, FONTS.section);
   strokeRect(ctx, leftX, bodyY + orderInfoH, leftW, 1, 1);
 
-  const orderBoxW = leftW - 48;
-  const orderBoxH = 62;
+  const orderBoxW = leftW - 52;
+  const orderBoxH = 58;
   const orderBoxX = leftX + (leftW - orderBoxW) / 2;
-  const orderBoxY = bodyY + 42;
+  const orderBoxY = bodyY + 38;
   ctx.fillStyle = ORDER_BOX_FILL;
-  ctx.fillRect(orderBoxX, orderBoxY, orderBoxW, orderBoxH);
+  fillRoundRect(ctx, orderBoxX, orderBoxY, orderBoxW, orderBoxH, 10);
   strokeRect(ctx, orderBoxX, orderBoxY, orderBoxW, orderBoxH, 1.2);
 
-  drawCenteredText(ctx, "ORDER NO.", orderBoxX, orderBoxY + 19, orderBoxW, FONTS.label, MAROON, 0.5);
+  drawCenteredText(ctx, "ORDER NO.", orderBoxX, orderBoxY + 17, orderBoxW, FONTS.label);
   drawCenteredText(
     ctx,
     upper(overrides.orderNumber || order.orderNumber),
     orderBoxX,
-    orderBoxY + 42,
+    orderBoxY + 38,
     orderBoxW,
-    FONTS.orderNoValue,
-    MAROON,
-    0.4
+    FONTS.orderNoValue
   );
 
   const customerY = bodyY + orderInfoH;
-  drawCenteredText(ctx, "CUSTOMER INFORMATION", leftX, customerY + 24, leftW, FONTS.section, MAROON, 0.6);
-  drawCenteredText(ctx, "CUSTOMER NAME", leftX, customerY + 54, leftW, FONTS.label, MAROON, 0.5);
+  drawCenteredText(ctx, "CUSTOMER INFORMATION", leftX, customerY + 22, leftW, FONTS.section);
+  drawCenteredText(ctx, "CUSTOMER NAME", leftX, customerY + 50, leftW, FONTS.label);
 
   const customerName = upper(order.business || order.customerName);
   const customerCity = upper(order.customerCity);
-  drawCenteredText(ctx, customerName, leftX, customerY + 86, leftW, FONTS.customerValue);
+  drawCenteredText(ctx, customerName, leftX, customerY + 78, leftW, FONTS.customerValue);
   if (customerCity && customerCity !== "—") {
-    drawCenteredText(ctx, customerCity, leftX, customerY + 116, leftW, FONTS.customerValue);
+    drawCenteredText(ctx, customerCity, leftX, customerY + 104, leftW, FONTS.customerValue);
   }
 
-  drawCenteredText(ctx, "JOB DETAILS", rightX, bodyY + 24, rightW, FONTS.section, MAROON, 0.6);
+  drawCenteredText(ctx, "JOB DETAILS", rightX, bodyY + 22, rightW, FONTS.section);
 
   const hasBack = Boolean(order.artworkBackUrl || order.artworkBackName);
-  const previewTop = bodyY + 44;
-  const previewH = bodyH - 54;
-  const previewPad = 14;
+  const previewTop = bodyY + 40;
+  const previewH = bodyH - 48;
+  const previewPad = 12;
 
   if (hasBack) {
     const halfW = (rightW - previewPad * 3) / 2;
     const frontX = rightX + previewPad;
     const backX = rightX + previewPad * 2 + halfW;
 
-    drawCenteredText(ctx, "FRONT", frontX, previewTop, halfW, FONTS.sideLabel, MAROON, 0.5);
-    drawCenteredText(ctx, "BACK", backX, previewTop, halfW, FONTS.sideLabel, MAROON, 0.5);
+    drawCenteredText(ctx, "FRONT", frontX, previewTop, halfW, FONTS.sideLabel);
+    drawCenteredText(ctx, "BACK", backX, previewTop, halfW, FONTS.sideLabel);
 
-    const artY = previewTop + 20;
-    const artH = previewH - 26;
+    const artY = previewTop + 16;
+    const artH = previewH - 20;
     strokeRect(ctx, frontX, artY, halfW, artH, 1);
     strokeRect(ctx, backX, artY, halfW, artH, 1);
 
@@ -257,9 +232,9 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
   } else {
     const artX = rightX + previewPad;
     const artW = rightW - previewPad * 2;
-    drawCenteredText(ctx, "FRONT", artX, previewTop, artW, FONTS.sideLabel, MAROON, 0.5);
-    const artY = previewTop + 20;
-    const artH = previewH - 26;
+    drawCenteredText(ctx, "FRONT", artX, previewTop, artW, FONTS.sideLabel);
+    const artY = previewTop + 16;
+    const artH = previewH - 20;
     strokeRect(ctx, artX, artY, artW, artH, 1);
     if (frontImg) {
       drawImageContain(ctx, frontImg, artX + 4, artY + 4, artW - 8, artH - 8);
@@ -269,7 +244,7 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
   }
 
   const footerY = innerY + titleH + jobOrderH + bodyH;
-  strokeRect(ctx, innerX, footerY, innerW, footerH, 1.5);
+  strokeRect(ctx, innerX, footerY, innerW, footerH, 2.5);
   drawCenteredText(
     ctx,
     upper(buildProductLine(order)),
@@ -277,8 +252,7 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
     footerY + footerH / 2,
     innerW,
     FONTS.footer,
-    "#111827",
-    0.3
+    "#000000"
   );
 
   const filename = `${order.orderNumber || "order"}_job_order.png`;

@@ -6,14 +6,14 @@ const ORDER_BOX_FILL = "#ececec";
 const EXPORT_SCALE = 2;
 
 const FONTS = {
-  mainTitle: '700 28px "Times New Roman", Times, Georgia, serif',
-  jobOrder: "700 24px Arial, Helvetica, sans-serif",
-  section: "700 16px Arial, Helvetica, sans-serif",
-  label: "700 13px Arial, Helvetica, sans-serif",
-  orderNoValue: "700 30px Arial, Helvetica, sans-serif",
-  customerValue: "700 22px Arial, Helvetica, sans-serif",
-  sideLabel: "700 13px Arial, Helvetica, sans-serif",
-  footer: "700 18px Arial, Helvetica, sans-serif",
+  mainTitle: '700 36px "Times New Roman", Times, Georgia, serif',
+  jobOrder: "700 30px Arial, Helvetica, sans-serif",
+  section: "700 19px Arial, Helvetica, sans-serif",
+  label: "700 15px Arial, Helvetica, sans-serif",
+  orderNoValue: "700 38px Arial, Helvetica, sans-serif",
+  customerValue: "700 26px Arial, Helvetica, sans-serif",
+  sideLabel: "700 15px Arial, Helvetica, sans-serif",
+  footer: "700 22px Arial, Helvetica, sans-serif",
 };
 
 function upper(value) {
@@ -48,12 +48,28 @@ async function loadArtworkImage(url) {
   }
 }
 
+function fitFont(ctx, text, font, maxWidth) {
+  const match = font.match(/(\d+(?:\.\d+)?)px/);
+  if (!match) return font;
+  let size = parseFloat(match[1]);
+  const minSize = 8;
+  let current = font;
+  ctx.font = current;
+  while (ctx.measureText(text).width > maxWidth && size > minSize) {
+    size -= 1;
+    current = font.replace(/\d+(?:\.\d+)?px/, `${size}px`);
+    ctx.font = current;
+  }
+  return current;
+}
+
 function drawCenteredText(ctx, text, x, y, width, font, color = MAROON) {
   ctx.save();
-  ctx.font = font;
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  const padding = 12;
+  ctx.font = fitFont(ctx, String(text), font, Math.max(10, width - padding));
   ctx.fillText(text, x + width / 2, y);
   ctx.restore();
 }

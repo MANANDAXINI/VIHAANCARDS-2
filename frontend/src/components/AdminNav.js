@@ -11,6 +11,7 @@ const ADMIN_TABS = [
   { id: "payments", label: "Payment Requests", countKey: "payments" },
   { id: "payment", label: "Receipt" },
   { id: "outstanding", label: "Outstanding" },
+  { id: "customer-credit", label: "Customer Credit" },
   { id: "orders", label: "Orders", countKey: "orders" },
   { id: "qr", label: "Payment QR" },
   { id: "parcel", label: "Parcel Update" },

@@ -566,6 +566,17 @@ export default function AdminPage() {
             <AdminReceivePaymentSection accounts={accounts} onRefresh={load} />
           )}
 
+          {activeTab === "customer-credit" && (
+            <div className="grid gap-4">
+              <div>
+                <h2 className={ui.adminH1}>Customer Credit</h2>
+                <p className={ui.muted}>View and manage credit limits, outstanding, and wallet for all customers.</p>
+              </div>
+              <AdminCustomerCreditOverview accounts={accounts} />
+              <AdminCustomerCreditWallet accounts={accounts} onRefresh={load} />
+            </div>
+          )}
+
           {activeTab === "orders" && (
             <div className="grid gap-4">
               <div>
@@ -576,7 +587,6 @@ export default function AdminPage() {
               <div className={`${ui.navTabsScroll} w-full`}>
                 {[
                   { id: "wallet", label: "Account / Wallet", countKey: "wallet" },
-                  { id: "credit", label: "Customer Credit" },
                   { id: "pending-orders", label: "Pending Orders", countKey: "orders", highlight: true },
                   { id: "completed-orders", label: "Completed Orders", countKey: "completedOrders" },
                   { id: "ledger", label: "Customer Ledger" },
@@ -768,13 +778,6 @@ export default function AdminPage() {
                     </div>
                     <AdminPagination page={walletPaged.page} totalPages={walletPaged.totalPages} total={walletPaged.total} onPageChange={setWalletPage} />
                   </section>
-                </>
-              )}
-
-              {ordersSubTab === "credit" && (
-                <>
-                  <AdminCustomerCreditOverview accounts={accounts} />
-                  <AdminCustomerCreditWallet accounts={accounts} onRefresh={load} />
                 </>
               )}
 

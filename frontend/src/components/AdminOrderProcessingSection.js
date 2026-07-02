@@ -93,7 +93,7 @@ function ArtworkFileRow({ label, url, name, mime, downloaded, onDownload, busy }
   );
 }
 
-function DispatchForm({ order, onSaved }) {
+function DispatchForm({ order, onSaved, onOrderDispatched }) {
   const [lrNumber, setLrNumber] = useState(order.lrNumber || "");
   const [transportDetails, setTransportDetails] = useState(order.transportDetails || "");
   const [dispatchDate, setDispatchDate] = useState(toDateInputValue(order.dispatchDate));
@@ -129,7 +129,12 @@ function DispatchForm({ order, onSaved }) {
       } else {
         toast.success("Dispatch saved and order image downloaded. Customer phone not available for WhatsApp.");
       }
-      onSaved();
+
+      const newStatus = String(response.order?.status || "").toUpperCase();
+      await Promise.resolve(onSaved?.());
+      if (newStatus === "DISPATCHED" || newStatus === "COMPLETED") {
+        onOrderDispatched?.();
+      }
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -197,7 +202,7 @@ function DispatchForm({ order, onSaved }) {
   );
 }
 
-function OrderProcessingCard({ order, onRefresh }) {
+function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
   const [printingBusy, setPrintingBusy] = useState(false);
   const [artworkBusy, setArtworkBusy] = useState(null);
 
@@ -308,7 +313,7 @@ function OrderProcessingCard({ order, onRefresh }) {
 
         <div className="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
           <SectionLabel>Dispatch</SectionLabel>
-          <DispatchForm order={order} onSaved={onRefresh} />
+          <DispatchForm order={order} onSaved={onRefresh} onOrderDispatched={onOrderDispatched} />
         </div>
 
         <div className="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
@@ -351,6 +356,7 @@ export default function AdminOrderProcessingSection({
   orders = [],
   view = "pending",
   onRefresh,
+  onOrderDispatched,
 }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -407,7 +413,12 @@ export default function AdminOrderProcessingSection({
           </p>
         ) : (
           paged.items.map((order) => (
-            <OrderProcessingCard key={order.id} order={order} onRefresh={onRefresh} />
+            <OrderProcessingCard
+              key={order.id}
+              order={order}
+              onRefresh={onRefresh}
+              onOrderDispatched={onOrderDispatched}
+            />
           ))
         )}
       </div>

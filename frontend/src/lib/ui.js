@@ -129,10 +129,18 @@ export function formatOrderStatus(status) {
   return String(status || "").replace(/_/g, " ");
 }
 
-export function isOrderPending(status) {
-  return String(status || "").toUpperCase() !== "COMPLETED";
+export const DISPATCHED_ORDER_STATUSES = ["DISPATCHED", "COMPLETED"];
+
+export function isOrderDispatched(status) {
+  return DISPATCHED_ORDER_STATUSES.includes(String(status || "").toUpperCase());
 }
 
+/** Admin queue: still in printing / dispatch workflow */
+export function isOrderPending(status) {
+  return !isOrderDispatched(status);
+}
+
+/** Admin queue: LR/dispatch saved — includes dispatched and delivered */
 export function isOrderCompleted(status) {
-  return String(status || "").toUpperCase() === "COMPLETED";
+  return isOrderDispatched(status);
 }

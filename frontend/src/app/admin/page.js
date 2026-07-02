@@ -780,6 +780,7 @@ export default function AdminPage() {
                   orders={orders}
                   view={ordersSubTab === "completed-orders" ? "completed" : "pending"}
                   onRefresh={load}
+                  onOrderDispatched={() => setOrdersSubTab("completed-orders")}
                 />
               )}
 

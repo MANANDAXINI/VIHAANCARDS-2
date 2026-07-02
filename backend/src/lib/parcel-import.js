@@ -126,8 +126,18 @@ function buildDispatchUpdateData(order, row) {
     dispatchDate: row.dispatchDate || order.dispatchDate || new Date(),
   };
 
-  if (order.status === "COMPLETED" || order.status === "PRINTING_PROCESS_STARTED") {
+  if (order.status === "COMPLETED") {
     return { data: dispatchFields };
+  }
+
+  if (order.status === "PRINTING_PROCESS_STARTED") {
+    return {
+      data: {
+        ...dispatchFields,
+        dispatchDate: row.dispatchDate || new Date(),
+        status: "DISPATCHED",
+      },
+    };
   }
 
   if (!["IN_PRINTING", "PAYMENT_VERIFIED", "DISPATCHED", "PRINTING_PROCESS_STARTED"].includes(order.status)) {

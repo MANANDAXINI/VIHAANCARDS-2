@@ -50,8 +50,8 @@ router.get("/nav-counts", authAdmin, async (_req, res) => {
     prisma.order.findMany({ select: { status: true } }),
   ]);
 
-  const pendingOrders = orders.filter((order) => order.status !== "COMPLETED").length;
-  const completedOrders = orders.length - pendingOrders;
+  const pendingOrders = orders.filter((order) => !["DISPATCHED", "COMPLETED"].includes(order.status)).length;
+  const completedOrders = orders.filter((order) => ["DISPATCHED", "COMPLETED"].includes(order.status)).length;
 
   res.json({
     counts: {
@@ -525,13 +525,27 @@ router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
 
-  if (existing.status === "COMPLETED" || existing.status === "PRINTING_PROCESS_STARTED") {
+  if (existing.status === "COMPLETED") {
     const order = await prisma.order.update({
       where: { id: req.params.id },
       data: {
         lrNumber: lr,
         transportDetails: String(transportDetails || "").trim(),
         dispatchDate: dispatchDate ? new Date(dispatchDate) : existing.dispatchDate || new Date(),
+      },
+      include: { account: true },
+    });
+    return res.json({ order: adminOrderPayload(order) });
+  }
+
+  if (existing.status === "PRINTING_PROCESS_STARTED") {
+    const order = await prisma.order.update({
+      where: { id: req.params.id },
+      data: {
+        lrNumber: lr,
+        transportDetails: String(transportDetails || "").trim(),
+        dispatchDate: dispatchDate ? new Date(dispatchDate) : new Date(),
+        status: "DISPATCHED",
       },
       include: { account: true },
     });

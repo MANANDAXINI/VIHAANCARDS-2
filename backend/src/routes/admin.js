@@ -65,6 +65,68 @@ router.get("/nav-counts", authAdmin, async (_req, res) => {
   });
 });
 
+router.get("/alert-feed", authAdmin, async (req, res) => {
+  const serverTime = new Date();
+  const sinceRaw = String(req.query.since || "").trim();
+  const hasSince = sinceRaw && !Number.isNaN(Date.parse(sinceRaw));
+  const since = hasSince ? new Date(sinceRaw) : null;
+
+  if (!hasSince) {
+    return res.json({ serverTime: serverTime.toISOString(), alerts: [] });
+  }
+
+  const [orders, paymentRequests] = await Promise.all([
+    prisma.order.findMany({
+      where: { createdAt: { gt: since } },
+      include: { account: { select: { business: true, name: true, phone: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+    }),
+    prisma.walletRequest.findMany({
+      where: {
+        createdAt: { gt: since },
+        status: "PENDING",
+        type: "ORDER_PAYMENT",
+      },
+      include: { account: { select: { business: true, name: true, phone: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+    }),
+  ]);
+
+  const alerts = [
+    ...orders.map((order) => {
+      const customer = order.account?.business || order.account?.name || "Customer";
+      const amount = Number(order.amount || 0).toLocaleString("en-IN");
+      return {
+        id: `order-${order.id}`,
+        type: "NEW_ORDER",
+        createdAt: order.createdAt,
+        orderNumber: order.orderNumber,
+        customer,
+        message: `New order ${order.orderNumber} from ${customer} — Rs. ${amount}`,
+      };
+    }),
+    ...paymentRequests.map((request) => {
+      const customer = request.account?.business || request.account?.name || "Customer";
+      const amount = Number(request.amount || 0).toLocaleString("en-IN");
+      const product = request.pendingOrderData?.product || "Order";
+      return {
+        id: `wallet-${request.id}`,
+        type: "ORDER_PAYMENT_PENDING",
+        createdAt: request.createdAt,
+        customer,
+        message: `New job submitted by ${customer} — ${product}, Rs. ${amount} (payment pending approval)`,
+      };
+    }),
+  ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  res.json({
+    serverTime: serverTime.toISOString(),
+    alerts,
+  });
+});
+
 router.get("/password-resets", authAdmin, async (_req, res) => {
   const now = new Date();
   const resets = await prisma.passwordReset.findMany({

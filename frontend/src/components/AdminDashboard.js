@@ -8,7 +8,7 @@ const QUICK_LINKS = [
   { id: "day-book", label: "Day Book", desc: "Today total orders and amount" },
   { id: "accounts", label: "Users & Accounts", desc: "Approve registrations and manage roles", countKey: "accounts" },
   { id: "payments", label: "Payment Requests", desc: "Review and approve UPI payments", countKey: "payments" },
-  { id: "payment", label: "Payment", desc: "Add payment for a customer" },
+  { id: "payment", label: "Receipt", desc: "Record receipt for a customer" },
   { id: "orders", label: "Orders", desc: "Dispatch and mark orders delivered", countKey: "orders" },
   { id: "catalog", label: "Order Catalog", desc: "Paper GSM, sizes, quantities & rates" },
   { id: "rates", label: "Rates", desc: "View all saved combination prices" },

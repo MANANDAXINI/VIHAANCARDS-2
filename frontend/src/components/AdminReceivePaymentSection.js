@@ -57,7 +57,7 @@ export default function AdminReceivePaymentSection({ accounts = [], onRefresh })
 
   return (
     <section className={ui.adminCard}>
-      <h2 className={`${ui.adminH3} border-b border-slate-200 px-4 py-3`}>Payment</h2>
+      <h2 className={`${ui.adminH3} border-b border-slate-200 px-4 py-3`}>Receipt</h2>
       <form className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end" onSubmit={handleSubmit}>
         <label className={`${ui.field} min-w-[9rem] flex-1 sm:max-w-[12rem]`}>
           <span className={ui.label}>Amount</span>
@@ -94,7 +94,7 @@ export default function AdminReceivePaymentSection({ accounts = [], onRefresh })
           className={`${btnClass("amber")} w-full sm:w-auto`}
           disabled={saving || !selectedId}
         >
-          {saving ? "..." : "Payment"}
+          {saving ? "..." : "Save Receipt"}
         </button>
       </form>
     </section>

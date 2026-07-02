@@ -9,7 +9,7 @@ const ADMIN_TABS = [
   { id: "catalog", label: "Order Catalog" },
   { id: "rates", label: "Rates" },
   { id: "payments", label: "Payment Requests", countKey: "payments" },
-  { id: "payment", label: "Payment" },
+  { id: "payment", label: "Receipt" },
   { id: "outstanding", label: "Outstanding" },
   { id: "orders", label: "Orders", countKey: "orders" },
   { id: "qr", label: "Payment QR" },

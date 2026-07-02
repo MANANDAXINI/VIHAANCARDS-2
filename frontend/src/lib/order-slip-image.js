@@ -6,14 +6,14 @@ const ORDER_BOX_FILL = "#ececec";
 const EXPORT_SCALE = 2;
 
 const FONTS = {
-  mainTitle: '700 22px "Times New Roman", Times, Georgia, serif',
-  jobOrder: "700 20px Arial, Helvetica, sans-serif",
-  section: "700 13px Arial, Helvetica, sans-serif",
-  label: "700 11px Arial, Helvetica, sans-serif",
-  orderNoValue: "700 24px Arial, Helvetica, sans-serif",
-  customerValue: "700 18px Arial, Helvetica, sans-serif",
-  sideLabel: "700 11px Arial, Helvetica, sans-serif",
-  footer: "700 14px Arial, Helvetica, sans-serif",
+  mainTitle: '700 28px "Times New Roman", Times, Georgia, serif',
+  jobOrder: "700 24px Arial, Helvetica, sans-serif",
+  section: "700 16px Arial, Helvetica, sans-serif",
+  label: "700 13px Arial, Helvetica, sans-serif",
+  orderNoValue: "700 30px Arial, Helvetica, sans-serif",
+  customerValue: "700 22px Arial, Helvetica, sans-serif",
+  sideLabel: "700 13px Arial, Helvetica, sans-serif",
+  footer: "700 18px Arial, Helvetica, sans-serif",
 };
 
 function upper(value) {
@@ -170,32 +170,32 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
   strokeRect(ctx, leftX, bodyY + orderInfoH, leftW, 1, 1);
 
   const orderBoxW = leftW - 52;
-  const orderBoxH = 58;
+  const orderBoxH = 70;
   const orderBoxX = leftX + (leftW - orderBoxW) / 2;
-  const orderBoxY = bodyY + 38;
+  const orderBoxY = bodyY + 40;
   ctx.fillStyle = ORDER_BOX_FILL;
   fillRoundRect(ctx, orderBoxX, orderBoxY, orderBoxW, orderBoxH, 10);
   strokeRect(ctx, orderBoxX, orderBoxY, orderBoxW, orderBoxH, 1.2);
 
-  drawCenteredText(ctx, "ORDER NO.", orderBoxX, orderBoxY + 17, orderBoxW, FONTS.label);
+  drawCenteredText(ctx, "ORDER NO.", orderBoxX, orderBoxY + 20, orderBoxW, FONTS.label);
   drawCenteredText(
     ctx,
     upper(overrides.orderNumber || order.orderNumber),
     orderBoxX,
-    orderBoxY + 38,
+    orderBoxY + 47,
     orderBoxW,
     FONTS.orderNoValue
   );
 
   const customerY = bodyY + orderInfoH;
-  drawCenteredText(ctx, "CUSTOMER INFORMATION", leftX, customerY + 22, leftW, FONTS.section);
-  drawCenteredText(ctx, "CUSTOMER NAME", leftX, customerY + 50, leftW, FONTS.label);
+  drawCenteredText(ctx, "CUSTOMER INFORMATION", leftX, customerY + 26, leftW, FONTS.section);
+  drawCenteredText(ctx, "CUSTOMER NAME", leftX, customerY + 56, leftW, FONTS.label);
 
   const customerName = upper(order.business || order.customerName);
   const customerCity = upper(order.customerCity);
-  drawCenteredText(ctx, customerName, leftX, customerY + 78, leftW, FONTS.customerValue);
+  drawCenteredText(ctx, customerName, leftX, customerY + 86, leftW, FONTS.customerValue);
   if (customerCity && customerCity !== "—") {
-    drawCenteredText(ctx, customerCity, leftX, customerY + 104, leftW, FONTS.customerValue);
+    drawCenteredText(ctx, customerCity, leftX, customerY + 114, leftW, FONTS.customerValue);
   }
 
   drawCenteredText(ctx, "JOB DETAILS", rightX, bodyY + 22, rightW, FONTS.section);

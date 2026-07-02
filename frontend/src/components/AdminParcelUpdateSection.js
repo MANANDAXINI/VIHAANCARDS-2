@@ -50,7 +50,7 @@ function SingleParcelUpdateForm({ onRefresh, onUpdated }) {
       };
       const data = await adminApi.updateSingleParcel(overrides, { silent: true });
 
-      downloadOrderSlipImage(data, overrides);
+      await downloadOrderSlipImage(data, overrides);
       const { opened } = notifyCustomerDispatch(data, overrides);
 
       if (opened) {

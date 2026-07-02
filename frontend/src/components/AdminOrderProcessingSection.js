@@ -121,7 +121,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
       const response = await adminApi.dispatch(order.id, overrides, { silent: true });
       const updatedOrder = { ...order, ...response.order, ...overrides };
 
-      downloadOrderSlipImage(updatedOrder, overrides);
+      await downloadOrderSlipImage(updatedOrder, overrides);
       const { opened } = notifyCustomerDispatch(updatedOrder, overrides);
 
       if (opened) {
@@ -142,12 +142,12 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
     }
   }
 
-  function handleDownloadSlip() {
+  async function handleDownloadSlip() {
     if (!lrNumber.trim()) {
       toast.error("Enter LR number before downloading the order image.");
       return;
     }
-    downloadOrderSlipImage(order, {
+    await downloadOrderSlipImage(order, {
       lrNumber: lrNumber.trim(),
       transportDetails: transportDetails.trim(),
       dispatchDate: dispatchDate || new Date().toISOString().slice(0, 10),

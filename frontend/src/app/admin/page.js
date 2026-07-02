@@ -304,11 +304,14 @@ export default function AdminPage() {
     );
   }
 
+  const pendingOrderCount = orders.filter((o) => isOrderPending(o.status)).length;
+  const completedOrderCount = orders.filter((o) => isOrderCompleted(o.status)).length;
+
   const displayNavCounts = {
     accounts: navCounts.accounts ?? pending.length,
     payments: navCounts.payments ?? payments.length,
-    orders: navCounts.orders ?? orders.filter((o) => isOrderPending(o.status)).length,
-    completedOrders: navCounts.completedOrders ?? orders.filter((o) => isOrderCompleted(o.status)).length,
+    orders: pendingOrderCount,
+    completedOrders: completedOrderCount,
     wallet: navCounts.wallet ?? (pending.length + payments.length + (navCounts.passwordResets || 0)),
     passwordResets: navCounts.passwordResets ?? passwordResets.length,
   };

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import AdminAlertWatcher from "@/components/AdminAlertWatcher";
 import AdminDashboard from "@/components/AdminDashboard";
 import AdminDayBook from "@/components/AdminDayBook";
 import { AdminHeader } from "@/components/AdminHeader";
@@ -130,6 +131,10 @@ export default function AdminPage() {
       toast.error(error.message);
     }
   }
+
+  const handleAdminAlert = useCallback(() => {
+    load();
+  }, [user]);
 
   async function handleAdminLogin(event) {
     event.preventDefault();
@@ -329,6 +334,8 @@ export default function AdminPage() {
             <h1 className={ui.adminH1}>Admin Dashboard</h1>
             <p className={`text-sm ${ui.muted}`}>Logged in as <strong>{user.business}</strong> — {roleLabel(user.role)}</p>
           </div>
+
+          <AdminAlertWatcher enabled={isAdmin(user)} onNewActivity={handleAdminAlert} />
 
           <AdminNav active={activeTab} onChange={setActiveTab} counts={displayNavCounts} />
 

@@ -1,9 +1,9 @@
 import { toast as sonnerToast } from "sonner";
 
 export const toast = {
-  success: (message) => sonnerToast.success(message),
-  error: (message) => sonnerToast.error(message),
-  info: (message) => sonnerToast.info(message),
-  warning: (message) => sonnerToast.warning(message),
+  success: (message, options) => sonnerToast.success(message, options),
+  error: (message, options) => sonnerToast.error(message, options),
+  info: (message, options) => sonnerToast.info(message, options),
+  warning: (message, options) => sonnerToast.warning(message, options),
   promise: (promise, messages) => sonnerToast.promise(promise, messages),
 };

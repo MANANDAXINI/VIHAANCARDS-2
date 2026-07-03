@@ -21,7 +21,7 @@ export function formatOrderDescription(order) {
 }
 
 export const JOB_VERIFIED_LABEL = "PAYMENT VERIFIED AND JOB MOVED TO NEXT PROCESS";
-export const JOB_PRINTING_LABEL = "PROCEEDED TO PRINTING";
+export const JOB_PRINTING_LABEL = "PRINTING AND OTHER PROCESS STARTED";
 export const JOB_PROCESS_STARTED_LABEL = "PRINTING & OTHER PROCESS STARTED";
 
 export function formatJobProcess(status) {

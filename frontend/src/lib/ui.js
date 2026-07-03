@@ -67,6 +67,9 @@ export function btnClass(variant = "primary", small = false) {
   if (variant === "teal") {
     return `${ui.btn} ${size} bg-teal-600 text-white hover:bg-teal-700`;
   }
+  if (variant === "danger") {
+    return `${ui.btn} ${size} bg-red-600 text-white hover:bg-red-700`;
+  }
   return `${ui.btn} ${size} bg-blue-600 text-white hover:bg-blue-700`;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { adminApi, formatRupees } from "@/lib/api";
 import {
@@ -11,6 +11,22 @@ import {
 } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
+
+const EMPTY_SUMMARY = {
+  totalBilled: 0,
+  totalReceived: 0,
+  currentOutstanding: 0,
+  receivableBalance: 0,
+  previousOutstanding: 0,
+  pendingOrderAmount: 0,
+};
+
+function toDateInputValue(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
 
 function customerLabel(account) {
   if (!account) return "";
@@ -49,14 +65,20 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [ledgerEntries, setLedgerEntries] = useState([]);
-  const [summary, setSummary] = useState({
-    totalBilled: 0,
-    totalReceived: 0,
-    currentOutstanding: 0,
-    receivableBalance: 0,
-    previousOutstanding: 0,
-    pendingOrderAmount: 0,
-  });
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
+
+  const [showChargeForm, setShowChargeForm] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState("");
+  const [chargeLabel, setChargeLabel] = useState("");
+  const [chargeDate, setChargeDate] = useState("");
+  const [savingCharge, setSavingCharge] = useState(false);
+
+  const [editingId, setEditingId] = useState("");
+  const [editLabel, setEditLabel] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editDebit, setEditDebit] = useState("");
+  const [editCredit, setEditCredit] = useState("");
+  const [rowBusy, setRowBusy] = useState("");
 
   const approvedCustomers = useMemo(
     () => accounts.filter((a) => String(a.status || "").toUpperCase() === "APPROVED"),
@@ -78,10 +100,10 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
     }
   }, [filteredCustomers, selectedId]);
 
-  useEffect(() => {
+  const loadLedger = useCallback(() => {
     if (!selectedId) {
       setLedgerEntries([]);
-      setSummary({ totalBilled: 0, totalReceived: 0, currentOutstanding: 0, receivableBalance: 0, previousOutstanding: 0, pendingOrderAmount: 0 });
+      setSummary(EMPTY_SUMMARY);
       return;
     }
 
@@ -90,14 +112,7 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
       .customerLedger(selectedId, { fromDate: fromDate || undefined, toDate: toDate || undefined })
       .then((data) => {
         setLedgerEntries(data.ledgerEntries || []);
-        setSummary(data.summary || {
-          totalBilled: 0,
-          totalReceived: 0,
-          currentOutstanding: 0,
-          receivableBalance: 0,
-          previousOutstanding: 0,
-          pendingOrderAmount: 0,
-        });
+        setSummary(data.summary || EMPTY_SUMMARY);
       })
       .catch((error) => {
         toast.error(error.message);
@@ -106,6 +121,10 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
       .finally(() => setLoading(false));
   }, [selectedId, fromDate, toDate]);
 
+  useEffect(() => {
+    loadLedger();
+  }, [loadLedger]);
+
   const selectedCustomer = filteredCustomers.find((a) => a.id === selectedId);
 
   function clearDates() {
@@ -113,12 +132,89 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
     setToDate("");
   }
 
+  async function handleAddCharge() {
+    const amount = Number(chargeAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid charge amount.");
+      return;
+    }
+    setSavingCharge(true);
+    try {
+      await adminApi.addOtherCharge(
+        selectedId,
+        { amount, label: chargeLabel.trim(), date: chargeDate || undefined },
+        { silent: true }
+      );
+      toast.success("Other charge added to customer ledger.");
+      setChargeAmount("");
+      setChargeLabel("");
+      setChargeDate("");
+      setShowChargeForm(false);
+      loadLedger();
+    } catch (error) {
+      toast.error(error.message || "Could not add charge.");
+    } finally {
+      setSavingCharge(false);
+    }
+  }
+
+  function startEdit(entry) {
+    setEditingId(entry.id);
+    setEditLabel(entry.label || "");
+    setEditDate(toDateInputValue(entry.entryDate));
+    setEditDebit(entry.debit ? String(entry.debit) : "");
+    setEditCredit(entry.credit ? String(entry.credit) : "");
+  }
+
+  function cancelEdit() {
+    setEditingId("");
+  }
+
+  async function handleSaveEdit(entry) {
+    const debit = Number(editDebit || 0);
+    const credit = Number(editCredit || 0);
+    if (!Number.isFinite(debit) || debit < 0 || !Number.isFinite(credit) || credit < 0) {
+      toast.error("Amounts must be valid non-negative numbers.");
+      return;
+    }
+    setRowBusy(entry.id);
+    try {
+      await adminApi.updateLedgerEntry(
+        entry.id,
+        { label: editLabel.trim(), entryDate: editDate || undefined, debit, credit },
+        { silent: true }
+      );
+      toast.success("Ledger entry updated.");
+      setEditingId("");
+      loadLedger();
+    } catch (error) {
+      toast.error(error.message || "Could not update entry.");
+    } finally {
+      setRowBusy("");
+    }
+  }
+
+  async function handleDelete(entry) {
+    if (!window.confirm(`Delete this ledger entry?\n\n${entry.label || ""}`)) return;
+    setRowBusy(entry.id);
+    try {
+      await adminApi.deleteLedgerEntry(entry.id, { silent: true });
+      toast.success("Ledger entry deleted.");
+      if (editingId === entry.id) setEditingId("");
+      loadLedger();
+    } catch (error) {
+      toast.error(error.message || "Could not delete entry.");
+    } finally {
+      setRowBusy("");
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <div>
         <h2 className={ui.adminH1}>Customer Ledger</h2>
         <p className={ui.muted}>
-          View and search any approved customer&apos;s payment ledger from here.
+          View, edit, delete ledger entries and add other charges for any approved customer.
         </p>
       </div>
 
@@ -210,6 +306,63 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
         />
       </div>
 
+      {selectedId ? (
+        <section className={`${ui.adminCard} grid gap-3`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className={ui.adminH3}>Add Other Charges</h3>
+            <button
+              type="button"
+              className={btnClass(showChargeForm ? "secondary" : "amber")}
+              onClick={() => setShowChargeForm((v) => !v)}
+            >
+              {showChargeForm ? "Cancel" : "+ Other Charges"}
+            </button>
+          </div>
+
+          {showChargeForm ? (
+            <div className="grid gap-3 sm:grid-cols-[1fr_1.5fr_1fr_auto] sm:items-end">
+              <label className={ui.field}>
+                <span className={ui.label}>Amount</span>
+                <input
+                  className={ui.input}
+                  type="number"
+                  min="0"
+                  value={chargeAmount}
+                  onChange={(e) => setChargeAmount(e.target.value)}
+                  placeholder="e.g. 500"
+                />
+              </label>
+              <label className={ui.field}>
+                <span className={ui.label}>Description (optional)</span>
+                <input
+                  className={ui.input}
+                  value={chargeLabel}
+                  onChange={(e) => setChargeLabel(e.target.value)}
+                  placeholder="e.g. Courier, Design, Lamination"
+                />
+              </label>
+              <label className={ui.field}>
+                <span className={ui.label}>Date (optional)</span>
+                <input
+                  className={ui.input}
+                  type="date"
+                  value={chargeDate}
+                  onChange={(e) => setChargeDate(e.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className={btnClass("primary")}
+                onClick={handleAddCharge}
+                disabled={savingCharge}
+              >
+                {savingCharge ? "Adding..." : "Add Charge"}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className={ui.cardFlat}>
         <div className={ui.tableWrap}>
           <table className={ui.table}>
@@ -221,24 +374,112 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
                 <th className={ui.th}>JOB / OUTSTANDING AMOUNT</th>
                 <th className={ui.th}>PAYMENT RECEIVED</th>
                 <th className={ui.th}>OUTSTANDING BALANCE</th>
+                <th className={ui.th}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td className={ui.td} colSpan="6">Loading ledger...</td></tr>
+                <tr><td className={ui.td} colSpan="7">Loading ledger...</td></tr>
               ) : ledgerEntries.length === 0 ? (
-                <tr><td className={ui.td} colSpan="6">No ledger entries for this customer.</td></tr>
+                <tr><td className={ui.td} colSpan="7">No ledger entries for this customer.</td></tr>
               ) : (
-                ledgerEntries.map((entry, index) => (
-                  <tr key={entry.id} className={index % 2 === 1 ? "bg-slate-50/80" : ""}>
-                    <td className={ui.td}>{index + 1}</td>
-                    <td className={ui.td}>{formatLedgerTableDate(entry.entryDate)}</td>
-                    <td className={ui.td}>{entry.label}</td>
-                    <td className={ui.td}>{formatLedgerDebit(entry)}</td>
-                    <td className={ui.td}>{formatLedgerCredit(entry)}</td>
-                    <td className={ui.td}>{formatLedgerBalance(entry)}</td>
-                  </tr>
-                ))
+                ledgerEntries.map((entry, index) => {
+                  const isEditing = editingId === entry.id;
+                  const busy = rowBusy === entry.id;
+                  return (
+                    <tr key={entry.id} className={index % 2 === 1 ? "bg-slate-50/80" : ""}>
+                      <td className={ui.td}>{index + 1}</td>
+                      {isEditing ? (
+                        <>
+                          <td className={ui.td}>
+                            <input
+                              className={ui.inputCompact}
+                              type="date"
+                              value={editDate}
+                              onChange={(e) => setEditDate(e.target.value)}
+                            />
+                          </td>
+                          <td className={ui.td}>
+                            <input
+                              className={ui.inputCompact}
+                              value={editLabel}
+                              onChange={(e) => setEditLabel(e.target.value)}
+                            />
+                          </td>
+                          <td className={ui.td}>
+                            <input
+                              className={ui.inputCompact}
+                              type="number"
+                              min="0"
+                              value={editDebit}
+                              onChange={(e) => setEditDebit(e.target.value)}
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className={ui.td}>
+                            <input
+                              className={ui.inputCompact}
+                              type="number"
+                              min="0"
+                              value={editCredit}
+                              onChange={(e) => setEditCredit(e.target.value)}
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className={ui.td}>{formatLedgerBalance(entry)}</td>
+                          <td className={ui.td}>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                className={btnClass("primary", true)}
+                                onClick={() => handleSaveEdit(entry)}
+                                disabled={busy}
+                              >
+                                {busy ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                className={btnClass("ghost", true)}
+                                onClick={cancelEdit}
+                                disabled={busy}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className={ui.td}>{formatLedgerTableDate(entry.entryDate)}</td>
+                          <td className={ui.td}>{entry.label}</td>
+                          <td className={ui.td}>{formatLedgerDebit(entry)}</td>
+                          <td className={ui.td}>{formatLedgerCredit(entry)}</td>
+                          <td className={ui.td}>{formatLedgerBalance(entry)}</td>
+                          <td className={ui.td}>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                className={btnClass("secondary", true)}
+                                onClick={() => startEdit(entry)}
+                                disabled={busy}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className={btnClass("danger", true)}
+                                onClick={() => handleDelete(entry)}
+                                disabled={busy}
+                              >
+                                {busy ? "..." : "Delete"}
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

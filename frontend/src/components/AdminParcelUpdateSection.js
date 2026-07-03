@@ -120,7 +120,7 @@ function SingleParcelUpdateForm({ onRefresh, onUpdated }) {
       <button
         type="button"
         className={`${btnClass("secondary", true)} w-full`}
-        disabled={saving || !orderNumber.trim() || !lrNumber.trim()}
+        disabled={saving || !orderNumber.trim()}
         onClick={() => {
           downloadOrderSlipImage(
             { orderNumber: orderNumber.trim() },

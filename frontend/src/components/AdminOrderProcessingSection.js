@@ -143,10 +143,6 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
   }
 
   async function handleDownloadSlip() {
-    if (!lrNumber.trim()) {
-      toast.error("Enter LR number before downloading the order image.");
-      return;
-    }
     await downloadOrderSlipImage(order, {
       lrNumber: lrNumber.trim(),
       transportDetails: transportDetails.trim(),

@@ -204,6 +204,9 @@ export default function OrderPage() {
     formData.append("quantity", String(qty));
     formData.append("amount", String(amount));
     formData.append("useCredit", "true");
+    if (selectedPaper?.name) {
+      formData.append("product", selectedPaper.name);
+    }
 
     try {
       const data = await orderApi.create(formData, { silent: true });

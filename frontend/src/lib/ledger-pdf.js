@@ -93,7 +93,6 @@ export function downloadLedgerPdf({ account, summary = {}, ledgerEntries = [] })
 <body>
   <div class="head">
     <div>
-      <div class="brand">VihaanCards</div>
       <div class="biz">${escapeHtml(business)}</div>
       ${contact ? `<div class="muted">${escapeHtml(contact)}</div>` : ""}
     </div>

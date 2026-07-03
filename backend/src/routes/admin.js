@@ -39,6 +39,48 @@ const parcelUpload = multer({
   },
 });
 
+function computeLedgerOpening(account, entries) {
+  const net = entries.reduce(
+    (sum, entry) => sum + Number(entry.debit || 0) - Number(entry.credit || 0),
+    0
+  );
+  return Number(account?.previousOutstanding || 0) - net;
+}
+
+// Recomputes running outstanding balances for every ledger entry of an account
+// (ordered by date) starting from a fixed opening balance, then syncs the
+// account's outstanding + used credit to the final running balance.
+async function recomputeLedgerFromOpening(tx, accountId, opening) {
+  const account = await tx.account.findUnique({ where: { id: accountId } });
+  if (!account) return 0;
+
+  const entries = await tx.ledgerEntry.findMany({
+    where: { accountId },
+    orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
+  });
+
+  let running = Number(opening) || 0;
+  for (const entry of entries) {
+    const before = running;
+    running += Number(entry.debit || 0) - Number(entry.credit || 0);
+    await tx.ledgerEntry.update({
+      where: { id: entry.id },
+      data: { oldOutstandingBefore: before, outstandingAfter: running },
+    });
+  }
+
+  const finalOutstanding = running;
+  const data = {
+    previousOutstanding: finalOutstanding,
+    oldOutstanding: finalOutstanding,
+  };
+  if (Number(account.creditLimit) > 0) {
+    data.usedCredit = Math.max(0, Math.min(account.creditLimit, finalOutstanding));
+  }
+  await tx.account.update({ where: { id: accountId }, data });
+  return finalOutstanding;
+}
+
 router.get("/nav-counts", authAdmin, async (_req, res) => {
   const now = new Date();
   const [pendingAccounts, pendingPayments, pendingPasswordResets, orders] = await Promise.all([
@@ -281,6 +323,96 @@ router.post("/accounts/:id/payment", authAdmin, async (req, res) => {
   ]);
 
   res.json({ account: publicAccount(updated), entry });
+});
+
+router.post("/accounts/:id/other-charge", authAdmin, async (req, res) => {
+  const amount = Number(req.body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: "Valid charge amount required." });
+  }
+
+  const account = await prisma.account.findUnique({ where: { id: req.params.id } });
+  if (!account) return res.status(404).json({ error: "Account not found." });
+
+  const description = String(req.body.label || "").trim();
+  const narration = description ? `Other Charges: ${description}` : "Other Charges";
+  const newOutstanding = Number(account.previousOutstanding || 0) + amount;
+
+  const updateData = {
+    previousOutstanding: newOutstanding,
+    oldOutstanding: newOutstanding,
+  };
+  if (Number(account.creditLimit) > 0) {
+    updateData.usedCredit = account.usedCredit + amount;
+  }
+
+  const [updated, entry] = await prisma.$transaction([
+    prisma.account.update({ where: { id: account.id }, data: updateData }),
+    prisma.ledgerEntry.create({
+      data: {
+        accountId: account.id,
+        label: narration,
+        amount,
+        debit: amount,
+        oldOutstandingBefore: account.previousOutstanding,
+        outstandingAfter: newOutstanding,
+        balanceAfter: account.balance,
+        entryDate: req.body.date ? new Date(req.body.date) : new Date(),
+      },
+    }),
+  ]);
+
+  res.json({ account: publicAccount(updated), entry });
+});
+
+router.put("/ledger-entry/:id", authAdmin, async (req, res) => {
+  const entry = await prisma.ledgerEntry.findUnique({ where: { id: req.params.id } });
+  if (!entry) return res.status(404).json({ error: "Ledger entry not found." });
+
+  const { label, entryDate, debit, credit } = req.body;
+  const newDebit = debit !== undefined ? Number(debit) : Number(entry.debit || 0);
+  const newCredit = credit !== undefined ? Number(credit) : Number(entry.credit || 0);
+  if (!Number.isFinite(newDebit) || newDebit < 0 || !Number.isFinite(newCredit) || newCredit < 0) {
+    return res.status(400).json({ error: "Debit and credit must be valid non-negative amounts." });
+  }
+
+  const account = await prisma.account.findUnique({ where: { id: entry.accountId } });
+  const allEntries = await prisma.ledgerEntry.findMany({ where: { accountId: entry.accountId } });
+  const opening = computeLedgerOpening(account, allEntries);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.ledgerEntry.update({
+      where: { id: entry.id },
+      data: {
+        label: label !== undefined ? String(label) : undefined,
+        entryDate: entryDate ? new Date(entryDate) : undefined,
+        debit: newDebit,
+        credit: newCredit,
+        amount: newDebit || newCredit,
+      },
+    });
+    await recomputeLedgerFromOpening(tx, entry.accountId, opening);
+  });
+
+  const updated = await prisma.account.findUnique({ where: { id: entry.accountId } });
+  res.json({ account: publicAccount(updated) });
+});
+
+router.delete("/ledger-entry/:id", authAdmin, async (req, res) => {
+  const entry = await prisma.ledgerEntry.findUnique({ where: { id: req.params.id } });
+  if (!entry) return res.status(404).json({ error: "Ledger entry not found." });
+
+  const account = await prisma.account.findUnique({ where: { id: entry.accountId } });
+  const allEntries = await prisma.ledgerEntry.findMany({ where: { accountId: entry.accountId } });
+  const opening = computeLedgerOpening(account, allEntries);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.ledgerEntry.delete({ where: { id: entry.id } });
+    await recomputeLedgerFromOpening(tx, entry.accountId, opening);
+  });
+
+  const updated = await prisma.account.findUnique({ where: { id: entry.accountId } });
+  res.json({ account: publicAccount(updated) });
 });
 
 router.get("/wallet-requests", authAdmin, async (_req, res) => {

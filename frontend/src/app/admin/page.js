@@ -16,6 +16,7 @@ import AdminCustomerCreditOverview from "@/components/AdminCustomerCreditOvervie
 import AdminReceivePaymentSection from "@/components/AdminReceivePaymentSection";
 import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
+import AdminOtherChargesSection from "@/components/AdminOtherChargesSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
 import AdminRatesSection from "@/components/AdminRatesSection";
@@ -575,6 +576,10 @@ export default function AdminPage() {
               <AdminCustomerCreditOverview accounts={accounts} />
               <AdminCustomerCreditWallet accounts={accounts} onRefresh={load} />
             </div>
+          )}
+
+          {activeTab === "other-charges" && (
+            <AdminOtherChargesSection accounts={accounts} onRefresh={load} />
           )}
 
           {activeTab === "orders" && (

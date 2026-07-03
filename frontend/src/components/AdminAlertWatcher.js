@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { adminApi } from "@/lib/api";
 import {
   isAdminAlertsMuted,
-  playAdminAlertSound,
   setAdminAlertsMuted,
   speakAdminAlert,
   unlockAdminAlertAudio,
@@ -53,12 +52,9 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
 
   const handleEnableAudio = useCallback(() => {
     const ready = unlockAdminAlertAudio();
-    setAudioReady(ready);
-    if (ready) {
-      playAdminAlertSound();
-      speakAdminAlert("Order alerts enabled");
-      toast.success("Order alerts enabled.");
-    }
+    setAudioReady(true);
+    speakAdminAlert("Order alerts enabled");
+    toast.success("Order voice alerts enabled.");
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -100,7 +96,6 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
         if (!fresh.length) return;
 
         markSeen(fresh.map((alert) => alert.id));
-        playAdminAlertSound();
         speakAdminAlert(
           fresh.length === 1
             ? "New order received"
@@ -152,10 +147,10 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
       <span className="font-semibold">Order alerts</span>
       {!audioReady ? (
         <button type="button" className={btnClass("amber", true)} onClick={handleEnableAudio}>
-          Enable ring sound
+          Enable voice alerts
         </button>
       ) : (
-        <span className="text-xs text-amber-800">Sound active — checks every 15 sec</span>
+        <span className="text-xs text-amber-800">Voice active — checks every 15 sec</span>
       )}
       <button type="button" className={btnClass("ghost", true)} onClick={toggleMute}>
         {muted ? "Unmute" : "Mute"}

@@ -5,6 +5,7 @@ import { formatPhone } from "@/components/AdminCatalogPanel";
 import OrderHistoryLedger from "@/components/OrderHistoryLedger";
 import { adminApi, formatRupees } from "@/lib/api";
 import { mergeLedgerEntries, mergeOrderHistory, formatLedgerTableDate } from "@/lib/order-display";
+import { downloadLedgerPdf } from "@/lib/ledger-pdf";
 import { toast } from "@/lib/toast";
 import { btnClass, tabClass, ui } from "@/lib/ui";
 
@@ -123,6 +124,14 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
   );
   const summary = data?.summary || {};
 
+  function handleDownloadPdf() {
+    try {
+      downloadLedgerPdf({ account, summary, ledgerEntries });
+    } catch (error) {
+      toast.error(error.message || "Could not generate ledger PDF.");
+    }
+  }
+
   if (!open) return null;
 
   const title = account?.business || accountName || "Customer";
@@ -207,7 +216,15 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
           )}
         </div>
 
-        <div className="border-t border-slate-100 px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">
+          <button
+            type="button"
+            className={btnClass("primary")}
+            onClick={handleDownloadPdf}
+            disabled={loading || !data}
+          >
+            Download Ledger PDF
+          </button>
           <button type="button" className={btnClass("secondary")} onClick={onClose}>
             Close
           </button>

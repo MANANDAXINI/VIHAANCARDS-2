@@ -49,7 +49,7 @@ function CustomerPaymentsTable({ ledgerEntries = [] }) {
   );
 }
 
-function PaymentLedgerTable({ ledgerEntries = [] }) {
+function PaymentLedgerTable({ ledgerEntries = [], offset = 0 }) {
   return (
     <section className={ui.cardFlat}>
       <h2 className={`${ui.h3} border-b border-slate-200 px-4 py-3`}>Payment Ledger</h2>
@@ -71,7 +71,7 @@ function PaymentLedgerTable({ ledgerEntries = [] }) {
             ) : (
               ledgerEntries.map((entry, index) => (
                 <tr key={entry.id} className={entry.pending ? "bg-amber-50/60" : ""}>
-                  <td className={ui.td}>{index + 1}</td>
+                  <td className={ui.td}>{offset + index + 1}</td>
                   <td className={ui.td}>{formatLedgerTableDate(entry.entryDate)}</td>
                   <td className={ui.td}>{entry.label}</td>
                   <td className={ui.td}>{formatLedgerDebit(entry)}</td>
@@ -163,12 +163,12 @@ function OrderHistoryTable({ orders = [] }) {
   );
 }
 
-export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], activeTab = "orders" }) {
+export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], activeTab = "orders", offset = 0 }) {
   if (activeTab === "payments") {
     return <CustomerPaymentsTable ledgerEntries={ledgerEntries} />;
   }
   if (activeTab === "ledger") {
-    return <PaymentLedgerTable ledgerEntries={ledgerEntries} />;
+    return <PaymentLedgerTable ledgerEntries={ledgerEntries} offset={offset} />;
   }
   if (activeTab === "orders") {
     return <OrderHistoryTable orders={orders} />;

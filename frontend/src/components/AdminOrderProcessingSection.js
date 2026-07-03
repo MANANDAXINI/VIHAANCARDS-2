@@ -67,18 +67,15 @@ function SectionLabel({ children }) {
   );
 }
 
-function ArtworkFileRow({ label, url, name, mime, downloaded, onDownload, busy }) {
+function ArtworkFileRow({ label, url, name, mime, downloaded }) {
   return (
     <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2">
-      <p className={`${ui.small} mb-1.5 font-semibold text-slate-700`}>{label}</p>
-      <button
-        type="button"
-        className={`${btnClass(downloaded ? "teal" : "amber", true)} mb-2 w-full`}
-        disabled={!url || busy}
-        onClick={onDownload}
-      >
-        {downloaded ? "Download Completed" : busy ? "Saving..." : "Download Pending"}
-      </button>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <p className={`${ui.small} font-semibold text-slate-700`}>{label}</p>
+        <span className={`${ui.small} font-medium ${downloaded ? "text-emerald-600" : "text-amber-600"}`}>
+          {downloaded ? "Downloaded" : "Pending"}
+        </span>
+      </div>
       {url ? (
         <ArtworkThumb
           url={url}
@@ -87,8 +84,9 @@ function ArtworkFileRow({ label, url, name, mime, downloaded, onDownload, busy }
           className="h-14 w-14"
           secure
         />
-      ) : null}
-      <p className={`${ui.small} break-all text-slate-700`}>{name || "—"}</p>
+      ) : (
+        <p className={`${ui.small} break-all text-slate-700`}>{name || "—"}</p>
+      )}
     </div>
   );
 }
@@ -142,14 +140,6 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
     }
   }
 
-  async function handleDownloadSlip() {
-    await downloadOrderSlipImage(order, {
-      lrNumber: lrNumber.trim(),
-      transportDetails: transportDetails.trim(),
-      dispatchDate: dispatchDate || new Date().toISOString().slice(0, 10),
-    });
-  }
-
   return (
     <div className="grid w-full gap-2">
       <label className="grid gap-1">
@@ -181,13 +171,6 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
       </label>
       <button
         type="button"
-        className={`${btnClass("secondary", true)} w-full`}
-        onClick={handleDownloadSlip}
-      >
-        Download Order Image
-      </button>
-      <button
-        type="button"
         className={`${btnClass("amber", true)} w-full`}
         disabled={saving}
         onClick={handleSave}
@@ -200,7 +183,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
 
 function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
   const [printingBusy, setPrintingBusy] = useState(false);
-  const [artworkBusy, setArtworkBusy] = useState(null);
+  const [downloadBusy, setDownloadBusy] = useState(false);
 
   const verified = isPaymentVerified(order);
   const proceeded = hasProceededToPrinting(order.status);
@@ -218,35 +201,42 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
     }
   }
 
-  async function handleArtworkDownload(side) {
+  async function saveArtworkSide(side) {
     const url = side === "back" ? order.artworkBackUrl : order.artworkUrl;
     const name = side === "back" ? order.artworkBackName : order.artworkName;
     const mime = side === "back" ? order.artworkBackMime : order.artworkMime;
     if (!url) return;
 
-    setArtworkBusy(side);
+    const result = await saveArtworkToBusinessFolder({
+      order,
+      side,
+      url,
+      originalName: name,
+      mime,
+    });
+    await adminApi.markArtworkDownloaded(order.id, side, { silent: true });
+    return result;
+  }
+
+  async function handleDownloadAll() {
+    setDownloadBusy(true);
     try {
-      const result = await saveArtworkToBusinessFolder({
-        order,
-        side,
-        url,
-        originalName: name,
-        mime,
+      await downloadOrderSlipImage(order, {
+        lrNumber: order.lrNumber || "",
+        transportDetails: order.transportDetails || "",
+        dispatchDate: toDateInputValue(order.dispatchDate) || new Date().toISOString().slice(0, 10),
       });
 
-      await adminApi.markArtworkDownloaded(order.id, side, { silent: true });
-      await onRefresh();
+      if (order.artworkUrl) await saveArtworkSide("front");
+      if (order.artworkBackUrl) await saveArtworkSide("back");
 
-      if (result.method === "folder") {
-        toast.success(`Saved to ${result.displayPath}`);
-      } else {
-        toast.success(`Downloaded ${result.filename}. Use Chrome or Edge to pick a folder next time.`);
-      }
+      await onRefresh();
+      toast.success("Order image and artwork downloaded.");
     } catch (error) {
       if (error?.name === "AbortError") return;
-      toast.error(error.message || "Could not save artwork.");
+      toast.error(error.message || "Could not download.");
     } finally {
-      setArtworkBusy(null);
+      setDownloadBusy(false);
     }
   }
 
@@ -318,6 +308,15 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
             <span className={ui.muted}>—</span>
           ) : (
             <div className="grid w-full gap-2">
+              <button
+                type="button"
+                className={`${btnClass("amber", true)} w-full`}
+                disabled={downloadBusy}
+                onClick={handleDownloadAll}
+              >
+                {downloadBusy ? "Downloading..." : "Download"}
+              </button>
+              <p className={`${ui.small} ${ui.muted}`}>Order image + front & back artwork</p>
               {order.artworkUrl ? (
                 <ArtworkFileRow
                   label="Front"
@@ -325,8 +324,6 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
                   name={order.artworkName}
                   mime={order.artworkMime}
                   downloaded={order.artworkDownloaded}
-                  busy={artworkBusy === "front"}
-                  onDownload={() => handleArtworkDownload("front")}
                 />
               ) : null}
               {order.artworkBackUrl || order.artworkBackName ? (
@@ -336,8 +333,6 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
                   name={order.artworkBackName}
                   mime={order.artworkBackMime}
                   downloaded={order.artworkBackDownloaded}
-                  busy={artworkBusy === "back"}
-                  onDownload={() => handleArtworkDownload("back")}
                 />
               ) : null}
             </div>

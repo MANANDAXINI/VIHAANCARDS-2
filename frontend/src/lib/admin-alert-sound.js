@@ -56,3 +56,25 @@ export function playAdminAlertSound() {
   playTone(audioContext, 1100, start + 0.36, 0.18);
   playTone(audioContext, 880, start + 0.58, 0.14);
 }
+
+// Speaks the alert message aloud using the browser's speech synthesis.
+export function speakAdminAlert(message) {
+  if (typeof window === "undefined") return;
+  if (isAdminAlertsMuted()) return;
+
+  const synth = window.speechSynthesis;
+  if (!synth || typeof window.SpeechSynthesisUtterance === "undefined") return;
+
+  try {
+    const utterance = new window.SpeechSynthesisUtterance(String(message || "New order received"));
+    utterance.lang = "en-IN";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    // Cancel any queued speech so alerts don't stack up.
+    synth.cancel();
+    synth.speak(utterance);
+  } catch {
+    // ignore speech errors
+  }
+}

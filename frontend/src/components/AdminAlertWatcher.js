@@ -6,6 +6,7 @@ import {
   isAdminAlertsMuted,
   playAdminAlertSound,
   setAdminAlertsMuted,
+  speakAdminAlert,
   unlockAdminAlertAudio,
 } from "@/lib/admin-alert-sound";
 import { toast } from "@/lib/toast";
@@ -55,6 +56,7 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
     setAudioReady(ready);
     if (ready) {
       playAdminAlertSound();
+      speakAdminAlert("Order alerts enabled");
       toast.success("Order alerts enabled.");
     }
   }, []);
@@ -99,6 +101,11 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
 
         markSeen(fresh.map((alert) => alert.id));
         playAdminAlertSound();
+        speakAdminAlert(
+          fresh.length === 1
+            ? "New order received"
+            : `${fresh.length} new orders received`
+        );
 
         for (const alert of fresh) {
           toast.info(alert.message, { duration: 10000 });

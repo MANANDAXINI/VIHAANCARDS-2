@@ -292,9 +292,6 @@ export default function OrderPage() {
                   </button>
                 ))}
               </div>
-              {selectedPaper && (
-                <p className={`${ui.muted} ${ui.small}`}>Available stock: {selectedPaper.availableQuantity.toLocaleString("en-IN")}</p>
-              )}
             </div>
 
             <div className={ui.grid2}>

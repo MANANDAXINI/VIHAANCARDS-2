@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminApi, formatDate, formatRupees } from "@/lib/api";
+import { adminApi, formatRupees } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { formatOrderStatus, orderStatusClass, ui } from "@/lib/ui";
 

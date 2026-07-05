@@ -4,11 +4,10 @@ import Link from "next/link";
 import CustomerNav from "@/components/CustomerNav";
 import { useLogout } from "@/hooks/useLogout";
 import { btnClass } from "@/lib/ui";
-import { isAdmin, isCustomer } from "@/lib/redirect";
+import { isCustomer } from "@/lib/redirect";
 
 export default function SiteHeader({ user }) {
   const handleLogout = useLogout();
-  const adminAccess = isAdmin(user);
   const customerAccess = isCustomer(user);
   const hideNavOnMobile = Boolean(user && customerAccess);
 
@@ -28,15 +27,8 @@ export default function SiteHeader({ user }) {
 
         <div className="flex shrink-0 justify-end gap-2 max-[900px]:[grid-area:actions]">
           {user ? (
-            <>
-              {adminAccess && (
-                <Link href="/admin" className={btnClass("ghost", true)}>Admin</Link>
-              )}
-              <button type="button" className={btnClass("ghost", true)} onClick={handleLogout}>Logout</button>
-            </>
-          ) : (
-            <Link href="/admin" className={btnClass("ghost", true)}>Admin</Link>
-          )}
+            <button type="button" className={btnClass("ghost", true)} onClick={handleLogout}>Logout</button>
+          ) : null}
         </div>
       </div>
 

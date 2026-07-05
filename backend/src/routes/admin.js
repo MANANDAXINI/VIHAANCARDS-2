@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
-const { pendingOrderTotal, summarizeAccountLedger } = require("../lib/ledger");
+const { summarizeAccountLedger } = require("../lib/ledger");
 const { parseParcelRowsFromWorkbook, buildDispatchUpdateData, parseExcelDate } = require("../lib/parcel-import");
 const { normalizeOrderNumber } = require("../lib/job-folder-parse");
 const { authAdmin } = require("../middleware/auth");

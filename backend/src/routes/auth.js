@@ -6,7 +6,6 @@ const { authCustomer, authSession, isAdminRole } = require("../middleware/auth")
 const { verifyGoogleIdToken } = require("../lib/firebase");
 const {
   normalizeBusiness,
-  businessPickSummary,
   findMatchingAccounts,
   canLoginAccount,
   passwordMatches,

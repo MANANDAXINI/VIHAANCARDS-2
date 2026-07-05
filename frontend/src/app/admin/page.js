@@ -33,9 +33,6 @@ import { filterItems, paginateItems } from "@/lib/admin-table";
 import { isAdmin, roleLabel } from "@/lib/redirect";
 import { toast } from "@/lib/toast";
 import {
-  formatOrderDescription,
-} from "@/lib/order-display";
-import {
   accountStatusClass,
   btnClass,
   isOrderCompleted,

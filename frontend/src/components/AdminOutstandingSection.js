@@ -17,7 +17,6 @@ function formatMobileNo(phone) {
 
 export default function AdminOutstandingSection() {
   const [rows, setRows] = useState([]);
-  const [grandTotal, setGrandTotal] = useState(0);
   const [asOn, setAsOn] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -34,13 +33,11 @@ export default function AdminOutstandingSection() {
       .outstandingReceivable()
       .then((data) => {
         setRows(data.rows || []);
-        setGrandTotal(Number(data.grandTotal || 0));
         setAsOn(data.asOn || new Date().toISOString());
       })
       .catch((error) => {
         toast.error(error.message || "Could not load outstanding report.");
         setRows([]);
-        setGrandTotal(0);
       })
       .finally(() => setLoading(false));
   }, []);

@@ -51,7 +51,7 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
   }, []);
 
   const handleEnableAudio = useCallback(() => {
-    const ready = unlockAdminAlertAudio();
+    unlockAdminAlertAudio();
     setAudioReady(true);
     speakAdminAlert("Order alerts enabled");
     toast.success("Order voice alerts enabled.");

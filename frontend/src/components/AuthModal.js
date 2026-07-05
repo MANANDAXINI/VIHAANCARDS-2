@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import BusinessPickList from "@/components/BusinessPickList";
@@ -630,8 +629,6 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                   </button>
                 </>
               )}
-              <br />
-              Admin? <Link href="/admin" className="font-semibold text-blue-600 hover:underline" onClick={onClose}>Go to Admin Panel</Link>
             </p>
           ) : null}
         </div>

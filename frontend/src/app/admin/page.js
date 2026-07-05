@@ -591,7 +591,6 @@ export default function AdminPage() {
                   { id: "wallet", label: "Account / Wallet", countKey: "wallet" },
                   { id: "pending-orders", label: "Pending Orders", countKey: "orders", highlight: true },
                   { id: "completed-orders", label: "Completed Orders", countKey: "completedOrders" },
-                  { id: "ledger", label: "Customer Ledger" },
                 ].map((tab) => {
                   const count = tab.countKey ? displayNavCounts[tab.countKey] : null;
                   const showCount = count != null;
@@ -792,10 +791,11 @@ export default function AdminPage() {
                 />
               )}
 
-              {ordersSubTab === "ledger" && (
-                <AdminCustomerLedgerSection accounts={accounts} />
-              )}
             </div>
+          )}
+
+          {activeTab === "customer-ledger" && (
+            <AdminCustomerLedgerSection accounts={accounts} />
           )}
 
           {activeTab === "outstanding" && <AdminOutstandingSection />}

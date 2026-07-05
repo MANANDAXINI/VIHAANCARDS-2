@@ -121,6 +121,7 @@ export const adminApi = {
   markArtworkDownloaded: (id, side, options) => api(`/api/admin/orders/${id}/mark-artwork`, { method: "PUT", body: { side }, ...options }),
   dispatch: (id, body, options) => api(`/api/admin/orders/${id}/dispatch`, { method: "PUT", body, ...options }),
   deliver: (id, options) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT", ...options }),
+  cancelOrder: (id, options) => api(`/api/admin/orders/${id}`, { method: "DELETE", ...options }),
   dayBook: (date) => api(`/api/admin/day-book${date ? `?date=${encodeURIComponent(date)}` : ""}`),
   customerLedger: (accountId, { fromDate, toDate } = {}) => {
     const params = new URLSearchParams();

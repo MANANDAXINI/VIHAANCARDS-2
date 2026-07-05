@@ -184,6 +184,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
 function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
   const [printingBusy, setPrintingBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   const verified = isPaymentVerified(order);
   const proceeded = hasProceededToPrinting(order.status);
@@ -240,6 +241,24 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
     }
   }
 
+  async function handleCancelOrder() {
+    if (!window.confirm(
+      `Cancel order ${order.orderNumber || ""}?\n\nThis removes the order, restores stock, and reverses its ledger charge. This cannot be undone.`
+    )) {
+      return;
+    }
+    setCancelBusy(true);
+    try {
+      await adminApi.cancelOrder(order.id, { silent: true });
+      toast.success(`Order ${order.orderNumber || ""} cancelled.`);
+      await onRefresh();
+    } catch (error) {
+      toast.error(error.message || "Could not cancel order.");
+    } finally {
+      setCancelBusy(false);
+    }
+  }
+
   return (
     <article className={`rounded-lg border border-slate-200 bg-white p-3 sm:p-4 ${pendingRowClass(!isOrderCompleted(order.status))}`}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 xl:items-start xl:gap-3">
@@ -247,6 +266,14 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
           <SectionLabel>Order</SectionLabel>
           <strong className="block text-slate-900">{order.orderNumber || "—"}</strong>
           <span className={`${ui.small} ${ui.muted}`}>{formatLedgerTableDate(order.createdAt)}</span>
+          <button
+            type="button"
+            className={`${btnClass("danger", true)} mt-2 w-full`}
+            onClick={handleCancelOrder}
+            disabled={cancelBusy}
+          >
+            {cancelBusy ? "Cancelling..." : "Cancel Order"}
+          </button>
         </div>
 
         <div className="min-w-0">

@@ -4,6 +4,7 @@ const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber }
 const { summarizeAccountLedger } = require("../lib/ledger");
 const { parseParcelRowsFromWorkbook, buildDispatchUpdateData, parseExcelDate } = require("../lib/parcel-import");
 const { normalizeOrderNumber } = require("../lib/job-folder-parse");
+const { deleteUpload } = require("../lib/storage");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -713,6 +714,67 @@ router.put("/orders/:id/deliver", authAdmin, async (req, res) => {
     data: { status: "COMPLETED" },
   });
   res.json({ order: secureOrder(order) });
+});
+
+// Cancels/deletes an order: restores paper stock, removes the order's billing
+// ledger charge, recomputes the customer's outstanding, and deletes artwork.
+router.delete("/orders/:id", authAdmin, async (req, res) => {
+  const order = await prisma.order.findUnique({
+    where: { id: req.params.id },
+    include: { account: true },
+  });
+  if (!order) return res.status(404).json({ error: "Order not found." });
+
+  const account = order.account;
+  const allEntries = await prisma.ledgerEntry.findMany({ where: { accountId: account.id } });
+  const opening = computeLedgerOpening(account, allEntries);
+
+  await prisma.$transaction(async (tx) => {
+    // Restore paper stock (paper type is stored by name on the order).
+    const qty = Number(order.quantity) || 0;
+    if (order.paperGsm && qty > 0) {
+      const paper = await tx.paperType.findUnique({ where: { name: order.paperGsm } });
+      if (paper) {
+        await tx.paperType.update({
+          where: { id: paper.id },
+          data: { availableQuantity: { increment: qty } },
+        });
+      }
+    }
+
+    // Remove this order's billing charge from the ledger (keeps any payment
+    // received entries, so a paid customer keeps that amount as credit).
+    if (order.orderNumber) {
+      await tx.ledgerEntry.deleteMany({
+        where: { accountId: account.id, label: { startsWith: `Order ${order.orderNumber}` } },
+      });
+    }
+
+    // Any pending payment request tied to this order is no longer valid.
+    await tx.walletRequest.updateMany({
+      where: { pendingOrderId: order.id, status: "PENDING" },
+      data: { status: "REJECTED" },
+    });
+    // Clear the foreign key so the order can be deleted (no cascade on this relation).
+    await tx.walletRequest.updateMany({
+      where: { pendingOrderId: order.id },
+      data: { pendingOrderId: null },
+    });
+
+    await tx.order.delete({ where: { id: order.id } });
+    await recomputeLedgerFromOpening(tx, account.id, opening);
+  });
+
+  // Best-effort artwork cleanup (outside the DB transaction).
+  try {
+    if (order.artworkPath) await deleteUpload(order.artworkPath);
+    if (order.artworkBackPath) await deleteUpload(order.artworkBackPath);
+  } catch {
+    // ignore storage cleanup errors
+  }
+
+  const updated = await prisma.account.findUnique({ where: { id: account.id } });
+  res.json({ ok: true, account: publicAccount(updated) });
 });
 
 function istDateString(date = new Date()) {

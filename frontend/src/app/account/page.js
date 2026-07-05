@@ -90,9 +90,16 @@ function AccountContent() {
   }, [loadAccountData]);
 
   useEffect(() => {
-    const onFocus = () => loadAccountData();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    const refresh = () => loadAccountData();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadAccountData();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [loadAccountData]);
 
   const orderCount = useMemo(() => orders.length, [orders]);

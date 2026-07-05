@@ -82,6 +82,58 @@ async function recomputeLedgerFromOpening(tx, accountId, opening) {
   return finalOutstanding;
 }
 
+// Deletes an order and reverses its side effects inside a transaction:
+// restores paper stock, removes its billing ledger charge(s), clears any
+// wallet-request references (so the FK does not block deletion), and deletes
+// the order row. Artwork files must be cleaned up by the caller outside the tx.
+async function deleteOrderInTx(tx, order) {
+  const qty = Number(order.quantity) || 0;
+  if (order.paperGsm && qty > 0) {
+    const paper = await tx.paperType.findUnique({ where: { name: order.paperGsm } });
+    if (paper) {
+      await tx.paperType.update({
+        where: { id: paper.id },
+        data: { availableQuantity: { increment: qty } },
+      });
+    }
+  }
+
+  if (order.orderNumber) {
+    await tx.ledgerEntry.deleteMany({
+      where: { accountId: order.accountId, label: { startsWith: `Order ${order.orderNumber}` } },
+    });
+  }
+
+  await tx.walletRequest.updateMany({
+    where: { pendingOrderId: order.id, status: "PENDING" },
+    data: { status: "REJECTED" },
+  });
+  await tx.walletRequest.updateMany({
+    where: { pendingOrderId: order.id },
+    data: { pendingOrderId: null },
+  });
+
+  await tx.order.delete({ where: { id: order.id } });
+}
+
+// Best-effort artwork cleanup for a deleted order (outside any DB transaction).
+async function cleanupOrderArtwork(order) {
+  try {
+    if (order.artworkPath) await deleteUpload(order.artworkPath);
+    if (order.artworkBackPath) await deleteUpload(order.artworkBackPath);
+  } catch {
+    // ignore storage cleanup errors
+  }
+}
+
+// Pulls an order number (e.g. "PD-00017") out of a ledger entry label like
+// "Order PD-00017 - LEAFLET / PAMPLET". Returns null for non-order entries
+// (e.g. "Payment Received against ...").
+function orderNumberFromLedgerLabel(label) {
+  const match = /^Order\s+(\S+)\s*-/.exec(String(label || ""));
+  return match ? match[1] : null;
+}
+
 router.get("/nav-counts", authAdmin, async (_req, res) => {
   const now = new Date();
   const [pendingAccounts, pendingPayments, pendingPasswordResets, orders] = await Promise.all([
@@ -407,10 +459,25 @@ router.delete("/ledger-entry/:id", authAdmin, async (req, res) => {
   const allEntries = await prisma.ledgerEntry.findMany({ where: { accountId: entry.accountId } });
   const opening = computeLedgerOpening(account, allEntries);
 
+  // If this ledger row is an order's billing charge, delete the underlying
+  // order too so it disappears from the customer's order history.
+  const orderNumber = orderNumberFromLedgerLabel(entry.label);
+  const order = orderNumber
+    ? await prisma.order.findFirst({ where: { accountId: entry.accountId, orderNumber } })
+    : null;
+
   await prisma.$transaction(async (tx) => {
-    await tx.ledgerEntry.delete({ where: { id: entry.id } });
+    if (order) {
+      // deleteOrderInTx also removes the order's ledger charge(s), so we don't
+      // delete this entry separately.
+      await deleteOrderInTx(tx, order);
+    } else {
+      await tx.ledgerEntry.delete({ where: { id: entry.id } });
+    }
     await recomputeLedgerFromOpening(tx, entry.accountId, opening);
   });
+
+  if (order) await cleanupOrderArtwork(order);
 
   const updated = await prisma.account.findUnique({ where: { id: entry.accountId } });
   res.json({ account: publicAccount(updated) });
@@ -730,48 +797,11 @@ router.delete("/orders/:id", authAdmin, async (req, res) => {
   const opening = computeLedgerOpening(account, allEntries);
 
   await prisma.$transaction(async (tx) => {
-    // Restore paper stock (paper type is stored by name on the order).
-    const qty = Number(order.quantity) || 0;
-    if (order.paperGsm && qty > 0) {
-      const paper = await tx.paperType.findUnique({ where: { name: order.paperGsm } });
-      if (paper) {
-        await tx.paperType.update({
-          where: { id: paper.id },
-          data: { availableQuantity: { increment: qty } },
-        });
-      }
-    }
-
-    // Remove this order's billing charge from the ledger (keeps any payment
-    // received entries, so a paid customer keeps that amount as credit).
-    if (order.orderNumber) {
-      await tx.ledgerEntry.deleteMany({
-        where: { accountId: account.id, label: { startsWith: `Order ${order.orderNumber}` } },
-      });
-    }
-
-    // Any pending payment request tied to this order is no longer valid.
-    await tx.walletRequest.updateMany({
-      where: { pendingOrderId: order.id, status: "PENDING" },
-      data: { status: "REJECTED" },
-    });
-    // Clear the foreign key so the order can be deleted (no cascade on this relation).
-    await tx.walletRequest.updateMany({
-      where: { pendingOrderId: order.id },
-      data: { pendingOrderId: null },
-    });
-
-    await tx.order.delete({ where: { id: order.id } });
+    await deleteOrderInTx(tx, order);
     await recomputeLedgerFromOpening(tx, account.id, opening);
   });
 
-  // Best-effort artwork cleanup (outside the DB transaction).
-  try {
-    if (order.artworkPath) await deleteUpload(order.artworkPath);
-    if (order.artworkBackPath) await deleteUpload(order.artworkBackPath);
-  } catch {
-    // ignore storage cleanup errors
-  }
+  await cleanupOrderArtwork(order);
 
   const updated = await prisma.account.findUnique({ where: { id: account.id } });
   res.json({ ok: true, account: publicAccount(updated) });

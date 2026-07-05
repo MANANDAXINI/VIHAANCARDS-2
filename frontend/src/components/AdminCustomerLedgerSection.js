@@ -58,7 +58,7 @@ function LedgerSummaryCard({ label, value }) {
   );
 }
 
-export default function AdminCustomerLedgerSection({ accounts = [] }) {
+export default function AdminCustomerLedgerSection({ accounts = [], onDataChange }) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -151,6 +151,7 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
       setChargeDate("");
       setShowChargeForm(false);
       loadLedger();
+      onDataChange?.();
     } catch (error) {
       toast.error(error.message || "Could not add charge.");
     } finally {
@@ -187,6 +188,7 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
       toast.success("Ledger entry updated.");
       setEditingId("");
       loadLedger();
+      onDataChange?.();
     } catch (error) {
       toast.error(error.message || "Could not update entry.");
     } finally {
@@ -202,6 +204,7 @@ export default function AdminCustomerLedgerSection({ accounts = [] }) {
       toast.success("Ledger entry deleted.");
       if (editingId === entry.id) setEditingId("");
       loadLedger();
+      onDataChange?.();
     } catch (error) {
       toast.error(error.message || "Could not delete entry.");
     } finally {

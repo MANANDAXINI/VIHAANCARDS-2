@@ -795,7 +795,7 @@ export default function AdminPage() {
           )}
 
           {activeTab === "customer-ledger" && (
-            <AdminCustomerLedgerSection accounts={accounts} />
+            <AdminCustomerLedgerSection accounts={accounts} onDataChange={load} />
           )}
 
           {activeTab === "outstanding" && <AdminOutstandingSection />}

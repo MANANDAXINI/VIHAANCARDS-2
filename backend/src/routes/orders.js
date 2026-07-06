@@ -8,10 +8,36 @@ const { resolveCatalogSelection } = require("../lib/catalog");
 
 const router = express.Router();
 
+const ALLOWED_ARTWORK_MIMES = ["application/pdf", "image/jpeg"];
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_ARTWORK_MIMES.includes(file.mimetype)) return cb(null, true);
+    cb(new Error("INVALID_ARTWORK_TYPE"));
+  },
 });
+
+const uploadArtworkFields = upload.fields([
+  { name: "artwork", maxCount: 1 },
+  { name: "artworkBack", maxCount: 1 },
+]);
+
+// Runs the artwork upload middleware and converts multer errors (wrong file
+// type, too large) into clean JSON responses instead of generic 500s.
+function handleArtworkUpload(req, res, next) {
+  uploadArtworkFields(req, res, (err) => {
+    if (!err) return next();
+    if (err.message === "INVALID_ARTWORK_TYPE") {
+      return res.status(400).json({ error: "Uploaded file must be a PDF or JPG only." });
+    }
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: "File too large. Maximum size is 25 MB." });
+    }
+    return res.status(400).json({ error: "File upload failed. Please try again." });
+  });
+}
 
 function buildUniqueFilename(originalName) {
   const safe = String(originalName || "artwork").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -94,10 +120,7 @@ router.get("/:id", authCustomer, async (req, res) => {
   }
 });
 
-router.post("/", authCustomer, upload.fields([
-  { name: "artwork", maxCount: 1 },
-  { name: "artworkBack", maxCount: 1 },
-]), async (req, res) => {
+router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
   try {
     const { paperTypeId, sizeId, printingSideId, quantity, amount, useCredit } = req.body;
     const frontFile = req.files?.artwork?.[0];

@@ -189,6 +189,13 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
   const verified = isPaymentVerified(order);
   const proceeded = hasProceededToPrinting(order.status);
 
+  const hasFront = Boolean(order.artworkUrl);
+  const hasBack = Boolean(order.artworkBackUrl || order.artworkBackName);
+  const allArtworkDownloaded =
+    (hasFront || hasBack) &&
+    (!hasFront || order.artworkDownloaded) &&
+    (!hasBack || order.artworkBackDownloaded);
+
   async function handleProceedPrinting() {
     setPrintingBusy(true);
     try {
@@ -337,11 +344,15 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
             <div className="grid w-full gap-2">
               <button
                 type="button"
-                className={`${btnClass("amber", true)} w-full`}
+                className={`${btnClass(allArtworkDownloaded ? "success" : "amber", true)} w-full`}
                 disabled={downloadBusy}
                 onClick={handleDownloadAll}
               >
-                {downloadBusy ? "Downloading..." : "Download"}
+                {downloadBusy
+                  ? "Downloading..."
+                  : allArtworkDownloaded
+                    ? "Downloaded ✓ (Download again)"
+                    : "Download"}
               </button>
               <p className={`${ui.small} ${ui.muted}`}>Order image + front & back artwork</p>
               {order.artworkUrl ? (

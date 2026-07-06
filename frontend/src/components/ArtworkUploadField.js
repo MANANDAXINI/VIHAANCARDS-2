@@ -2,7 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import FilePickButton from "@/components/FilePickButton";
+import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
+
+const ALLOWED_ARTWORK_MIMES = ["application/pdf", "image/jpeg"];
+const ALLOWED_ARTWORK_EXT = /\.(pdf|jpe?g)$/i;
+
+function isAllowedArtworkFile(file) {
+  if (!file) return false;
+  if (ALLOWED_ARTWORK_MIMES.includes(file.type)) return true;
+  // Some browsers report an empty MIME type; fall back to the extension.
+  return !file.type && ALLOWED_ARTWORK_EXT.test(file.name || "");
+}
 
 export default function ArtworkUploadField({
   label,
@@ -10,7 +21,7 @@ export default function ArtworkUploadField({
   file,
   onChange,
   required = false,
-  accept = ".pdf,.jpg,.jpeg,.png,.webp",
+  accept = ".pdf,.jpg,.jpeg",
 }) {
   const inputRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -28,7 +39,14 @@ export default function ArtworkUploadField({
   }, [file, isImage]);
 
   function handleFileChange(event) {
-    onChange(event.target.files?.[0] || null);
+    const picked = event.target.files?.[0] || null;
+    if (picked && !isAllowedArtworkFile(picked)) {
+      toast.error("Uploaded file must be a PDF or JPG only.");
+      if (inputRef.current) inputRef.current.value = "";
+      onChange(null);
+      return;
+    }
+    onChange(picked);
   }
 
   function clearFile() {
@@ -58,7 +76,8 @@ export default function ArtworkUploadField({
           inputRef={inputRef}
           buttonLabel="Choose Artwork File"
           title="Upload artwork"
-          description="PDF, JPG, PNG or WEBP — tap the button to browse files on your device."
+          description="PDF or JPG only — tap the button to browse files on your device."
+          accept={accept}
           onChange={handleFileChange}
         />
       ) : null}

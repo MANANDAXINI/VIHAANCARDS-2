@@ -17,7 +17,7 @@ import { walletApi } from "@/lib/api";
 const ACCOUNT_TABS = [
   { id: "orders", label: "Order History" },
   { id: "payments", label: "Payments" },
-  { id: "ledger", label: "Payment Ledger" },
+  { id: "ledger", label: "Ledger" },
 ];
 
 const ORDER_SEARCH_KEYS = [
@@ -133,7 +133,7 @@ function AccountContent() {
   const pageTitle = activeTab === "payments"
     ? "Payments"
     : activeTab === "ledger"
-    ? "Payment Ledger"
+    ? "Ledger"
     : "Order History";
   const pageDescription =
     activeTab === "payments"

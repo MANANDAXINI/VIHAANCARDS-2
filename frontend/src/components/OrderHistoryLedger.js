@@ -52,7 +52,7 @@ function CustomerPaymentsTable({ ledgerEntries = [] }) {
 function PaymentLedgerTable({ ledgerEntries = [], offset = 0 }) {
   return (
     <section className={ui.cardFlat}>
-      <h2 className={`${ui.h3} border-b border-slate-200 px-4 py-3`}>Payment Ledger</h2>
+      <h2 className={`${ui.h3} border-b border-slate-200 px-4 py-3`}>Ledger</h2>
       <div className={ui.tableWrap}>
         <table className={ui.table}>
           <thead>

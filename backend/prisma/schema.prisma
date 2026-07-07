@@ -60,6 +60,7 @@ model Account {
   phone               String
   email               String        @default("")
   address             String        @default("")
+  courierName         String        @default("")
   passwordHash        String
   googleId            String?       @unique
   authProvider        AuthProvider  @default(PHONE)

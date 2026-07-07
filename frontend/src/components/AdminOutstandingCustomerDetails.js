@@ -11,7 +11,7 @@ import { btnClass, tabClass, ui } from "@/lib/ui";
 
 const DETAIL_TABS = [
   { id: "both", label: "Ledger & Orders" },
-  { id: "ledger", label: "Payment Ledger" },
+  { id: "ledger", label: "Ledger" },
   { id: "orders", label: "Order History" },
   { id: "payments", label: "Payment Requests" },
 ];

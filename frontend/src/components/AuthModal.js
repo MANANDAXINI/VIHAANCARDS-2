@@ -45,6 +45,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     phone: "",
     password: "",
     address: "",
+    courierName: "",
   });
   const [registerErrors, setRegisterErrors] = useState({});
 
@@ -292,6 +293,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         phone: validation.mobile,
         password: registerForm.password,
         address: registerForm.address.trim(),
+        courierName: registerForm.courierName.trim(),
       }, { silent: true });
       toast.success(data.message);
       switchMode("login");
@@ -474,6 +476,10 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                 <div className={ui.field}>
                   <label className={ui.label}>City</label>
                   <input className={ui.input} value={registerForm.address} onChange={(e) => updateRegister("address", e.target.value)} />
+                </div>
+                <div className={ui.field}>
+                  <label className={ui.label}>Courier / Garaj Name</label>
+                  <input className={ui.input} value={registerForm.courierName} onChange={(e) => updateRegister("courierName", e.target.value)} placeholder="e.g. VRL, Gati, local garaj" />
                 </div>
                 <div className={ui.field}>
                   <label className={ui.label}>Password</label>

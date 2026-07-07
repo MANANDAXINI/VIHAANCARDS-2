@@ -282,6 +282,79 @@ router.put("/accounts/:id/approve", authAdmin, async (req, res) => {
   res.json({ account: publicAccount(account) });
 });
 
+// Admin edits a customer's profile details.
+router.put("/accounts/:id", authAdmin, async (req, res) => {
+  const existing = await prisma.account.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Account not found." });
+
+  const { name, business, phone, email, address, courierName } = req.body;
+  const cleanPhone = phone !== undefined ? String(phone).replace(/\D/g, "") : existing.phone;
+  if (!/^[0-9]{10}$/.test(cleanPhone)) {
+    return res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
+  }
+  const cleanBusiness = business !== undefined ? String(business).trim() : existing.business;
+  if (!cleanBusiness) {
+    return res.status(400).json({ error: "Business name is required." });
+  }
+
+  const duplicatePhone = await prisma.account.findFirst({
+    where: { phone: cleanPhone, NOT: { id: existing.id } },
+  });
+  if (duplicatePhone) {
+    return res.status(409).json({ error: "Another account already uses this mobile number." });
+  }
+
+  const duplicateBusiness = await prisma.account.findFirst({
+    where: { business: { equals: cleanBusiness, mode: "insensitive" }, NOT: { id: existing.id } },
+  });
+  if (duplicateBusiness) {
+    return res.status(409).json({ error: "Another account already uses this business name." });
+  }
+
+  const account = await prisma.account.update({
+    where: { id: existing.id },
+    data: {
+      name: name !== undefined ? String(name).trim() : existing.name,
+      business: cleanBusiness,
+      phone: cleanPhone,
+      email: email !== undefined ? String(email).trim() : existing.email,
+      address: address !== undefined ? String(address).trim() : existing.address,
+      courierName: courierName !== undefined ? String(courierName).trim() : existing.courierName,
+    },
+  });
+  res.json({ account: publicAccount(account) });
+});
+
+// Admin deletes a customer account and all of its related data (orders,
+// ledger entries, payment requests, sessions). Artwork files are cleaned up too.
+router.delete("/accounts/:id", authAdmin, async (req, res) => {
+  const account = await prisma.account.findUnique({ where: { id: req.params.id } });
+  if (!account) return res.status(404).json({ error: "Account not found." });
+  if (account.id === req.account.id) {
+    return res.status(400).json({ error: "You cannot delete your own account." });
+  }
+
+  const orders = await prisma.order.findMany({ where: { accountId: account.id } });
+
+  await prisma.$transaction(async (tx) => {
+    // Clear order references on wallet requests so cascading order deletes
+    // don't hit the pendingOrderId foreign key.
+    await tx.walletRequest.updateMany({
+      where: { accountId: account.id },
+      data: { pendingOrderId: null },
+    });
+    // Deleting the account cascades to sessions, orders, wallet requests,
+    // ledger entries, and password resets.
+    await tx.account.delete({ where: { id: account.id } });
+  });
+
+  for (const order of orders) {
+    await cleanupOrderArtwork(order);
+  }
+
+  res.json({ ok: true });
+});
+
 router.put("/accounts/:id/credit", authAdmin, async (req, res) => {
   const { creditLimit, previousOutstanding, balance } = req.body;
   const account = await prisma.account.update({

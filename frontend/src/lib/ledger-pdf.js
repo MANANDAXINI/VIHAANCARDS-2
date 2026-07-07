@@ -97,14 +97,14 @@ export function downloadLedgerPdf({ account, summary = {}, ledgerEntries = [] })
       ${contact ? `<div class="muted">${escapeHtml(contact)}</div>` : ""}
     </div>
     <div class="meta">
-      <div><strong>Payment Ledger</strong></div>
+      <div><strong>Ledger</strong></div>
       <div>Generated: ${escapeHtml(todayLabel())}</div>
     </div>
   </div>
 
   ${summaryRows ? `<h2>Account Summary</h2><div class="summary">${summaryRows}</div>` : ""}
 
-  <h2>Payment Ledger</h2>
+  <h2>Ledger</h2>
   <table>
     <thead>
       <tr>

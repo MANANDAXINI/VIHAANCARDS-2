@@ -16,6 +16,7 @@ import AdminCustomerCreditOverview from "@/components/AdminCustomerCreditOvervie
 import AdminReceivePaymentSection from "@/components/AdminReceivePaymentSection";
 import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
+import AdminEditUserModal from "@/components/AdminEditUserModal";
 import AdminOtherChargesSection from "@/components/AdminOtherChargesSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
 import AdminOrderProcessingSection from "@/components/AdminOrderProcessingSection";
@@ -84,6 +85,8 @@ export default function AdminPage() {
   const [walletPage, setWalletPage] = useState(1);
   const [walletActionId, setWalletActionId] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
+  const [editAccount, setEditAccount] = useState(null);
+  const [deletingAccountId, setDeletingAccountId] = useState(null);
   const [navCounts, setNavCounts] = useState({
     accounts: 0,
     payments: 0,
@@ -189,6 +192,25 @@ export default function AdminPage() {
       load();
     } catch (error) {
       toast.error(error.message);
+    }
+  }
+
+  async function handleDeleteAccount(account) {
+    if (deletingAccountId) return;
+    if (!window.confirm(
+      `Delete user "${account.business}"?\n\nThis permanently removes the account and ALL its orders, ledger entries, and payment requests. This cannot be undone.`
+    )) {
+      return;
+    }
+    setDeletingAccountId(account.id);
+    try {
+      await adminApi.deleteAccount(account.id, { silent: true });
+      toast.success(`User "${account.business}" deleted.`);
+      await load();
+    } catch (error) {
+      toast.error(error.message || "Could not delete user.");
+    } finally {
+      setDeletingAccountId(null);
     }
   }
 
@@ -338,6 +360,12 @@ export default function AdminPage() {
 
           <AdminAlertWatcher enabled={isAdmin(user)} onNewActivity={handleAdminAlert} />
 
+          <AdminEditUserModal
+            account={editAccount}
+            onClose={() => setEditAccount(null)}
+            onSaved={load}
+          />
+
           <AdminNav active={activeTab} onChange={setActiveTab} counts={displayNavCounts} />
 
           {activeTab === "dashboard" && (
@@ -459,18 +487,33 @@ export default function AdminPage() {
                             </select>
                           </td>
                           <td className={ui.td}>
-                            {a.status === "PENDING" ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {a.status === "PENDING" ? (
+                                <button
+                                  className={btnClass("primary", true)}
+                                  type="button"
+                                  disabled={approvingId === a.id}
+                                  onClick={() => approveAccount(a.id)}
+                                >
+                                  {approvingId === a.id ? "..." : "Approve"}
+                                </button>
+                              ) : null}
                               <button
-                                className={btnClass("primary", true)}
+                                className={btnClass("secondary", true)}
                                 type="button"
-                                disabled={approvingId === a.id}
-                                onClick={() => approveAccount(a.id)}
+                                onClick={() => setEditAccount(a)}
                               >
-                                {approvingId === a.id ? "..." : "Approve"}
+                                Edit
                               </button>
-                            ) : (
-                              <span className={ui.muted}>—</span>
-                            )}
+                              <button
+                                className={btnClass("danger", true)}
+                                type="button"
+                                disabled={deletingAccountId === a.id}
+                                onClick={() => handleDeleteAccount(a)}
+                              >
+                                {deletingAccountId === a.id ? "..." : "Delete"}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

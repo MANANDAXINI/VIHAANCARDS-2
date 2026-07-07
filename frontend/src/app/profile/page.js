@@ -41,6 +41,7 @@ export default function ProfilePage() {
         business: form.get("business"),
         phone: mobile,
         address: form.get("address"),
+        courierName: form.get("courierName"),
       }, { silent: true });
       setUser(data.account);
       setPhone(data.account.phone || "");
@@ -96,6 +97,10 @@ export default function ProfilePage() {
               <div className={ui.field}>
                 <label className={ui.label}>City</label>
                 <input className={ui.input} name="address" defaultValue={user.address} />
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Courier / Garaj Name</label>
+                <input className={ui.input} name="courierName" defaultValue={user.courierName} placeholder="e.g. VRL, Gati, local garaj" />
               </div>
             </div>
             <button className={btnClass("primary")} type="submit">Save Profile</button>

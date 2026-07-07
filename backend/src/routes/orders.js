@@ -223,7 +223,10 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
       return created;
     });
 
-    res.status(201).json({ order: publicOrder(order, { secureFiles: true }) });
+    res.status(201).json({
+      order: publicOrder(order, { secureFiles: true }),
+      message: `Order confirmed. ₹${orderAmount.toLocaleString("en-IN")} has been utilized from your available credit limit.`,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

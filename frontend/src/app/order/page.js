@@ -214,9 +214,10 @@ export default function OrderPage() {
       sessionStorage.removeItem("pd_pending_order");
       sessionStorage.removeItem("pd_order_review");
       toast.success(
-        data.order?.orderNumber
-          ? `Order ${data.order.orderNumber} placed successfully.`
-          : "Order placed successfully."
+        data.message
+          || (data.order?.orderNumber
+            ? `Order ${data.order.orderNumber} placed successfully.`
+            : "Order placed successfully.")
       );
       router.push("/account?tab=both");
     } catch (error) {
@@ -252,7 +253,7 @@ export default function OrderPage() {
       <main className={ui.page}>
         <div className={ui.pageNarrow}>
           <h1 className={ui.h1}>Place Order — Leaflet / Pamphlet</h1>
-          <p className={ui.muted}>Pick paper, size, printing side, and quantity — price comes from admin catalog.</p>
+          <p className={ui.muted}>Pick paper, size, printing side, and quantity.</p>
 
           {!catalog?.paperTypes?.length && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

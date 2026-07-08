@@ -101,22 +101,12 @@ export async function saveArtworkToBusinessFolder({ order, side, url, originalNa
   const businessFolder = sanitizeBusinessFolderName(order?.business || order?.customerName);
   const filename = buildArtworkSaveFilename(order, side, originalName, mime);
 
-  if (typeof window !== "undefined" && typeof window.showDirectoryPicker === "function") {
-    const rootDir = await window.showDirectoryPicker({ mode: "readwrite" });
-    const businessDir = await rootDir.getDirectoryHandle(businessFolder, { create: true });
-    const fileHandle = await businessDir.getFileHandle(filename, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-
-    return {
-      method: "folder",
-      businessFolder,
-      filename,
-      displayPath: `${businessFolder}\\${filename}`,
-    };
-  }
-
+  // Use a plain browser download (goes to the Downloads folder). We intentionally
+  // avoid the File System Access API (showDirectoryPicker) here because it
+  // requires an active user gesture, which is lost after the awaited fetch /
+  // order-slip download that run before this call — causing a
+  // "Must be handling a user gesture" error. The business name is prefixed to
+  // the filename so files stay identifiable.
   triggerBrowserDownload(blob, `${businessFolder}_${filename}`);
   return {
     method: "download",

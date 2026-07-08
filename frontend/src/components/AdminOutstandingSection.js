@@ -5,6 +5,7 @@ import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/component
 import { adminApi } from "@/lib/api";
 import { formatReceivableAmount, formatReceivableDate } from "@/lib/order-display";
 import { filterItems, paginateItems } from "@/lib/admin-table";
+import { printOutstandingReport } from "@/lib/outstanding-print";
 import { toast } from "@/lib/toast";
 import AdminOutstandingCustomerDetails from "@/components/AdminOutstandingCustomerDetails";
 import { btnClass, ui } from "@/lib/ui";
@@ -59,6 +60,18 @@ export default function AdminOutstandingSection() {
     [filtered]
   );
 
+  function handlePrint() {
+    if (filtered.length === 0) {
+      toast.error("No accounts to print.");
+      return;
+    }
+    try {
+      printOutstandingReport({ rows: filtered, asOn, total: displayTotal });
+    } catch (error) {
+      toast.error(error.message || "Could not open print view.");
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -70,6 +83,9 @@ export default function AdminOutstandingSection() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={btnClass("primary")} onClick={handlePrint} disabled={loading || filtered.length === 0}>
+            Print Total Outstanding
+          </button>
           <button type="button" className={btnClass("ghost")} onClick={loadReceivable} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
           </button>

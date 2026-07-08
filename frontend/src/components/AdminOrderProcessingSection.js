@@ -338,7 +338,7 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
           <SectionLabel>Payment</SectionLabel>
           {verified ? (
             <div className="grid gap-1">
-              <span className="text-sm font-medium text-slate-800">Payment Verified</span>
+              <span className="text-sm font-medium text-slate-800">Limit Used</span>
               <span className={`${ui.pill} w-fit bg-emerald-100 text-emerald-800`}>Verified</span>
             </div>
           ) : (

@@ -43,6 +43,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     name: "",
     business: "",
     phone: "",
+    email: "",
     password: "",
     address: "",
     courierName: "",
@@ -291,6 +292,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         name: validation.name,
         business: validation.business,
         phone: validation.mobile,
+        email: validation.email,
         password: registerForm.password,
         address: registerForm.address.trim(),
         courierName: registerForm.courierName.trim(),
@@ -460,6 +462,19 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                   <label className={ui.label}>Business Name</label>
                   <input className={`${ui.input} ${registerErrors.business ? ui.inputError : ""}`} value={registerForm.business} onChange={(e) => updateRegister("business", e.target.value)} />
                   {registerErrors.business && <p className={ui.fieldError}>{registerErrors.business}</p>}
+                </div>
+                <div className={ui.field}>
+                  <label className={ui.label}>Email</label>
+                  <input
+                    className={`${ui.input} ${registerErrors.email ? ui.inputError : ""}`}
+                    type="email"
+                    value={registerForm.email}
+                    onChange={(e) => updateRegister("email", e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                  {registerErrors.email
+                    ? <p className={ui.fieldError}>{registerErrors.email}</p>
+                    : <p className={`${ui.small} ${ui.muted}`}>Use the same email as your Google sign-in to keep one account.</p>}
                 </div>
                 <div className={ui.field}>
                   <label className={ui.label}>Mobile (10 digits)</label>

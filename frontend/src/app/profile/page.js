@@ -40,6 +40,7 @@ export default function ProfilePage() {
         name: form.get("name"),
         business: form.get("business"),
         phone: mobile,
+        email: form.get("email"),
         address: form.get("address"),
         courierName: form.get("courierName"),
       }, { silent: true });
@@ -93,6 +94,10 @@ export default function ProfilePage() {
                   inputMode="numeric"
                   required
                 />
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Email</label>
+                <input className={ui.input} name="email" type="email" defaultValue={user.email} placeholder="you@example.com" />
               </div>
               <div className={ui.field}>
                 <label className={ui.label}>City</label>

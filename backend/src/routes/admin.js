@@ -311,13 +311,23 @@ router.put("/accounts/:id", authAdmin, async (req, res) => {
     return res.status(409).json({ error: "Another account already uses this business name." });
   }
 
+  const cleanEmail = email !== undefined ? String(email).trim().toLowerCase() : existing.email;
+  if (cleanEmail) {
+    const duplicateEmail = await prisma.account.findFirst({
+      where: { email: { equals: cleanEmail, mode: "insensitive" }, NOT: { id: existing.id } },
+    });
+    if (duplicateEmail) {
+      return res.status(409).json({ error: "Another account already uses this email." });
+    }
+  }
+
   const account = await prisma.account.update({
     where: { id: existing.id },
     data: {
       name: name !== undefined ? String(name).trim() : existing.name,
       business: cleanBusiness,
       phone: cleanPhone,
-      email: email !== undefined ? String(email).trim() : existing.email,
+      email: cleanEmail,
       address: address !== undefined ? String(address).trim() : existing.address,
       courierName: courierName !== undefined ? String(courierName).trim() : existing.courierName,
     },

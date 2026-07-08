@@ -29,14 +29,21 @@ export function validateLogin({ phone, password }) {
   };
 }
 
-export function validateRegister({ name, business, phone, password }) {
+export function validateRegister({ name, business, phone, email, password }) {
   const errors = {};
   const trimmedName = String(name || "").trim();
   const trimmedBusiness = String(business || "").trim();
+  const trimmedEmail = String(email || "").trim().toLowerCase();
   const mobile = normalizeMobile(phone);
 
   if (!trimmedName) errors.name = "Name is required.";
   if (!trimmedBusiness) errors.business = "Business name is required.";
+
+  if (!trimmedEmail) {
+    errors.email = "Email is required.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    errors.email = "Enter a valid email address.";
+  }
 
   if (!mobile) {
     errors.phone = "Mobile number is required.";
@@ -56,6 +63,7 @@ export function validateRegister({ name, business, phone, password }) {
     mobile,
     name: trimmedName,
     business: trimmedBusiness,
+    email: trimmedEmail,
   };
 }
 

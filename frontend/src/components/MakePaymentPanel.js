@@ -4,6 +4,7 @@ import Link from "next/link";
 import TapToRevealQr from "@/components/TapToRevealQr";
 import { formatRupees } from "@/lib/api";
 import { btnClass, ui } from "@/lib/ui";
+import { buildUpiQrImageUrl } from "@/lib/upi";
 
 const WHATSAPP_NUMBER = "7507543214";
 
@@ -40,6 +41,12 @@ export default function MakePaymentPanel({
   const totalOutstanding = Number(outstandingTotal ?? maxAmount ?? amount) || 0;
   const payCap = Number(maxAmount ?? amount) || 0;
   const payAmount = Number(amount) || 0;
+
+  // Amount-wise UPI QR: regenerates whenever the pay amount changes so the
+  // customer scans and pays the exact amount. Falls back to an admin-uploaded
+  // static QR only if a dynamic amount is not available.
+  const dynamicQrUrl = buildUpiQrImageUrl(payAmount);
+  const qrToShow = dynamicQrUrl || qrImageUrl;
 
   function handleAmountInput(event) {
     const next = Number(event.target.value);
@@ -136,8 +143,12 @@ export default function MakePaymentPanel({
         ) : null}
 
         <div className="grid gap-3">
-          <TapToRevealQr imageUrl={qrImageUrl} defaultRevealed />
-          <p className={`${ui.small} text-center ${ui.muted}`}>Scan and pay with any UPI app.</p>
+          <TapToRevealQr imageUrl={qrToShow} defaultRevealed />
+          <p className={`${ui.small} text-center ${ui.muted}`}>
+            {dynamicQrUrl
+              ? `Scan and pay ${formatRupees(payAmount)} with any UPI app.`
+              : "Scan and pay with any UPI app."}
+          </p>
         </div>
 
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-red-700">

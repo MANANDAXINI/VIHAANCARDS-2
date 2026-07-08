@@ -49,10 +49,18 @@ router.post("/register", async (req, res) => {
     const cleanName = String(name || "").trim();
     const cleanBusiness = String(business || "").trim();
     const cleanPhone = String(phone || "").trim().replace(/\D/g, "");
+    const cleanEmail = String(email || "").trim().toLowerCase();
     const cleanPassword = String(password || "");
 
     if (!cleanName || !cleanBusiness || !cleanPhone || !cleanPassword) {
       return res.status(400).json({ error: "Name, business, mobile, and password are required." });
+    }
+
+    if (!cleanEmail) {
+      return res.status(400).json({ error: "Email is required." });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({ error: "Enter a valid email address." });
     }
 
     if (!/^[0-9]{10}$/.test(cleanPhone)) {
@@ -81,13 +89,22 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    const existingEmail = await prisma.account.findFirst({
+      where: { email: { equals: cleanEmail, mode: "insensitive" } },
+    });
+    if (existingEmail) {
+      return res.status(409).json({
+        error: "This email is already registered. Login or use Google Sign-In.",
+      });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const account = await prisma.account.create({
       data: {
         name: cleanName,
         business: cleanBusiness,
         phone: cleanPhone,
-        email: email || "",
+        email: cleanEmail,
         address: address || "",
         courierName: String(courierName || "").trim(),
         passwordHash,
@@ -192,11 +209,16 @@ router.post("/google", async (req, res) => {
     let account = await prisma.account.findUnique({ where: { googleId } });
 
     if (!account && email) {
-      account = await prisma.account.findFirst({ where: { email } });
+      // Link to an existing account with the same email (e.g. one created via
+      // mobile registration) instead of creating a duplicate. Keep its
+      // authProvider so password login keeps working alongside Google.
+      account = await prisma.account.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+      });
       if (account) {
         account = await prisma.account.update({
           where: { id: account.id },
-          data: { googleId, authProvider: "GOOGLE" },
+          data: { googleId },
         });
       }
     }
@@ -504,13 +526,26 @@ router.put("/account", authCustomer, async (req, res) => {
       return res.status(409).json({ error: "Another account already uses this business name." });
     }
 
+    const cleanEmail = email !== undefined ? String(email).trim().toLowerCase() : req.account.email;
+    if (cleanEmail) {
+      const duplicateEmail = await prisma.account.findFirst({
+        where: {
+          email: { equals: cleanEmail, mode: "insensitive" },
+          NOT: { id: req.account.id },
+        },
+      });
+      if (duplicateEmail) {
+        return res.status(409).json({ error: "Another account already uses this email." });
+      }
+    }
+
     const account = await prisma.account.update({
       where: { id: req.account.id },
       data: {
         name: name || req.account.name,
         business: cleanBusiness,
         phone: cleanPhone,
-        email: email ?? "",
+        email: cleanEmail,
         address: address ?? "",
         courierName: courierName !== undefined ? String(courierName).trim() : req.account.courierName,
       },

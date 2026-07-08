@@ -117,8 +117,8 @@ function fillRoundRect(ctx, x, y, width, height, radius) {
   ctx.fill();
 }
 
-export async function downloadOrderSlipImage(order, overrides = {}) {
-  if (typeof document === "undefined") return;
+async function renderOrderSlipCanvas(order, overrides = {}) {
+  if (typeof document === "undefined") return null;
 
   const [frontImg, backImg] = await Promise.all([
     loadArtworkImage(order.artworkUrl),
@@ -137,7 +137,7 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
   canvas.width = width * EXPORT_SCALE;
   canvas.height = height * EXPORT_SCALE;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return null;
 
   ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
   ctx.imageSmoothingEnabled = true;
@@ -271,9 +271,27 @@ export async function downloadOrderSlipImage(order, overrides = {}) {
     "#000000"
   );
 
-  const filename = `${order.orderNumber || "order"}_job_order.png`;
+  return canvas;
+}
+
+function orderSlipFilename(order) {
+  return `${order.orderNumber || "order"}_job_order.png`;
+}
+
+// Renders the order slip and returns it as a PNG blob (for saving into a folder).
+export async function buildOrderSlipBlob(order, overrides = {}) {
+  const canvas = await renderOrderSlipCanvas(order, overrides);
+  if (!canvas) return null;
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  return { blob, filename: orderSlipFilename(order) };
+}
+
+export async function downloadOrderSlipImage(order, overrides = {}) {
+  const canvas = await renderOrderSlipCanvas(order, overrides);
+  if (!canvas) return;
+
   const link = document.createElement("a");
-  link.download = filename;
+  link.download = orderSlipFilename(order);
   link.href = canvas.toDataURL("image/png");
   document.body.appendChild(link);
   link.click();

@@ -96,17 +96,38 @@ function triggerBrowserDownload(blob, filename) {
   URL.revokeObjectURL(objectUrl);
 }
 
-export async function saveArtworkToBusinessFolder({ order, side, url, originalName, mime }) {
+// Writes a blob into an already-opened directory handle (File System Access API).
+export async function writeFileToDir(dirHandle, filename, blob) {
+  const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+/**
+ * Saves the artwork file. If `businessDir` (a directory handle already opened
+ * inside the user gesture) is provided, the file is written into that folder.
+ * Otherwise it falls back to a normal browser download.
+ *
+ * NOTE: `showDirectoryPicker` must be called by the caller up front (inside the
+ * click gesture) and the resulting business folder handle passed in here —
+ * calling it after awaits throws "Must be handling a user gesture".
+ */
+export async function saveArtworkToBusinessFolder({ order, side, url, originalName, mime, businessDir = null }) {
   const blob = await fetchArtworkBlob(url);
   const businessFolder = sanitizeBusinessFolderName(order?.business || order?.customerName);
   const filename = buildArtworkSaveFilename(order, side, originalName, mime);
 
-  // Use a plain browser download (goes to the Downloads folder). We intentionally
-  // avoid the File System Access API (showDirectoryPicker) here because it
-  // requires an active user gesture, which is lost after the awaited fetch /
-  // order-slip download that run before this call — causing a
-  // "Must be handling a user gesture" error. The business name is prefixed to
-  // the filename so files stay identifiable.
+  if (businessDir) {
+    await writeFileToDir(businessDir, filename, blob);
+    return {
+      method: "folder",
+      businessFolder,
+      filename,
+      displayPath: `${businessFolder}\\${filename}`,
+    };
+  }
+
   triggerBrowserDownload(blob, `${businessFolder}_${filename}`);
   return {
     method: "download",

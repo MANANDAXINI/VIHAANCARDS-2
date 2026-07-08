@@ -5,8 +5,12 @@ import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/component
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { ArtworkThumb } from "@/components/OrderArtworkThumb";
 import { adminApi, formatRupees } from "@/lib/api";
-import { saveArtworkToBusinessFolder } from "@/lib/artwork-save";
-import { downloadOrderSlipImage } from "@/lib/order-slip-image";
+import {
+  sanitizeBusinessFolderName,
+  saveArtworkToBusinessFolder,
+  writeFileToDir,
+} from "@/lib/artwork-save";
+import { buildOrderSlipBlob, downloadOrderSlipImage } from "@/lib/order-slip-image";
 import { notifyCustomerDispatch } from "@/lib/dispatch-notify";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
@@ -209,7 +213,7 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
     }
   }
 
-  async function saveArtworkSide(side) {
+  async function saveArtworkSide(side, businessDir = null) {
     const url = side === "back" ? order.artworkBackUrl : order.artworkUrl;
     const name = side === "back" ? order.artworkBackName : order.artworkName;
     const mime = side === "back" ? order.artworkBackMime : order.artworkMime;
@@ -221,25 +225,54 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
       url,
       originalName: name,
       mime,
+      businessDir,
     });
     await adminApi.markArtworkDownloaded(order.id, side, { silent: true });
     return result;
   }
 
   async function handleDownloadAll() {
+    const overrides = {
+      lrNumber: order.lrNumber || "",
+      transportDetails: order.transportDetails || "",
+      dispatchDate: toDateInputValue(order.dispatchDate) || new Date().toISOString().slice(0, 10),
+    };
+
+    // Ask for the destination folder FIRST, while we still have the user gesture
+    // (calling showDirectoryPicker after awaits throws a gesture error).
+    let rootDir = null;
+    if (typeof window !== "undefined" && typeof window.showDirectoryPicker === "function") {
+      try {
+        rootDir = await window.showDirectoryPicker({ mode: "readwrite" });
+      } catch (error) {
+        if (error?.name === "AbortError") return; // user cancelled the picker
+        rootDir = null; // API blocked — fall back to plain downloads
+      }
+    }
+
     setDownloadBusy(true);
     try {
-      await downloadOrderSlipImage(order, {
-        lrNumber: order.lrNumber || "",
-        transportDetails: order.transportDetails || "",
-        dispatchDate: toDateInputValue(order.dispatchDate) || new Date().toISOString().slice(0, 10),
-      });
+      if (rootDir) {
+        // Save everything into a per-business subfolder inside the chosen folder.
+        const businessFolder = sanitizeBusinessFolderName(order.business || order.customerName);
+        const businessDir = await rootDir.getDirectoryHandle(businessFolder, { create: true });
 
-      if (order.artworkUrl) await saveArtworkSide("front");
-      if (order.artworkBackUrl) await saveArtworkSide("back");
+        const slip = await buildOrderSlipBlob(order, overrides);
+        if (slip?.blob) await writeFileToDir(businessDir, slip.filename, slip.blob);
 
-      await onRefresh();
-      toast.success("Order image and artwork downloaded.");
+        if (order.artworkUrl) await saveArtworkSide("front", businessDir);
+        if (order.artworkBackUrl) await saveArtworkSide("back", businessDir);
+
+        await onRefresh();
+        toast.success(`Saved to folder "${businessFolder}".`);
+      } else {
+        await downloadOrderSlipImage(order, overrides);
+        if (order.artworkUrl) await saveArtworkSide("front");
+        if (order.artworkBackUrl) await saveArtworkSide("back");
+
+        await onRefresh();
+        toast.success("Order image and artwork downloaded.");
+      }
     } catch (error) {
       if (error?.name === "AbortError") return;
       toast.error(error.message || "Could not download.");

@@ -11,7 +11,7 @@ import {
   writeFileToDir,
 } from "@/lib/artwork-save";
 import { buildOrderSlipBlob, downloadOrderSlipImage } from "@/lib/order-slip-image";
-import { notifyCustomerDispatch } from "@/lib/dispatch-notify";
+import { notifyCustomerDispatch, notifyCustomerJobCompleted } from "@/lib/dispatch-notify";
 import { filterItems, paginateItems } from "@/lib/admin-table";
 import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
@@ -144,6 +144,13 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
     }
   }
 
+  function handleJobCompleted() {
+    const { opened } = notifyCustomerJobCompleted(order);
+    if (!opened) {
+      toast.error("Customer has no valid WhatsApp number.");
+    }
+  }
+
   return (
     <div className="grid w-full gap-2">
       <label className="grid gap-1">
@@ -180,6 +187,13 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
         onClick={handleSave}
       >
         {saving ? "Saving..." : dispatched ? "Update" : "Save"}
+      </button>
+      <button
+        type="button"
+        className={`${btnClass("success", true)} w-full`}
+        onClick={handleJobCompleted}
+      >
+        Job Completed (WhatsApp)
       </button>
     </div>
   );

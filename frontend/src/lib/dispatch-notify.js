@@ -36,6 +36,20 @@ export function buildDispatchWhatsAppMessage(order, overrides = {}) {
   return lines.join("\n");
 }
 
+export function buildJobCompletedWhatsAppMessage(order) {
+  const customer = order.business || order.customerName || "Customer";
+  const orderNo = order.orderNumber || "—";
+  return [
+    "Dear",
+    `*${customer}*`,
+    "Your Order No.",
+    `*${orderNo}*`,
+    "is Completed and ready for Despatch.",
+    "",
+    "Thank you for Your Order.",
+  ].join("\n");
+}
+
 export function openWhatsAppToCustomer(phone, message) {
   const waPhone = normalizeWhatsAppPhone(phone);
   if (!waPhone || !message) return false;
@@ -55,6 +69,12 @@ export function openWhatsAppToCustomer(phone, message) {
 
 export async function notifyCustomerDispatch(order, overrides = {}) {
   const message = buildDispatchWhatsAppMessage(order, overrides);
+  const opened = openWhatsAppToCustomer(order.customerPhone, message);
+  return { opened, message };
+}
+
+export function notifyCustomerJobCompleted(order) {
+  const message = buildJobCompletedWhatsAppMessage(order);
   const opened = openWhatsAppToCustomer(order.customerPhone, message);
   return { opened, message };
 }

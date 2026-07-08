@@ -120,6 +120,7 @@ export const adminApi = {
   rejectWallet: (id) => api(`/api/admin/wallet-requests/${id}/reject`, { method: "PUT" }),
   orders: () => api("/api/admin/orders"),
   proceedPrinting: (id, options) => api(`/api/admin/orders/${id}/proceed-printing`, { method: "PUT", ...options }),
+  updateOrderStatus: (id, body, options) => api(`/api/admin/orders/${id}/status`, { method: "PUT", body, ...options }),
   markArtworkDownloaded: (id, side, options) => api(`/api/admin/orders/${id}/mark-artwork`, { method: "PUT", body: { side }, ...options }),
   dispatch: (id, body, options) => api(`/api/admin/orders/${id}/dispatch`, { method: "PUT", body, ...options }),
   deliver: (id, options) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT", ...options }),

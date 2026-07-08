@@ -13,6 +13,7 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
     email: "",
     address: "",
     courierName: "",
+    gstNumber: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -25,6 +26,7 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
       email: account.email || "",
       address: account.address || "",
       courierName: account.courierName || "",
+      gstNumber: account.gstNumber || "",
     });
   }, [account]);
 
@@ -47,6 +49,7 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
           email: form.email.trim(),
           address: form.address.trim(),
           courierName: form.courierName.trim(),
+          gstNumber: form.gstNumber.trim(),
         },
         { silent: true }
       );
@@ -101,6 +104,10 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
           <label className={ui.field}>
             <span className={ui.label}>Courier / Garaj Name</span>
             <input className={ui.input} value={form.courierName} onChange={(e) => update("courierName", e.target.value)} />
+          </label>
+          <label className={ui.field}>
+            <span className={ui.label}>GST No.</span>
+            <input className={ui.input} value={form.gstNumber} onChange={(e) => update("gstNumber", e.target.value)} />
           </label>
           <div className="sm:col-span-2 flex justify-end gap-2">
             <button type="button" className={btnClass("secondary")} onClick={onClose} disabled={saving}>Cancel</button>

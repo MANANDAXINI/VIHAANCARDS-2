@@ -47,6 +47,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     password: "",
     address: "",
     courierName: "",
+    gstNumber: "",
   });
   const [registerErrors, setRegisterErrors] = useState({});
 
@@ -296,6 +297,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         password: registerForm.password,
         address: registerForm.address.trim(),
         courierName: registerForm.courierName.trim(),
+        gstNumber: registerForm.gstNumber.trim(),
       }, { silent: true });
       toast.success(data.message);
       switchMode("login");
@@ -495,6 +497,10 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                 <div className={ui.field}>
                   <label className={ui.label}>Courier / Garaj Name</label>
                   <input className={ui.input} value={registerForm.courierName} onChange={(e) => updateRegister("courierName", e.target.value)} placeholder="e.g. VRL, Gati, local garaj" />
+                </div>
+                <div className={ui.field}>
+                  <label className={ui.label}>GST No.</label>
+                  <input className={ui.input} value={registerForm.gstNumber} onChange={(e) => updateRegister("gstNumber", e.target.value)} placeholder="e.g. 27ABCDE1234F1Z5" />
                 </div>
                 <div className={ui.field}>
                   <label className={ui.label}>Password</label>

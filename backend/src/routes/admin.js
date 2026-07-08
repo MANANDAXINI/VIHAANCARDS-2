@@ -287,7 +287,7 @@ router.put("/accounts/:id", authAdmin, async (req, res) => {
   const existing = await prisma.account.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Account not found." });
 
-  const { name, business, phone, email, address, courierName } = req.body;
+  const { name, business, phone, email, address, courierName, gstNumber } = req.body;
   const cleanPhone = phone !== undefined ? String(phone).replace(/\D/g, "") : existing.phone;
   if (!/^[0-9]{10}$/.test(cleanPhone)) {
     return res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
@@ -330,6 +330,7 @@ router.put("/accounts/:id", authAdmin, async (req, res) => {
       email: cleanEmail,
       address: address !== undefined ? String(address).trim() : existing.address,
       courierName: courierName !== undefined ? String(courierName).trim() : existing.courierName,
+      gstNumber: gstNumber !== undefined ? String(gstNumber).trim() : existing.gstNumber,
     },
   });
   res.json({ account: publicAccount(account) });

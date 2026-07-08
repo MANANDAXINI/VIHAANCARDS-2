@@ -61,6 +61,7 @@ model Account {
   email               String        @default("")
   address             String        @default("")
   courierName         String        @default("")
+  gstNumber           String        @default("")
   passwordHash        String
   googleId            String?       @unique
   authProvider        AuthProvider  @default(PHONE)

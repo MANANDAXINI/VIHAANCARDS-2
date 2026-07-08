@@ -45,7 +45,7 @@ function isAdminEmail(email) {
 
 router.post("/register", async (req, res) => {
   try {
-    const { name, business, phone, email, address, courierName, password } = req.body;
+    const { name, business, phone, email, address, courierName, gstNumber, password } = req.body;
     const cleanName = String(name || "").trim();
     const cleanBusiness = String(business || "").trim();
     const cleanPhone = String(phone || "").trim().replace(/\D/g, "");
@@ -107,6 +107,7 @@ router.post("/register", async (req, res) => {
         email: cleanEmail,
         address: address || "",
         courierName: String(courierName || "").trim(),
+        gstNumber: String(gstNumber || "").trim(),
         passwordHash,
         status: "PENDING",
         role: "CUSTOMER",
@@ -496,7 +497,7 @@ router.get("/me", authSession, (req, res) => {
 
 router.put("/account", authCustomer, async (req, res) => {
   try {
-    const { name, business, phone, email, address, courierName } = req.body;
+    const { name, business, phone, email, address, courierName, gstNumber } = req.body;
     const rawPhone = phone !== undefined ? String(phone).trim() : req.account.phone;
     const cleanPhone = rawPhone.replace(/\D/g, "");
 
@@ -548,6 +549,7 @@ router.put("/account", authCustomer, async (req, res) => {
         email: cleanEmail,
         address: address ?? "",
         courierName: courierName !== undefined ? String(courierName).trim() : req.account.courierName,
+        gstNumber: gstNumber !== undefined ? String(gstNumber).trim() : req.account.gstNumber,
       },
     });
 

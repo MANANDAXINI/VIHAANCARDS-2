@@ -43,6 +43,7 @@ export default function ProfilePage() {
         email: form.get("email"),
         address: form.get("address"),
         courierName: form.get("courierName"),
+        gstNumber: form.get("gstNumber"),
       }, { silent: true });
       setUser(data.account);
       setPhone(data.account.phone || "");
@@ -106,6 +107,10 @@ export default function ProfilePage() {
               <div className={ui.field}>
                 <label className={ui.label}>Courier / Garaj Name</label>
                 <input className={ui.input} name="courierName" defaultValue={user.courierName} placeholder="e.g. VRL, Gati, local garaj" />
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>GST No.</label>
+                <input className={ui.input} name="gstNumber" defaultValue={user.gstNumber} placeholder="e.g. 27ABCDE1234F1Z5" />
               </div>
             </div>
             <button className={btnClass("primary")} type="submit">Save Profile</button>

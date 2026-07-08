@@ -39,15 +39,33 @@ export function isPendingPaymentOrder(order) {
   return Boolean(order?.pendingApproval || order?.pendingPayment);
 }
 
-export function formatJobProcessForOrder(order) {
+export const LIMIT_USED_LABEL = "LIMIT USED";
+const LIMIT_USED_CLASS =
+  "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-emerald-600 sm:text-xs";
+
+/**
+ * For customers who have been given a credit limit, once an order reaches
+ * dispatch/completion we show "LIMIT USED" instead of the despatch / job
+ * completed status.
+ */
+export function isLimitUsedOrder(order, hasCreditLimit = false) {
+  if (!hasCreditLimit) return false;
+  if (isPendingPaymentOrder(order)) return false;
+  const s = String(order?.status || "").toUpperCase();
+  return s === "DISPATCHED" || s === "COMPLETED";
+}
+
+export function formatJobProcessForOrder(order, hasCreditLimit = false) {
   if (isPendingPaymentOrder(order)) return "Pending";
+  if (isLimitUsedOrder(order, hasCreditLimit)) return LIMIT_USED_LABEL;
   return formatJobProcess(order?.status);
 }
 
-export function jobProcessClassForOrder(order) {
+export function jobProcessClassForOrder(order, hasCreditLimit = false) {
   if (isPendingPaymentOrder(order)) {
     return `${ui.pill} bg-amber-100 text-amber-800`;
   }
+  if (isLimitUsedOrder(order, hasCreditLimit)) return LIMIT_USED_CLASS;
   return jobProcessClass(order?.status);
 }
 

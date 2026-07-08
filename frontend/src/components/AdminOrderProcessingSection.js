@@ -100,6 +100,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
   const [transportDetails, setTransportDetails] = useState(order.transportDetails || "");
   const [dispatchDate, setDispatchDate] = useState(toDateInputValue(order.dispatchDate));
   const [saving, setSaving] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const dispatched = ["DISPATCHED", "PRINTING_PROCESS_STARTED", "COMPLETED"].includes(String(order.status || "").toUpperCase());
 
   useEffect(() => {
@@ -144,10 +145,22 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
     }
   }
 
-  function handleJobCompleted() {
-    const { opened } = notifyCustomerJobCompleted(order);
-    if (!opened) {
-      toast.error("Customer has no valid WhatsApp number.");
+  async function handleJobCompleted() {
+    setCompleting(true);
+    try {
+      const { opened } = notifyCustomerJobCompleted(order);
+      await adminApi.updateOrderStatus(order.id, { status: "COMPLETED" }, { silent: true });
+      toast.success(
+        opened
+          ? "Marked as Job Completed — WhatsApp opened for customer."
+          : "Marked as Job Completed. Customer phone not available for WhatsApp."
+      );
+      await Promise.resolve(onSaved?.());
+      onOrderDispatched?.();
+    } catch (error) {
+      toast.error(error.message || "Could not update status.");
+    } finally {
+      setCompleting(false);
     }
   }
 
@@ -191,9 +204,10 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
       <button
         type="button"
         className={`${btnClass("success", true)} w-full`}
+        disabled={completing}
         onClick={handleJobCompleted}
       >
-        Job Completed (WhatsApp)
+        {completing ? "Updating..." : "Job Completed (WhatsApp)"}
       </button>
     </div>
   );

@@ -123,6 +123,7 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
     [data]
   );
   const summary = data?.summary || {};
+  const hasCreditLimit = Number(account?.creditLimit || 0) > 0;
 
   function handleDownloadPdf() {
     try {
@@ -210,6 +211,7 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
                   ledgerEntries={ledgerEntries}
                   orders={orders}
                   activeTab={activeTab}
+                  hasCreditLimit={hasCreditLimit}
                 />
               )}
             </div>

@@ -55,6 +55,14 @@ export function isLimitUsedOrder(order, hasCreditLimit = false) {
   return s === "DISPATCHED" || s === "COMPLETED";
 }
 
+export function formatCreditUtilizedMessage(order, hasCreditLimit = false) {
+  if (!hasCreditLimit) return "";
+  if (isPendingPaymentOrder(order)) return "";
+  const amount = Number(order?.amount || 0);
+  if (!(amount > 0)) return "";
+  return `Order confirmed. ₹${amount.toLocaleString("en-IN")} has been utilized from your available credit limit.`;
+}
+
 export function formatJobProcessForOrder(order, hasCreditLimit = false) {
   if (isPendingPaymentOrder(order)) return "Pending";
   if (isLimitUsedOrder(order, hasCreditLimit)) return LIMIT_USED_LABEL;

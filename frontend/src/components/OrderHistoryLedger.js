@@ -3,6 +3,7 @@
 import { formatRupees } from "@/lib/api";
 import { OrderArtworkCell } from "@/components/OrderArtworkThumb";
 import {
+  formatCreditUtilizedMessage,
   formatDespatchLabel,
   formatJobProcessForOrder,
   formatLedgerBalance,
@@ -115,7 +116,14 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
                   <td className={ui.td}>{formatOrderDisplayNumber(order)}</td>
                   <td className={ui.td}>{formatLedgerTableDate(order.createdAt)}</td>
                   <td className={ui.td}>{order.product || "LEAFLET / PAMPLET"}</td>
-                  <td className={ui.td}>{formatOrderDescription(order)}</td>
+                  <td className={ui.td}>
+                    {formatOrderDescription(order)}
+                    {formatCreditUtilizedMessage(order, hasCreditLimit) ? (
+                      <span className="mt-1 block text-[0.7rem] font-medium text-emerald-700">
+                        {formatCreditUtilizedMessage(order, hasCreditLimit)}
+                      </span>
+                    ) : null}
+                  </td>
                   <td className={ui.td}><OrderArtworkCell order={order} /></td>
                   <td className={`${ui.td} font-semibold`}>{formatRupees(order.amount)}</td>
                   <td className={ui.td}>
@@ -142,6 +150,11 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
               </div>
               <p className={ui.muted}>{formatLedgerTableDate(order.createdAt)} · {order.product}</p>
               <p>{formatOrderDescription(order)}</p>
+              {formatCreditUtilizedMessage(order, hasCreditLimit) ? (
+                <p className="text-[0.7rem] font-medium text-emerald-700">
+                  {formatCreditUtilizedMessage(order, hasCreditLimit)}
+                </p>
+              ) : null}
               <OrderArtworkCell order={order} />
               <div className={ui.mobileCardRow}>
                 <span className={ui.muted}>Amount</span>

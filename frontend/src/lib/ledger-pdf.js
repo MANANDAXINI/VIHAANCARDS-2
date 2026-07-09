@@ -1,4 +1,3 @@
-import { formatRupees } from "@/lib/api";
 import {
   formatLedgerBalance,
   formatLedgerCredit,
@@ -23,26 +22,10 @@ function todayLabel() {
  * Opens a print-ready ledger statement in a new window and triggers the browser
  * print dialog, where the user can "Save as PDF". No external dependency needed.
  */
-export function downloadLedgerPdf({ account, summary = {}, ledgerEntries = [] }) {
+export function downloadLedgerPdf({ account, ledgerEntries = [] }) {
   const business = account?.business || account?.name || "Customer";
   const contact = [account?.address, account?.phone].filter(Boolean).join(" · ");
   const fileTitle = `Ledger - ${business} - ${todayLabel()}`;
-
-  const summaryRows = [
-    ["Credit Limit", summary.creditLimit ?? account?.creditLimit],
-    ["Used Credit", summary.usedCredit ?? account?.usedCredit],
-    ["Current Outstanding", summary.previousOutstanding],
-    ["Pending Orders", summary.pendingOrderAmount],
-    ["Receivable Balance", summary.receivableBalance],
-    ["Total Billed", summary.totalBilled],
-    ["Total Payments Received", summary.totalReceived],
-  ]
-    .filter(([, value]) => value !== undefined && value !== null)
-    .map(
-      ([label, value]) =>
-        `<div class="sum"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatRupees(value))}</strong></div>`
-    )
-    .join("");
 
   const rows = ledgerEntries.length
     ? ledgerEntries
@@ -75,10 +58,6 @@ export function downloadLedgerPdf({ account, summary = {}, ledgerEntries = [] })
   .muted { color: #64748b; font-size: 12px; }
   .meta { text-align: right; font-size: 12px; color: #64748b; }
   h2 { font-size: 14px; margin: 18px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
-  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
-  .sum { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; }
-  .sum span { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
-  .sum strong { font-size: 14px; margin-top: 2px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; vertical-align: top; }
   th { background: #f8fafc; text-transform: uppercase; font-size: 10px; letter-spacing: .04em; color: #475569; }
@@ -101,8 +80,6 @@ export function downloadLedgerPdf({ account, summary = {}, ledgerEntries = [] })
       <div>Generated: ${escapeHtml(todayLabel())}</div>
     </div>
   </div>
-
-  ${summaryRows ? `<h2>Account Summary</h2><div class="summary">${summaryRows}</div>` : ""}
 
   <h2>Ledger</h2>
   <table>

@@ -13,10 +13,7 @@ router.get("/ledger", authCustomer, async (req, res) => {
     });
 
     const orders = await prisma.order.findMany({
-      where: {
-        accountId: req.account.id,
-        status: { notIn: ["CANCELLED", "REJECTED"] },
-      },
+      where: { accountId: req.account.id },
       orderBy: { createdAt: "desc" },
     });
 

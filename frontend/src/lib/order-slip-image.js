@@ -1,4 +1,3 @@
-import { formatOrderDescription } from "@/lib/order-display";
 import { fetchArtworkBlob } from "@/lib/artwork-save";
 
 const MAROON = "#8B1A1A";
@@ -21,9 +20,22 @@ function upper(value) {
 }
 
 function buildProductLine(order) {
-  const product = order.product || "LEAFLET / PAMPLET";
-  const specs = formatOrderDescription(order);
-  return `${product} - ${specs}`;
+  const product = String(order.product || "LEAFLET / PAMPLET").trim();
+  const paperGsm = String(order.paperGsm || "").trim();
+  const size = String(order.size || "").trim();
+  const side = String(order.printingSide || "").trim();
+  const qty = Number(order.quantity || 0);
+
+  const parts = [];
+  if (paperGsm && paperGsm.toUpperCase() !== product.toUpperCase()) {
+    parts.push(paperGsm);
+  }
+  if (size) parts.push(size);
+  if (side) parts.push(side);
+  if (qty > 0) parts.push(`QTY: ${qty.toLocaleString("en-IN")}`);
+
+  const specs = parts.join(", ");
+  return specs ? `${product} - ${specs}` : product;
 }
 
 async function loadArtworkImage(url) {

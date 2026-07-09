@@ -870,25 +870,29 @@ router.put("/orders/:id/deliver", authAdmin, async (req, res) => {
 // Cancels/deletes an order: restores paper stock, removes the order's billing
 // ledger charge, recomputes the customer's outstanding, and deletes artwork.
 router.delete("/orders/:id", authAdmin, async (req, res) => {
-  const order = await prisma.order.findUnique({
-    where: { id: req.params.id },
-    include: { account: true },
-  });
-  if (!order) return res.status(404).json({ error: "Order not found." });
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { account: true },
+    });
+    if (!order) return res.status(404).json({ error: "Order not found." });
 
-  const account = order.account;
-  const allEntries = await prisma.ledgerEntry.findMany({ where: { accountId: account.id } });
-  const opening = computeLedgerOpening(account, allEntries);
+    const account = order.account;
+    const allEntries = await prisma.ledgerEntry.findMany({ where: { accountId: account.id } });
+    const opening = computeLedgerOpening(account, allEntries);
 
-  await prisma.$transaction(async (tx) => {
-    await deleteOrderInTx(tx, order);
-    await recomputeLedgerFromOpening(tx, account.id, opening);
-  });
+    await prisma.$transaction(async (tx) => {
+      await deleteOrderInTx(tx, order);
+      await recomputeLedgerFromOpening(tx, account.id, opening);
+    });
 
-  await cleanupOrderArtwork(order);
+    await cleanupOrderArtwork(order);
 
-  const updated = await prisma.account.findUnique({ where: { id: account.id } });
-  res.json({ ok: true, account: publicAccount(updated) });
+    const updated = await prisma.account.findUnique({ where: { id: account.id } });
+    res.json({ ok: true, account: publicAccount(updated) });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Could not cancel the order." });
+  }
 });
 
 function istDateString(date = new Date()) {

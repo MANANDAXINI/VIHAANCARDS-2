@@ -1,5 +1,6 @@
 const express = require("express");
 const { prisma, publicCustomerAccount, publicOrder } = require("../lib/prisma");
+const { summarizeAccountLedger } = require("../lib/ledger");
 const { authCustomer } = require("../middleware/auth");
 
 const router = express.Router();
@@ -12,7 +13,10 @@ router.get("/ledger", authCustomer, async (req, res) => {
     });
 
     const orders = await prisma.order.findMany({
-      where: { accountId: req.account.id },
+      where: {
+        accountId: req.account.id,
+        status: { notIn: ["CANCELLED", "REJECTED"] },
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -34,8 +38,19 @@ router.get("/ledger", authCustomer, async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
+    const account = req.account;
+    const creditLimit = Number(account.creditLimit || 0);
+    const usedCredit = Number(account.usedCredit || 0);
+    const summary = {
+      ...summarizeAccountLedger(entries, account, pendingPayments),
+      creditLimit,
+      usedCredit,
+      availableCredit: Math.max(0, creditLimit - usedCredit),
+    };
+
     res.json({
-      account: publicCustomerAccount(req.account),
+      account: publicCustomerAccount(account),
+      summary,
       ledgerEntries: entries,
       orders: orders.map((order) => publicOrder(order, { secureFiles: true })),
       pendingPayments,

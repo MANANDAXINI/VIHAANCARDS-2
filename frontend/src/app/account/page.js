@@ -102,10 +102,6 @@ function AccountContent() {
     };
   }, [loadAccountData]);
 
-  const hasCreditLimit = useMemo(
-    () => Number(account?.creditLimit ?? user?.creditLimit ?? 0) > 0,
-    [account, user]
-  );
   const orderCount = useMemo(() => orders.length, [orders]);
   const ledgerCount = useMemo(() => ledgerEntries.length, [ledgerEntries]);
 
@@ -203,7 +199,7 @@ function AccountContent() {
               </div>
 
               {activeTab === "orders" ? (
-                <OrderHistoryLedger orders={paged.items} activeTab="orders" hasCreditLimit={hasCreditLimit} />
+                <OrderHistoryLedger orders={paged.items} activeTab="orders" />
               ) : activeTab === "payments" ? (
                 <OrderHistoryLedger ledgerEntries={paged.items} activeTab="payments" />
               ) : (

@@ -3,7 +3,6 @@
 import { formatRupees } from "@/lib/api";
 import { OrderArtworkCell } from "@/components/OrderArtworkThumb";
 import {
-  formatCreditUtilizedMessage,
   formatDespatchLabel,
   formatJobProcessForOrder,
   formatLedgerBalance,
@@ -88,7 +87,7 @@ function PaymentLedgerTable({ ledgerEntries = [], offset = 0 }) {
   );
 }
 
-function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
+function OrderHistoryTable({ orders = [] }) {
   return (
     <section className={ui.cardFlat}>
       <h2 className={`${ui.h3} border-b border-slate-200 px-4 py-3`}>Order History</h2>
@@ -116,18 +115,11 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
                   <td className={ui.td}>{formatOrderDisplayNumber(order)}</td>
                   <td className={ui.td}>{formatLedgerTableDate(order.createdAt)}</td>
                   <td className={ui.td}>{order.product || "LEAFLET / PAMPLET"}</td>
-                  <td className={ui.td}>
-                    {formatOrderDescription(order)}
-                    {formatCreditUtilizedMessage(order, hasCreditLimit) ? (
-                      <span className="mt-1 block text-[0.7rem] font-medium text-emerald-700">
-                        {formatCreditUtilizedMessage(order, hasCreditLimit)}
-                      </span>
-                    ) : null}
-                  </td>
+                  <td className={ui.td}>{formatOrderDescription(order)}</td>
                   <td className={ui.td}><OrderArtworkCell order={order} /></td>
                   <td className={`${ui.td} font-semibold`}>{formatRupees(order.amount)}</td>
                   <td className={ui.td}>
-                    <span className={jobProcessClassForOrder(order, hasCreditLimit)}>{formatJobProcessForOrder(order, hasCreditLimit)}</span>
+                    <span className={jobProcessClassForOrder(order)}>{formatJobProcessForOrder(order)}</span>
                   </td>
                   <td className={ui.td}>{formatDespatchLabel(order)}</td>
                   <td className={ui.td}>{formatTransportLine(order)}</td>
@@ -146,15 +138,10 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
             <li key={`m-${order.id}`} className={`${ui.mobileCard} ${isPendingPaymentOrder(order) ? "border-amber-200 bg-amber-50/60" : ""}`}>
               <div className={ui.mobileCardRow}>
                 <strong>{formatOrderDisplayNumber(order)}</strong>
-                <span className={jobProcessClassForOrder(order, hasCreditLimit)}>{formatJobProcessForOrder(order, hasCreditLimit)}</span>
+                <span className={jobProcessClassForOrder(order)}>{formatJobProcessForOrder(order)}</span>
               </div>
               <p className={ui.muted}>{formatLedgerTableDate(order.createdAt)} · {order.product}</p>
               <p>{formatOrderDescription(order)}</p>
-              {formatCreditUtilizedMessage(order, hasCreditLimit) ? (
-                <p className="text-[0.7rem] font-medium text-emerald-700">
-                  {formatCreditUtilizedMessage(order, hasCreditLimit)}
-                </p>
-              ) : null}
               <OrderArtworkCell order={order} />
               <div className={ui.mobileCardRow}>
                 <span className={ui.muted}>Amount</span>
@@ -176,7 +163,7 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
   );
 }
 
-export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], activeTab = "orders", offset = 0, hasCreditLimit = false }) {
+export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], activeTab = "orders", offset = 0 }) {
   if (activeTab === "payments") {
     return <CustomerPaymentsTable ledgerEntries={ledgerEntries} />;
   }
@@ -184,13 +171,13 @@ export default function OrderHistoryLedger({ ledgerEntries = [], orders = [], ac
     return <PaymentLedgerTable ledgerEntries={ledgerEntries} offset={offset} />;
   }
   if (activeTab === "orders") {
-    return <OrderHistoryTable orders={orders} hasCreditLimit={hasCreditLimit} />;
+    return <OrderHistoryTable orders={orders} />;
   }
   return (
     <div className="grid gap-6">
       <CustomerPaymentsTable ledgerEntries={ledgerEntries} />
       <PaymentLedgerTable ledgerEntries={ledgerEntries} />
-      <OrderHistoryTable orders={orders} hasCreditLimit={hasCreditLimit} />
+      <OrderHistoryTable orders={orders} />
     </div>
   );
 }

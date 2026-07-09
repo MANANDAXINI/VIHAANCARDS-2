@@ -24,10 +24,18 @@ export const JOB_VERIFIED_LABEL = "PAYMENT VERIFIED AND JOB MOVED TO NEXT PROCES
 export const JOB_PRINTING_LABEL = "PRINTING AND OTHER PROCESS STARTED";
 export const JOB_PROCESS_STARTED_LABEL = "PRINTING & OTHER PROCESS STARTED";
 
+export const ORDER_COMPLETED_LABEL = "ORDER COMPLETED";
+const ORDER_COMPLETED_CLASS =
+  "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-emerald-600 sm:text-xs";
+
+export function isOrderCompletedStatus(status) {
+  const s = String(status || "").toUpperCase();
+  return s === "DISPATCHED" || s === "COMPLETED";
+}
+
 export function formatJobProcess(status) {
   const s = String(status || "").toUpperCase();
-  if (s === "COMPLETED") return "JOB COMPLETED";
-  if (s === "DISPATCHED") return "DESPATCHED";
+  if (isOrderCompletedStatus(s)) return ORDER_COMPLETED_LABEL;
   if (s === "PRINTING_PROCESS_STARTED") return JOB_PROCESS_STARTED_LABEL;
   if (s === "IN_PRINTING") return JOB_PRINTING_LABEL;
   if (s === "PAYMENT_VERIFIED") return JOB_VERIFIED_LABEL;
@@ -39,41 +47,16 @@ export function isPendingPaymentOrder(order) {
   return Boolean(order?.pendingApproval || order?.pendingPayment);
 }
 
-export const LIMIT_USED_LABEL = "LIMIT USED";
-const LIMIT_USED_CLASS =
-  "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-emerald-600 sm:text-xs";
-
-/**
- * For customers who have been given a credit limit, once an order reaches
- * dispatch/completion we show "LIMIT USED" instead of the despatch / job
- * completed status.
- */
-export function isLimitUsedOrder(order, hasCreditLimit = false) {
-  if (!hasCreditLimit) return false;
-  if (isPendingPaymentOrder(order)) return false;
-  const s = String(order?.status || "").toUpperCase();
-  return s === "DISPATCHED" || s === "COMPLETED";
-}
-
-export function formatCreditUtilizedMessage(order, hasCreditLimit = false) {
-  if (!hasCreditLimit) return "";
-  if (isPendingPaymentOrder(order)) return "";
-  const amount = Number(order?.amount || 0);
-  if (!(amount > 0)) return "";
-  return `Order confirmed. ₹${amount.toLocaleString("en-IN")} has been utilized from your available credit limit.`;
-}
-
-export function formatJobProcessForOrder(order, hasCreditLimit = false) {
+export function formatJobProcessForOrder(order) {
   if (isPendingPaymentOrder(order)) return "Pending";
-  if (isLimitUsedOrder(order, hasCreditLimit)) return LIMIT_USED_LABEL;
   return formatJobProcess(order?.status);
 }
 
-export function jobProcessClassForOrder(order, hasCreditLimit = false) {
+export function jobProcessClassForOrder(order) {
   if (isPendingPaymentOrder(order)) {
     return `${ui.pill} bg-amber-100 text-amber-800`;
   }
-  if (isLimitUsedOrder(order, hasCreditLimit)) return LIMIT_USED_CLASS;
+  if (isOrderCompletedStatus(order?.status)) return ORDER_COMPLETED_CLASS;
   return jobProcessClass(order?.status);
 }
 

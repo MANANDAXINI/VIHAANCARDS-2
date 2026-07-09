@@ -376,7 +376,11 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
 
         <div className="min-w-0">
           <SectionLabel>Job Process</SectionLabel>
-          {proceeded ? (
+          {isOrderCompleted(order.status) ? (
+            <button type="button" className={`${btnClass("success", true)} w-full whitespace-normal leading-tight`} disabled>
+              Order Completed
+            </button>
+          ) : proceeded ? (
             <button type="button" className={`${btnClass("teal", true)} w-full whitespace-normal leading-tight`} disabled>
               Proceeded to Printing
             </button>

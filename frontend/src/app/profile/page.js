@@ -43,6 +43,8 @@ export default function ProfilePage() {
         email: form.get("email"),
         address: form.get("address"),
         courierName: form.get("courierName"),
+        courierName2: form.get("courierName2"),
+        courierName3: form.get("courierName3"),
         gstNumber: form.get("gstNumber"),
       }, { silent: true });
       setUser(data.account);
@@ -105,8 +107,16 @@ export default function ProfilePage() {
                 <input className={ui.input} name="address" defaultValue={user.address} />
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Courier / Garaj Name</label>
+                <label className={ui.label}>Courier / Garaj Name 1</label>
                 <input className={ui.input} name="courierName" defaultValue={user.courierName} placeholder="e.g. VRL, Gati, local garaj" />
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Courier / Garaj Name 2</label>
+                <input className={ui.input} name="courierName2" defaultValue={user.courierName2} placeholder="Optional" />
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Courier / Garaj Name 3</label>
+                <input className={ui.input} name="courierName3" defaultValue={user.courierName3} placeholder="Optional" />
               </div>
               <div className={ui.field}>
                 <label className={ui.label}>GST No.</label>

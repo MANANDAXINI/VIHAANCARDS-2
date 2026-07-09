@@ -109,6 +109,12 @@ app.use((err, _req, res, _next) => {
 
 app.listen(port, () => {
   console.log(`PIXEL DIGITAL API running at http://127.0.0.1:${port}`);
+  try {
+    const { startBackupCron } = require("./lib/backup-cron");
+    startBackupCron();
+  } catch (error) {
+    console.error("[backup] Could not start backup cron:", error.message || error);
+  }
 });
 
 module.exports = app;

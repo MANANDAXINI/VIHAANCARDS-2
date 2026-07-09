@@ -68,14 +68,11 @@ export function jobProcessClass(status) {
   if (s === "DISPATCHED") {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-indigo-600 sm:text-xs";
   }
-  if (s === "PRINTING_PROCESS_STARTED") {
-    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-600 sm:text-xs";
-  }
-  if (s === "IN_PRINTING") {
-    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-600 sm:text-xs";
+  if (s === "PRINTING_PROCESS_STARTED" || s === "IN_PRINTING") {
+    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-blue-600 sm:text-xs";
   }
   if (s === "PAYMENT_VERIFIED") {
-    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-teal-700 sm:text-xs";
+    return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-amber-500 sm:text-xs";
   }
   if (s === "PENDING" || s === "PAYMENT_SUBMITTED" || s === "PAYMENT_PENDING") {
     return `${ui.pill} bg-amber-100 text-amber-800`;

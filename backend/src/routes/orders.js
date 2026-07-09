@@ -82,6 +82,7 @@ function buildOrderPayload(selection, req, orderAmount) {
     printingSide: selection.printingSide.name,
     amount: orderAmount,
     notes: req.body.notes || "",
+    transportDetails: String(req.body.transportDetails || "").trim(),
     artworkName: frontFile.originalname,
     artworkPath: frontFile.filename,
     artworkMime: frontFile.mimetype,

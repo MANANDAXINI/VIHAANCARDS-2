@@ -13,6 +13,8 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
     email: "",
     address: "",
     courierName: "",
+    courierName2: "",
+    courierName3: "",
     gstNumber: "",
   });
   const [saving, setSaving] = useState(false);
@@ -26,6 +28,8 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
       email: account.email || "",
       address: account.address || "",
       courierName: account.courierName || "",
+      courierName2: account.courierName2 || "",
+      courierName3: account.courierName3 || "",
       gstNumber: account.gstNumber || "",
     });
   }, [account]);
@@ -49,6 +53,8 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
           email: form.email.trim(),
           address: form.address.trim(),
           courierName: form.courierName.trim(),
+          courierName2: form.courierName2.trim(),
+          courierName3: form.courierName3.trim(),
           gstNumber: form.gstNumber.trim(),
         },
         { silent: true }
@@ -102,12 +108,20 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
             <input className={ui.input} value={form.address} onChange={(e) => update("address", e.target.value)} />
           </label>
           <label className={ui.field}>
-            <span className={ui.label}>Courier / Garaj Name</span>
-            <input className={ui.input} value={form.courierName} onChange={(e) => update("courierName", e.target.value)} />
-          </label>
-          <label className={ui.field}>
             <span className={ui.label}>GST No.</span>
             <input className={ui.input} value={form.gstNumber} onChange={(e) => update("gstNumber", e.target.value)} />
+          </label>
+          <label className={ui.field}>
+            <span className={ui.label}>Courier / Garaj Name 1</span>
+            <input className={ui.input} value={form.courierName} onChange={(e) => update("courierName", e.target.value)} placeholder="e.g. VRL, Gati" />
+          </label>
+          <label className={ui.field}>
+            <span className={ui.label}>Courier / Garaj Name 2</span>
+            <input className={ui.input} value={form.courierName2} onChange={(e) => update("courierName2", e.target.value)} placeholder="Optional" />
+          </label>
+          <label className={`${ui.field} sm:col-span-2`}>
+            <span className={ui.label}>Courier / Garaj Name 3</span>
+            <input className={ui.input} value={form.courierName3} onChange={(e) => update("courierName3", e.target.value)} placeholder="Optional" />
           </label>
           <div className="sm:col-span-2 flex justify-end gap-2">
             <button type="button" className={btnClass("secondary")} onClick={onClose} disabled={saving}>Cancel</button>

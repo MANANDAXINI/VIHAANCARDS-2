@@ -5,6 +5,7 @@ const { summarizeAccountLedger } = require("../lib/ledger");
 const { parseParcelRowsFromWorkbook, buildDispatchUpdateData, parseExcelDate } = require("../lib/parcel-import");
 const { normalizeOrderNumber } = require("../lib/job-folder-parse");
 const { deleteUpload } = require("../lib/storage");
+const { runDailyBackup, smtpConfigured, backupEmailTo } = require("../lib/backup");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -133,6 +134,35 @@ function orderNumberFromLedgerLabel(label) {
   const match = /^Order\s+(\S+)\s*-/.exec(String(label || ""));
   return match ? match[1] : null;
 }
+
+// Manual trigger for the daily data backup email (same payload as the cron job).
+router.post("/backup/run", authAdmin, async (_req, res) => {
+  try {
+    if (!smtpConfigured()) {
+      return res.status(503).json({
+        error: "SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS on the server.",
+      });
+    }
+    const result = await runDailyBackup({ trigger: "admin" });
+    res.json({
+      ok: true,
+      message: `Backup emailed to ${result.to}`,
+      result,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Backup failed." });
+  }
+});
+
+router.get("/backup/status", authAdmin, async (_req, res) => {
+  res.json({
+    smtpConfigured: smtpConfigured(),
+    emailTo: backupEmailTo(),
+    cronEnabled: String(process.env.BACKUP_CRON_ENABLED || "true").toLowerCase() !== "false",
+    cronSchedule: String(process.env.BACKUP_CRON_SCHEDULE || "0 23 * * *"),
+    timezone: "Asia/Kolkata",
+  });
+});
 
 router.get("/nav-counts", authAdmin, async (_req, res) => {
   const now = new Date();
@@ -287,7 +317,7 @@ router.put("/accounts/:id", authAdmin, async (req, res) => {
   const existing = await prisma.account.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Account not found." });
 
-  const { name, business, phone, email, address, courierName, gstNumber } = req.body;
+  const { name, business, phone, email, address, courierName, courierName2, courierName3, gstNumber } = req.body;
   const cleanPhone = phone !== undefined ? String(phone).replace(/\D/g, "") : existing.phone;
   if (!/^[0-9]{10}$/.test(cleanPhone)) {
     return res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
@@ -330,6 +360,8 @@ router.put("/accounts/:id", authAdmin, async (req, res) => {
       email: cleanEmail,
       address: address !== undefined ? String(address).trim() : existing.address,
       courierName: courierName !== undefined ? String(courierName).trim() : existing.courierName,
+      courierName2: courierName2 !== undefined ? String(courierName2).trim() : existing.courierName2,
+      courierName3: courierName3 !== undefined ? String(courierName3).trim() : existing.courierName3,
       gstNumber: gstNumber !== undefined ? String(gstNumber).trim() : existing.gstNumber,
     },
   });
@@ -613,6 +645,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
           printingSide: data.printingSide,
           amount: Number(data.amount),
           notes: data.notes || "",
+          transportDetails: String(data.transportDetails || "").trim(),
           artworkName: data.artworkName,
           artworkPath: data.artworkPath,
           artworkMime: data.artworkMime,

@@ -221,10 +221,27 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
 
   const customerName = upper(order.business || order.customerName);
   const customerCity = upper(order.customerCity);
+  const transportName = upper(
+    overrides.transportDetails || order.transportDetails || ""
+  );
   drawCenteredText(ctx, customerName, leftX, customerY + 86, leftW, FONTS.customerValue);
+
+  let nextY = customerY + 114;
   if (customerCity && customerCity !== "—") {
-    drawCenteredText(ctx, customerCity, leftX, customerY + 114, leftW, FONTS.customerValue);
+    drawCenteredText(ctx, customerCity, leftX, nextY, leftW, FONTS.customerValue);
+    nextY += 28;
   }
+
+  drawCenteredText(ctx, "TRANSPORTATION DETAILS", leftX, nextY, leftW, FONTS.label);
+  nextY += 28;
+  drawCenteredText(
+    ctx,
+    transportName && transportName !== "—" ? transportName : "—",
+    leftX,
+    nextY,
+    leftW,
+    FONTS.customerValue
+  );
 
   drawCenteredText(ctx, "JOB DETAILS", rightX, bodyY + 22, rightW, FONTS.section);
 
@@ -287,7 +304,16 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
 }
 
 function orderSlipFilename(order) {
-  return `${order.orderNumber || "order"}_job_order.png`;
+  const parts = [
+    order?.orderNumber || "ORDER",
+    order?.paperGsm,
+    order?.size,
+    order?.quantity,
+    String(order?.printingSide || "").toUpperCase(),
+  ]
+    .map((part) => String(part || "").trim().replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " "))
+    .filter(Boolean);
+  return `${parts.join("_")}.png`;
 }
 
 // Renders the order slip and returns it as a PNG blob (for saving into a folder).

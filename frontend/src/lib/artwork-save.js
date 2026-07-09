@@ -26,25 +26,16 @@ function fileExtension(originalName, mime) {
 }
 
 export function buildArtworkSaveFilename(order, side, originalName, mime) {
+  // Filename format: ORDERNO_PAPERGSM_SIZE_QTY_SIDE[.BACK].ext
   const parts = [
     order?.orderNumber || "ORDER",
-    order?.business || order?.customerName || "Customer",
-  ];
-
-  const lr = String(order?.lrNumber || "").trim();
-  if (lr) parts.push(lr);
-
-  parts.push(
     order?.paperGsm,
     order?.size,
     order?.quantity,
     String(order?.printingSide || "").toUpperCase(),
-  );
+  ];
 
   if (side === "back") parts.push("BACK");
-
-  const baseName = String(originalName || "artwork").replace(/\.[^.]+$/, "");
-  parts.push(baseName);
 
   const ext = fileExtension(originalName, mime);
   const filename = parts
@@ -128,7 +119,7 @@ export async function saveArtworkToBusinessFolder({ order, side, url, originalNa
     };
   }
 
-  triggerBrowserDownload(blob, `${businessFolder}_${filename}`);
+  triggerBrowserDownload(blob, filename);
   return {
     method: "download",
     businessFolder,

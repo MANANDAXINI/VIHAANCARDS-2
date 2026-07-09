@@ -27,6 +27,7 @@ export default function OrderPage() {
   const [quantity, setQuantity] = useState("");
   const [artworkFront, setArtworkFront] = useState(null);
   const [artworkBack, setArtworkBack] = useState(null);
+  const [transportDetails, setTransportDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [quotedAmount, setQuotedAmount] = useState(0);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -72,11 +73,26 @@ export default function OrderPage() {
   );
   const requiresBackUpload = needsBackUpload(sideName);
 
+  const courierOptions = useMemo(() => {
+    const options = [user?.courierName, user?.courierName2, user?.courierName3]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean);
+    return [...new Set(options)];
+  }, [user]);
+
   useEffect(() => {
     if (!requiresBackUpload) {
       setArtworkBack(null);
     }
   }, [requiresBackUpload]);
+
+  useEffect(() => {
+    if (!courierOptions.length) {
+      setTransportDetails("");
+      return;
+    }
+    setTransportDetails((prev) => (courierOptions.includes(prev) ? prev : courierOptions[0]));
+  }, [courierOptions]);
 
   useEffect(() => {
     if (ready && !user) router.replace("/?auth=login");
@@ -183,6 +199,10 @@ export default function OrderPage() {
       toast.error("No price set for this combination. Ask admin to add a rate in Order Catalog.");
       return;
     }
+    if (courierOptions.length > 0 && !transportDetails.trim()) {
+      toast.error("Please select courier / garaj for transport.");
+      return;
+    }
 
     const qty = Number(quantity);
     if (!Number.isFinite(qty) || qty <= 0) {
@@ -204,6 +224,9 @@ export default function OrderPage() {
     formData.append("quantity", String(qty));
     formData.append("amount", String(amount));
     formData.append("useCredit", "true");
+    if (transportDetails.trim()) {
+      formData.append("transportDetails", transportDetails.trim());
+    }
     if (selectedPaper?.name) {
       formData.append("product", selectedPaper.name);
     }
@@ -345,6 +368,26 @@ export default function OrderPage() {
                     pricedSides.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
                   )}
                 </select>
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Courier / Garaj (Transport)</label>
+                {courierOptions.length > 0 ? (
+                  <select
+                    className={ui.input}
+                    value={transportDetails}
+                    onChange={(e) => setTransportDetails(e.target.value)}
+                    required
+                  >
+                    {courierOptions.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    Profile me Courier / Garaj Name add karo.{" "}
+                    <a href="/profile" className="font-semibold underline">Open Profile</a>
+                  </div>
+                )}
               </div>
             </div>
 

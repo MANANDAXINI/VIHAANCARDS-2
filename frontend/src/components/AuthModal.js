@@ -47,6 +47,8 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     password: "",
     address: "",
     courierName: "",
+    courierName2: "",
+    courierName3: "",
     gstNumber: "",
   });
   const [registerErrors, setRegisterErrors] = useState({});
@@ -297,6 +299,8 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         password: registerForm.password,
         address: registerForm.address.trim(),
         courierName: registerForm.courierName.trim(),
+        courierName2: registerForm.courierName2.trim(),
+        courierName3: registerForm.courierName3.trim(),
         gstNumber: registerForm.gstNumber.trim(),
       }, { silent: true });
       toast.success(data.message);
@@ -495,8 +499,16 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                   <input className={ui.input} value={registerForm.address} onChange={(e) => updateRegister("address", e.target.value)} />
                 </div>
                 <div className={ui.field}>
-                  <label className={ui.label}>Courier / Garaj Name</label>
+                  <label className={ui.label}>Courier / Garaj Name 1</label>
                   <input className={ui.input} value={registerForm.courierName} onChange={(e) => updateRegister("courierName", e.target.value)} placeholder="e.g. VRL, Gati, local garaj" />
+                </div>
+                <div className={ui.field}>
+                  <label className={ui.label}>Courier / Garaj Name 2</label>
+                  <input className={ui.input} value={registerForm.courierName2} onChange={(e) => updateRegister("courierName2", e.target.value)} placeholder="Optional" />
+                </div>
+                <div className={ui.field}>
+                  <label className={ui.label}>Courier / Garaj Name 3</label>
+                  <input className={ui.input} value={registerForm.courierName3} onChange={(e) => updateRegister("courierName3", e.target.value)} placeholder="Optional" />
                 </div>
                 <div className={ui.field}>
                   <label className={ui.label}>GST No.</label>

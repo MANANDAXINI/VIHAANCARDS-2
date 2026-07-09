@@ -101,6 +101,8 @@ export const walletApi = {
 
 export const adminApi = {
   navCounts: () => api("/api/admin/nav-counts"),
+  backupStatus: () => api("/api/admin/backup/status"),
+  runBackup: (options) => api("/api/admin/backup/run", { method: "POST", ...options }),
   alertFeed: (since) => api(`/api/admin/alert-feed${since ? `?since=${encodeURIComponent(since)}` : ""}`),
   passwordResets: () => api("/api/admin/password-resets"),
   pendingAccounts: () => api("/api/admin/accounts/pending"),

@@ -11,7 +11,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.js",
+    "backup": "node scripts/daily-backup.js"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
@@ -23,6 +24,8 @@
     "firebase-admin": "^13.4.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.1",
+    "node-cron": "^4.6.0",
+    "nodemailer": "^9.0.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

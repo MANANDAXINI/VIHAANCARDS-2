@@ -409,7 +409,7 @@ export default function OrderPage() {
                   </select>
                 ) : (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Profile me Courier / Garaj Name add karo.{" "}
+                    Please add a Courier / Garaj Name in your profile.{" "}
                     <a href="/profile" className="font-semibold underline">Open Profile</a>
                   </div>
                 )}

@@ -99,5 +99,115 @@
     .hero-stat-card {
       transition: none;
     }
+
+    .superfast-btn,
+    .superfast-btn__bolt {
+      animation: none !important;
+      transition: none !important;
+    }
   }
+}
+
+@keyframes superfast-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+  }
+}
+
+@keyframes superfast-bolt {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.12); }
+}
+
+.superfast-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.85rem;
+  border: 2px solid #fdba74;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%);
+  padding: 0.9rem 1rem;
+  text-align: left;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  animation: superfast-pulse 2.4s ease-in-out infinite;
+  cursor: pointer;
+}
+
+.superfast-btn:hover {
+  transform: translateY(-2px) scale(1.01);
+  border-color: #f97316;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.22);
+  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 50%, #fdba74 100%);
+}
+
+.superfast-btn:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.superfast-btn--active {
+  border-color: #ea580c;
+  background: linear-gradient(135deg, #ffedd5 0%, #fb923c 45%, #f97316 100%);
+  color: #7c2d12;
+  box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
+}
+
+.superfast-btn--active .superfast-btn__badge {
+  background: #fff;
+  color: #c2410c;
+}
+
+.superfast-btn--disabled {
+  opacity: 0.72;
+  animation: none;
+}
+
+.superfast-btn__bolt {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 1.25rem;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+  animation: superfast-bolt 1.4s ease-in-out infinite;
+}
+
+.superfast-btn__text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.superfast-btn__text strong {
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.superfast-btn__text span {
+  font-size: 0.75rem;
+  color: #9a3412;
+  line-height: 1.3;
+}
+
+.superfast-btn--active .superfast-btn__text span {
+  color: #7c2d12;
+}
+
+.superfast-btn__badge {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 0.65rem;
 }

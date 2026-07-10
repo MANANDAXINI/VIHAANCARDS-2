@@ -25,6 +25,7 @@ function buildProductLine(order) {
   const size = String(order.size || "").trim();
   const side = String(order.printingSide || "").trim();
   const qty = Number(order.quantity || 0);
+  const finish = String(order.finish || "").trim();
 
   const parts = [];
   if (paperGsm && paperGsm.toUpperCase() !== product.toUpperCase()) {
@@ -33,6 +34,7 @@ function buildProductLine(order) {
   if (size) parts.push(size);
   if (side) parts.push(side);
   if (qty > 0) parts.push(`QTY: ${qty.toLocaleString("en-IN")}`);
+  if (finish) parts.push(finish);
 
   const specs = parts.join(", ");
   return specs ? `${product} - ${specs}` : product;
@@ -242,6 +244,22 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
     leftW,
     FONTS.customerValue
   );
+
+  const otherRequirement = upper(overrides.finish || order.finish || "");
+  if (otherRequirement && otherRequirement !== "—") {
+    nextY += 30;
+    drawCenteredText(ctx, "OTHER REQUIREMENTS", leftX, nextY, leftW, FONTS.label);
+    nextY += 28;
+    drawCenteredText(ctx, otherRequirement, leftX, nextY, leftW, FONTS.customerValue);
+  }
+
+  const notesText = String(overrides.notes || order.notes || "");
+  if (/SUPERFAST/i.test(notesText)) {
+    nextY += 30;
+    drawCenteredText(ctx, "DELIVERY", leftX, nextY, leftW, FONTS.label);
+    nextY += 28;
+    drawCenteredText(ctx, "SUPERFAST DELIVERY", leftX, nextY, leftW, FONTS.customerValue);
+  }
 
   drawCenteredText(ctx, "JOB DETAILS", rightX, bodyY + 22, rightW, FONTS.section);
 

@@ -16,6 +16,15 @@ import {
 import { toast } from "@/lib/toast";
 import { btnClass, chipClass, ui } from "@/lib/ui";
 
+const OTHER_REQUIREMENT_OPTIONS = [
+  "CREASING",
+  "HALF CUTTING",
+  "PERFORATION",
+];
+
+const SUPERFAST_MIN_AMOUNT = 3000;
+const SUPERFAST_CHARGE = 400;
+
 export default function OrderPage() {
   const router = useRouter();
   const { refresh, ready } = useAuth();
@@ -28,6 +37,8 @@ export default function OrderPage() {
   const [artworkFront, setArtworkFront] = useState(null);
   const [artworkBack, setArtworkBack] = useState(null);
   const [transportDetails, setTransportDetails] = useState("");
+  const [otherRequirement, setOtherRequirement] = useState("");
+  const [superfastDelivery, setSuperfastDelivery] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [quotedAmount, setQuotedAmount] = useState(0);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -65,7 +76,17 @@ export default function OrderPage() {
     [catalog, paperTypeId, sizeId, printingSideId, quantity]
   );
 
-  const amount = quotedAmount > 0 ? quotedAmount : localAmount;
+  // +₹400 only when base order price is above ₹3000 AND button is ON.
+  const baseAmount = Number(quotedAmount > 0 ? quotedAmount : localAmount) || 0;
+  const superfastEligible = baseAmount > SUPERFAST_MIN_AMOUNT;
+  const superfastApplied = Boolean(superfastDelivery) && superfastEligible;
+  const amount = superfastApplied ? baseAmount + SUPERFAST_CHARGE : baseAmount;
+
+  useEffect(() => {
+    if (!superfastEligible && superfastDelivery) {
+      setSuperfastDelivery(false);
+    }
+  }, [superfastEligible, superfastDelivery]);
 
   const sideName = useMemo(
     () => pricedSides.find((s) => s.id === printingSideId)?.name || "",
@@ -227,6 +248,10 @@ export default function OrderPage() {
     if (transportDetails.trim()) {
       formData.append("transportDetails", transportDetails.trim());
     }
+    if (otherRequirement.trim()) {
+      formData.append("finish", otherRequirement.trim());
+    }
+    formData.append("superfastDelivery", superfastApplied ? "true" : "false");
     if (selectedPaper?.name) {
       formData.append("product", selectedPaper.name);
     }
@@ -389,6 +414,19 @@ export default function OrderPage() {
                   </div>
                 )}
               </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Other Requirements</label>
+                <select
+                  className={ui.input}
+                  value={otherRequirement}
+                  onChange={(e) => setOtherRequirement(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {OTHER_REQUIREMENT_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="grid gap-4">
@@ -408,12 +446,46 @@ export default function OrderPage() {
               ) : null}
             </div>
 
+            <div className={ui.field}>
+              <label className={ui.label}>Delivery Speed</label>
+              <button
+                type="button"
+                className={`superfast-btn ${superfastApplied ? "superfast-btn--active" : ""} ${!superfastEligible ? "superfast-btn--disabled" : ""}`}
+                onClick={() => {
+                  if (!superfastEligible) {
+                    toast.error(`Superfast Delivery is available for orders above ₹${SUPERFAST_MIN_AMOUNT.toLocaleString("en-IN")}.`);
+                    return;
+                  }
+                  setSuperfastDelivery((prev) => !prev);
+                }}
+                aria-pressed={superfastApplied}
+              >
+                <span className="superfast-btn__bolt" aria-hidden>⚡</span>
+                <span className="superfast-btn__text">
+                  <strong>Superfast Delivery</strong>
+                  <span>
+                    {superfastEligible
+                      ? `+ ₹${SUPERFAST_CHARGE} (orders above ₹${SUPERFAST_MIN_AMOUNT.toLocaleString("en-IN")})`
+                      : `Available when order is above ₹${SUPERFAST_MIN_AMOUNT.toLocaleString("en-IN")}`}
+                  </span>
+                </span>
+                <span className="superfast-btn__badge">
+                  {superfastApplied ? "ON" : "OFF"}
+                </span>
+              </button>
+            </div>
+
             <div className={ui.priceBox}>
               <div>
                 <span className={`${ui.muted} ${ui.small}`}>{paperName} | {sizeName} | {sideName}</span>
                 <div>Quantity: <strong>{quantity || "—"}</strong></div>
+                {superfastApplied ? (
+                  <div className={`${ui.small} mt-1 text-orange-700`}>
+                    Base {formatRupees(baseAmount)} + Superfast {formatRupees(SUPERFAST_CHARGE)}
+                  </div>
+                ) : null}
                 <div>Total Price</div>
-                {!amount && !quoteLoading && (
+                {!baseAmount && !quoteLoading && (
                   <p className={`${ui.small} mt-1 text-amber-700`}>No rate saved for this combination.</p>
                 )}
               </div>

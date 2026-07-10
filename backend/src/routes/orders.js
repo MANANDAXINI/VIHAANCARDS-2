@@ -143,7 +143,16 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
 
     await persistOrderArtwork(req.files);
 
-    const orderAmount = selection.amount;
+    // Superfast +₹400 ONLY when catalog/base price is above ₹3000.
+    // Below/equal ₹3000 → never add the charge, even if the flag is sent.
+    const SUPERFAST_MIN = 3000;
+    const SUPERFAST_CHARGE = 400;
+    const wantSuperfast = req.body.superfastDelivery === "true" || req.body.superfastDelivery === true;
+    const baseAmount = Number(selection.amount) || 0;
+    const superfastEligible = baseAmount > SUPERFAST_MIN;
+    const superfastApplied = Boolean(wantSuperfast) && superfastEligible;
+    const orderAmount = superfastApplied ? baseAmount + SUPERFAST_CHARGE : baseAmount;
+
     const clientAmount = Number(amount);
     if (Number.isFinite(clientAmount) && Math.abs(clientAmount - orderAmount) > 1) {
       return res.status(400).json({ error: "Price changed. Please refresh and try again." });
@@ -158,6 +167,12 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
     const hasEnoughFunds = hasCreditFromAdmin && canUseCredit && availableCredit >= orderAmount;
 
     const orderFields = buildOrderPayload(selection, req, orderAmount);
+    if (superfastApplied) {
+      const note = String(orderFields.notes || "").trim();
+      orderFields.notes = note
+        ? `${note} | SUPERFAST DELIVERY (+₹${SUPERFAST_CHARGE})`
+        : `SUPERFAST DELIVERY (+₹${SUPERFAST_CHARGE})`;
+    }
 
     if (!hasEnoughFunds) {
       const shortfall = hasCreditFromAdmin

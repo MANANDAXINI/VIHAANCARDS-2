@@ -504,7 +504,8 @@ router.post("/accounts/:id/other-charge", authAdmin, async (req, res) => {
   if (!account) return res.status(404).json({ error: "Account not found." });
 
   const description = String(req.body.label || "").trim();
-  const narration = description ? `Other Charges: ${description}` : "Other Charges";
+  // Store only the narration text the admin typed (no "Other Charges:" prefix).
+  const narration = description || "Charge";
   const newOutstanding = Number(account.previousOutstanding || 0) + amount;
 
   const updateData = {
@@ -642,6 +643,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
           size: data.size,
           quantity: data.quantity,
           finish: data.finish || "",
+          cutting: String(data.cutting || "").trim(),
           printingSide: data.printingSide,
           amount: Number(data.amount),
           notes: data.notes || "",
@@ -654,6 +656,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
           artworkBackMime: data.artworkBackMime || null,
           status: "PAYMENT_VERIFIED",
           paymentStatus: "VERIFIED",
+          paidWithCredit: false,
         },
       });
 
@@ -785,6 +788,7 @@ router.get("/orders", authAdmin, async (_req, res) => {
       business: order.account.business,
       customerCity: order.account.address,
       customerPhone: order.account.phone,
+      accountCreditLimit: Number(order.account.creditLimit || 0),
     })),
   });
 });

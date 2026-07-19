@@ -79,6 +79,7 @@ function buildOrderPayload(selection, req, orderAmount) {
     size: selection.size.name,
     quantity: String(selection.quantity),
     finish: req.body.finish || "",
+    cutting: String(req.body.cutting || "").trim(),
     printingSide: selection.printingSide.name,
     amount: orderAmount,
     notes: req.body.notes || "",
@@ -207,6 +208,7 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
           ...orderFields,
           status: "PAYMENT_VERIFIED",
           paymentStatus: "VERIFIED",
+          paidWithCredit: true,
         },
       });
 

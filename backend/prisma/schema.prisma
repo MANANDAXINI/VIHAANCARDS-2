@@ -120,6 +120,7 @@ model Order {
   size             String
   quantity         String
   finish           String        @default("")
+  cutting          String        @default("")
   printingSide     String
   amount           Float
   notes            String        @default("")
@@ -133,6 +134,8 @@ model Order {
   artworkBackDownloaded Boolean       @default(false)
   status           OrderStatus   @default(ORDER_CREATED)
   paymentStatus    PaymentStatus @default(PENDING)
+  // true = placed against customer credit limit; false = direct/wallet payment verified
+  paidWithCredit   Boolean       @default(false)
   lrNumber         String        @default("")
   transportDetails String        @default("")
   dispatchDate     DateTime?

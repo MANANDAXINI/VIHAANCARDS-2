@@ -12,6 +12,7 @@ const adminRoutes = require("./routes/admin");
 const catalogRoutes = require("./routes/catalog");
 const adminCatalogRoutes = require("./routes/admin-catalog");
 const filesRoutes = require("./routes/files");
+const feedbackRoutes = require("./routes/feedback");
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -98,6 +99,7 @@ app.use("/api/files", filesRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/wallet", walletRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/catalog", catalogRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/catalog", adminCatalogRoutes);

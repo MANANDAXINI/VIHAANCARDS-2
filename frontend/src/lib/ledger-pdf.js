@@ -2,6 +2,7 @@ import {
   formatLedgerBalance,
   formatLedgerCredit,
   formatLedgerDebit,
+  formatLedgerNarration,
   formatLedgerTableDate,
 } from "@/lib/order-display";
 
@@ -34,7 +35,7 @@ export function downloadLedgerPdf({ account, ledgerEntries = [] }) {
       <tr class="${entry.pending ? "pending" : ""}">
         <td class="c">${index + 1}</td>
         <td>${escapeHtml(formatLedgerTableDate(entry.entryDate))}</td>
-        <td>${escapeHtml(entry.label)}</td>
+        <td>${escapeHtml(formatLedgerNarration(entry.label))}</td>
         <td class="r">${escapeHtml(formatLedgerDebit(entry))}</td>
         <td class="r">${escapeHtml(formatLedgerCredit(entry))}</td>
         <td class="r">${escapeHtml(formatLedgerBalance(entry))}</td>

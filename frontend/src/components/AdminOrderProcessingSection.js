@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/components/AdminTableTools";
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { ArtworkThumb } from "@/components/OrderArtworkThumb";
@@ -44,6 +44,8 @@ const ORDER_SEARCH_KEYS = [
   "status",
   "amount",
   "product",
+  "cutting",
+  "finish",
 ];
 
 function toDateInputValue(value) {
@@ -56,6 +58,14 @@ function toDateInputValue(value) {
 function isPaymentVerified(order) {
   return String(order?.paymentStatus || "").toUpperCase() === "VERIFIED"
     || ["PAYMENT_VERIFIED", "IN_PRINTING", "PRINTING_PROCESS_STARTED", "DISPATCHED", "COMPLETED"].includes(String(order?.status || "").toUpperCase());
+}
+
+/** Credit-limit checkout vs direct/wallet payment approval */
+function isPaidWithCredit(order) {
+  if (order?.paidWithCredit === true) return true;
+  if (order?.paidWithCredit === false) return false;
+  // Legacy orders (before paidWithCredit): only treat as credit if account has a limit
+  return Number(order?.accountCreditLimit || 0) > 0;
 }
 
 function hasProceededToPrinting(status) {
@@ -96,41 +106,43 @@ function ArtworkFileRow({ label, url, name, mime, downloaded }) {
 }
 
 function DispatchForm({ order, onSaved, onOrderDispatched }) {
-  const [lrNumber, setLrNumber] = useState(order.lrNumber || "");
-  const [transportDetails, setTransportDetails] = useState(order.transportDetails || "");
-  const [dispatchDate, setDispatchDate] = useState(toDateInputValue(order.dispatchDate));
+  // Uncontrolled inputs: keystrokes stay in the DOM and never re-render the heavy order card.
+  const lrRef = useRef(null);
+  const transportRef = useRef(null);
+  const dateRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [completing, setCompleting] = useState(false);
   const dispatched = ["DISPATCHED", "PRINTING_PROCESS_STARTED", "COMPLETED"].includes(String(order.status || "").toUpperCase());
 
-  useEffect(() => {
-    setLrNumber(order.lrNumber || "");
-    setTransportDetails(order.transportDetails || "");
-    setDispatchDate(toDateInputValue(order.dispatchDate));
-  }, [order.id, order.lrNumber, order.transportDetails, order.dispatchDate]);
+  function readOverrides() {
+    return {
+      lrNumber: (lrRef.current?.value || "").trim(),
+      transportDetails: (transportRef.current?.value || "").trim(),
+      dispatchDate: dateRef.current?.value || new Date().toISOString().slice(0, 10),
+      cutting: order.cutting || "",
+      finish: order.finish || "",
+    };
+  }
 
   async function handleSave() {
-    if (!lrNumber.trim()) {
+    const overrides = readOverrides();
+    if (!overrides.lrNumber) {
       toast.error("LR number is required.");
       return;
     }
     setSaving(true);
     try {
-      const overrides = {
-        lrNumber: lrNumber.trim(),
-        transportDetails: transportDetails.trim(),
-        dispatchDate: dispatchDate || new Date().toISOString().slice(0, 10),
-      };
       const response = await adminApi.dispatch(order.id, overrides, { silent: true });
       const updatedOrder = { ...order, ...response.order, ...overrides };
 
-      await downloadOrderSlipImage(updatedOrder, overrides);
+      // No automatic packing-slip download on Save / job completion —
+      // use Artwork → Download when a slip is needed.
       const { opened } = notifyCustomerDispatch(updatedOrder, overrides);
 
       if (opened) {
-        toast.success("Dispatch saved. Order image downloaded — WhatsApp opened for customer.");
+        toast.success("Dispatch saved — WhatsApp opened for customer.");
       } else {
-        toast.success("Dispatch saved and order image downloaded. Customer phone not available for WhatsApp.");
+        toast.success("Dispatch saved. Customer phone not available for WhatsApp.");
       }
 
       const newStatus = String(response.order?.status || "").toUpperCase();
@@ -169,28 +181,30 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
       <label className="grid gap-1">
         <span className={`${ui.small} font-semibold text-slate-700`}>LR Number</span>
         <input
+          ref={lrRef}
           className={ui.inputCompact}
-          value={lrNumber}
-          onChange={(e) => setLrNumber(e.target.value)}
+          defaultValue={order.lrNumber || ""}
           placeholder="LR / Bilty no."
+          autoComplete="off"
         />
       </label>
       <label className="grid gap-1">
         <span className={`${ui.small} font-semibold text-slate-700`}>Transport / Bus Details</span>
         <textarea
+          ref={transportRef}
           className={`${ui.inputCompact} min-h-[3.5rem] resize-y`}
-          value={transportDetails}
-          onChange={(e) => setTransportDetails(e.target.value)}
+          defaultValue={order.transportDetails || ""}
           placeholder="Courier, bus, transport..."
+          autoComplete="off"
         />
       </label>
       <label className="grid gap-1">
         <span className={`${ui.small} font-semibold text-slate-700`}>Date</span>
         <input
+          ref={dateRef}
           className={ui.inputCompact}
           type="date"
-          value={dispatchDate}
-          onChange={(e) => setDispatchDate(e.target.value)}
+          defaultValue={toDateInputValue(order.dispatchDate)}
         />
       </label>
       <button
@@ -213,7 +227,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
   );
 }
 
-function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
+const OrderProcessingCard = memo(function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
   const [printingBusy, setPrintingBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -264,6 +278,8 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
       lrNumber: order.lrNumber || "",
       transportDetails: order.transportDetails || "",
       dispatchDate: toDateInputValue(order.dispatchDate) || new Date().toISOString().slice(0, 10),
+      cutting: order.cutting || "",
+      finish: order.finish || "",
     };
 
     // Ask for the destination folder FIRST, while we still have the user gesture
@@ -355,6 +371,14 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
           <SectionLabel>Product</SectionLabel>
           <strong className="block break-words">{order.product || "LEAFLET / PAMPLET"}</strong>
           <span className={`${ui.small} ${ui.muted}`}>{formatOrderDescription(order)}</span>
+          {order.cutting ? (
+            <div className="mt-2">
+              <span className={`block ${ui.small} font-semibold uppercase tracking-wide text-slate-500`}>
+                Cutting
+              </span>
+              <strong className="block text-sm text-slate-900">{order.cutting}</strong>
+            </div>
+          ) : null}
         </div>
 
         <div className="min-w-0">
@@ -365,10 +389,18 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
         <div className="min-w-0">
           <SectionLabel>Payment</SectionLabel>
           {verified ? (
-            <div className="grid gap-1">
-              <span className="text-sm font-medium text-slate-800">Limit Used</span>
-              <span className={`${ui.pill} w-fit bg-emerald-100 text-emerald-800`}>Verified</span>
-            </div>
+            isPaidWithCredit(order) ? (
+              <div className="grid gap-1">
+                <span className="text-sm font-semibold uppercase tracking-wide text-slate-800">
+                  Limit Used
+                </span>
+                <span className={`${ui.pill} w-fit bg-emerald-100 text-emerald-800`}>Verified</span>
+              </div>
+            ) : (
+              <span className={`${ui.pill} w-fit bg-emerald-100 text-emerald-800`}>
+                Payment Verified
+              </span>
+            )
           ) : (
             <span className={`${ui.pill} bg-amber-100 text-amber-800`}>Pending</span>
           )}
@@ -398,7 +430,12 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
 
         <div className="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
           <SectionLabel>Dispatch</SectionLabel>
-          <DispatchForm order={order} onSaved={onRefresh} onOrderDispatched={onOrderDispatched} />
+          <DispatchForm
+            key={order.id}
+            order={order}
+            onSaved={onRefresh}
+            onOrderDispatched={onOrderDispatched}
+          />
         </div>
 
         <div className="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
@@ -444,7 +481,7 @@ function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
       </div>
     </article>
   );
-}
+});
 
 export default function AdminOrderProcessingSection({
   orders = [],
@@ -453,9 +490,10 @@ export default function AdminOrderProcessingSection({
   onOrderDispatched,
 }) {
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(1);
 
-  useAdminTableState(search, setPage);
+  useAdminTableState(deferredSearch, setPage);
 
   useEffect(() => {
     setPage(1);
@@ -472,8 +510,8 @@ export default function AdminOrderProcessingSection({
 
   const activeOrders = view === "completed" ? completedOrders : pendingOrders;
   const filtered = useMemo(
-    () => filterItems(activeOrders, search, ORDER_SEARCH_KEYS),
-    [activeOrders, search]
+    () => filterItems(activeOrders, deferredSearch, ORDER_SEARCH_KEYS),
+    [activeOrders, deferredSearch]
   );
   const paged = useMemo(() => paginateItems(filtered, page), [filtered, page]);
 

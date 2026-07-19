@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchArtworkBlobUrl, uploadAssetUrl } from "@/lib/api";
 import { ui } from "@/lib/ui";
 
@@ -10,19 +10,50 @@ function isImageArtwork(mime, name) {
 }
 
 function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" }) {
+  const rootRef = useRef(null);
+  const [visible, setVisible] = useState(false);
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
   const showImage = isImageArtwork(mime, name);
 
+  // Only fetch artwork blobs when the thumb is near the viewport — avoids
+  // main-thread jank from downloading/decoding images while admin types.
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node || visible) return undefined;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "120px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [visible]);
+
   useEffect(() => {
     let objectUrl;
+    let cancelled = false;
     setFailed(false);
     setSrc(null);
 
-    if (!url) return undefined;
+    if (!url || !visible) return undefined;
 
     fetchArtworkBlobUrl(url)
       .then((blobUrl) => {
+        if (cancelled) {
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          return;
+        }
         if (!blobUrl) {
           setFailed(true);
           return;
@@ -30,12 +61,15 @@ function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" })
         objectUrl = blobUrl;
         setSrc(blobUrl);
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
 
     return () => {
+      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url]);
+  }, [url, visible]);
 
   async function handleOpen(event) {
     if (src) return;
@@ -63,7 +97,7 @@ function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" })
   };
 
   return (
-    <div className="flex w-full flex-col gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+    <div ref={rootRef} className="flex w-full flex-col gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
       {label ? <span className={`${ui.small} font-semibold text-slate-700`}>{label}</span> : null}
       {failed ? (
         <div className={`${className} mx-auto grid w-full max-w-[8rem] place-items-center rounded border border-dashed border-slate-300 bg-white px-2 text-center text-[0.65rem] font-medium text-slate-500`}>
@@ -75,6 +109,8 @@ function SecureArtworkThumb({ url, mime, name, label, className = "h-14 w-14" })
             <img
               src={src}
               alt={name || "Artwork"}
+              decoding="async"
+              loading="lazy"
               className={`${className} mx-auto w-full max-w-[8rem] rounded border border-slate-200 object-contain`}
             />
           ) : (

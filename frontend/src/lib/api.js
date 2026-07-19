@@ -99,6 +99,10 @@ export const walletApi = {
   request: (body, options) => api("/api/wallet/wallet-request", { method: "POST", body, ...options }),
 };
 
+export const feedbackApi = {
+  submit: (body, options) => api("/api/feedback/complaint", { method: "POST", body, ...options }),
+};
+
 export const adminApi = {
   navCounts: () => api("/api/admin/nav-counts"),
   backupStatus: () => api("/api/admin/backup/status"),

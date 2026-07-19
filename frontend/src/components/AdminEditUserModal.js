@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminApi } from "@/lib/api";
+import { adminApi, formatRupees } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
@@ -18,6 +18,10 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
     gstNumber: "",
   });
   const [saving, setSaving] = useState(false);
+  const [showOutstanding, setShowOutstanding] = useState(false);
+  const [outstandingAmount, setOutstandingAmount] = useState("");
+  const [addingOutstanding, setAddingOutstanding] = useState(false);
+  const [currentOutstanding, setCurrentOutstanding] = useState(0);
 
   useEffect(() => {
     if (!account) return;
@@ -32,6 +36,9 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
       courierName3: account.courierName3 || "",
       gstNumber: account.gstNumber || "",
     });
+    setCurrentOutstanding(Number(account.previousOutstanding || 0));
+    setShowOutstanding(false);
+    setOutstandingAmount("");
   }, [account]);
 
   if (!account) return null;
@@ -69,10 +76,35 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
     }
   }
 
+  async function handleAddOutstanding() {
+    const amount = Number(outstandingAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid old outstanding amount.");
+      return;
+    }
+    setAddingOutstanding(true);
+    try {
+      const data = await adminApi.addOutstanding(
+        account.id,
+        { amount, label: "Old Outstanding" },
+        { silent: true }
+      );
+      const next = Number(data.account?.previousOutstanding ?? currentOutstanding + amount);
+      setCurrentOutstanding(next);
+      setOutstandingAmount("");
+      toast.success(`Old outstanding added. Current: ${formatRupees(next)}`);
+      onSaved?.();
+    } catch (error) {
+      toast.error(error.message || "Could not add outstanding.");
+    } finally {
+      setAddingOutstanding(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -123,6 +155,50 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
             <span className={ui.label}>Courier / Garaj Name 3</span>
             <input className={ui.input} value={form.courierName3} onChange={(e) => update("courierName3", e.target.value)} placeholder="Optional" />
           </label>
+
+          <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Customer Outstanding</p>
+                <p className={`${ui.small} ${ui.muted}`}>
+                  Current: <strong>{formatRupees(currentOutstanding)}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                className={btnClass("amber", true)}
+                onClick={() => setShowOutstanding((open) => !open)}
+              >
+                {showOutstanding ? "Hide" : "Add Old Outstanding"}
+              </button>
+            </div>
+            {showOutstanding ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                <label className={ui.field}>
+                  <span className={ui.label}>Old outstanding amount</span>
+                  <input
+                    className={ui.input}
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="e.g. 5000"
+                    value={outstandingAmount}
+                    onChange={(e) => setOutstandingAmount(e.target.value)}
+                    disabled={addingOutstanding}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={btnClass("amber")}
+                  disabled={addingOutstanding}
+                  onClick={handleAddOutstanding}
+                >
+                  {addingOutstanding ? "Adding..." : "Add Outstanding"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+
           <div className="sm:col-span-2 flex justify-end gap-2">
             <button type="button" className={btnClass("secondary")} onClick={onClose} disabled={saving}>Cancel</button>
             <button type="submit" className={btnClass("primary")} disabled={saving}>

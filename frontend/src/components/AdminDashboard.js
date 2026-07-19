@@ -10,6 +10,7 @@ const QUICK_LINKS = [
   { id: "payments", label: "Payment Requests", desc: "Review and approve UPI payments", countKey: "payments" },
   { id: "payment", label: "Receipt", desc: "Record receipt for a customer" },
   { id: "orders", label: "Orders", desc: "Dispatch and mark orders delivered", countKey: "orders" },
+  { id: "order-history", label: "Order History", desc: "Customer-wise order history (same as customer panel)" },
   { id: "catalog", label: "Order Catalog", desc: "Paper GSM, sizes, quantities & rates" },
   { id: "rates", label: "Rates", desc: "View all saved combination prices" },
   { id: "qr", label: "Payment QR", desc: "UPI QR for customer payments" },

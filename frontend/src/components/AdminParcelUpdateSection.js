@@ -49,9 +49,14 @@ function SingleParcelUpdateForm({ onRefresh, onUpdated }) {
         dispatchDate: dispatchDate || todayInputValue(),
       };
       const data = await adminApi.updateSingleParcel(overrides, { silent: true });
+      const slipOverrides = {
+        ...overrides,
+        cutting: data.cutting || "",
+        finish: data.finish || "",
+      };
 
-      await downloadOrderSlipImage(data, overrides);
-      const { opened } = notifyCustomerDispatch(data, overrides);
+      await downloadOrderSlipImage(data, slipOverrides);
+      const { opened } = notifyCustomerDispatch(data, slipOverrides);
 
       if (opened) {
         toast.success(`Updated ${data.orderNumber}. Order image downloaded — WhatsApp opened.`);

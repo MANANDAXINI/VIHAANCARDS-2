@@ -96,6 +96,8 @@ function ReviewContent() {
                   ["Size", order.size],
                   ["Quantity", order.quantity],
                   ["Printing Side", order.printingSide],
+                  ...(order.cutting ? [["Cutting", order.cutting]] : []),
+                  ...(order.finish ? [["Other Requirements", order.finish]] : []),
                   ["Artwork", order.artworkName || "Uploaded"],
                   ["Order Amount", formatRupees(order.amount || review.orderAmount)],
                   ...(needsPayment

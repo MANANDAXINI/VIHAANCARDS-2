@@ -7,6 +7,7 @@ import {
   formatLedgerBalance,
   formatLedgerCredit,
   formatLedgerDebit,
+  formatLedgerNarration,
   formatLedgerTableDate,
 } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
@@ -161,7 +162,7 @@ export default function AdminCustomerLedgerSection({ accounts = [], onDataChange
 
   function startEdit(entry) {
     setEditingId(entry.id);
-    setEditLabel(entry.label || "");
+    setEditLabel(formatLedgerNarration(entry.label));
     setEditDate(toDateInputValue(entry.entryDate));
     setEditDebit(entry.debit ? String(entry.debit) : "");
     setEditCredit(entry.credit ? String(entry.credit) : "");
@@ -454,7 +455,7 @@ export default function AdminCustomerLedgerSection({ accounts = [], onDataChange
                       ) : (
                         <>
                           <td className={ui.td}>{formatLedgerTableDate(entry.entryDate)}</td>
-                          <td className={ui.td}>{entry.label}</td>
+                          <td className={ui.td}>{formatLedgerNarration(entry.label)}</td>
                           <td className={ui.td}>{formatLedgerDebit(entry)}</td>
                           <td className={ui.td}>{formatLedgerCredit(entry)}</td>
                           <td className={ui.td}>{formatLedgerBalance(entry)}</td>

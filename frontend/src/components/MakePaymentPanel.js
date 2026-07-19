@@ -32,6 +32,7 @@ export default function MakePaymentPanel({
   orderSummary = null,
   backHref = "/account",
   backLabel = "Back to Account",
+  showBack = true,
   submitting = false,
   onSubmit,
   submitDisabled = false,
@@ -39,7 +40,8 @@ export default function MakePaymentPanel({
 }) {
   const note = paymentNote || `Pay the amount below and send your payment screenshot to ${WHATSAPP_NUMBER} for admin approval.`;
   const totalOutstanding = Number(outstandingTotal ?? maxAmount ?? amount) || 0;
-  const payCap = Number(maxAmount ?? amount) || 0;
+  const hasPayCap = maxAmount !== undefined && maxAmount !== null && Number.isFinite(Number(maxAmount));
+  const payCap = hasPayCap ? Math.max(0, Number(maxAmount) || 0) : 0;
   const payAmount = Number(amount) || 0;
 
   // Amount-wise UPI QR: regenerates whenever the pay amount changes so the
@@ -55,11 +57,12 @@ export default function MakePaymentPanel({
       onAmountChange(0);
       return;
     }
-    onAmountChange(Math.min(Math.max(0, next), payCap));
+    const clamped = Math.max(0, next);
+    onAmountChange(hasPayCap ? Math.min(clamped, payCap) : clamped);
   }
 
   function payFullAmount() {
-    if (onAmountChange) onAmountChange(payCap);
+    if (onAmountChange && hasPayCap) onAmountChange(payCap);
   }
 
   return (
@@ -99,7 +102,9 @@ export default function MakePaymentPanel({
           </div>
         ) : null}
 
-        <Link href={backHref} className={`${btnClass("ghost")} w-fit`}>{backLabel}</Link>
+        {showBack ? (
+          <Link href={backHref} className={`${btnClass("ghost")} w-fit`}>{backLabel}</Link>
+        ) : null}
       </section>
 
       <form
@@ -121,7 +126,7 @@ export default function MakePaymentPanel({
             className={`${ui.input} border-amber-300 bg-amber-50 font-bold text-amber-950`}
             type="number"
             min="1"
-            max={payCap || undefined}
+            max={hasPayCap ? payCap || undefined : undefined}
             step="1"
             value={payAmount || ""}
             readOnly={!amountEditable}
@@ -129,7 +134,7 @@ export default function MakePaymentPanel({
           />
         </label>
 
-        {amountEditable && payCap > 0 ? (
+        {amountEditable && hasPayCap && payCap > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className={btnClass("ghost", true)} onClick={payFullAmount}>
               Pay full {formatRupees(payCap)}

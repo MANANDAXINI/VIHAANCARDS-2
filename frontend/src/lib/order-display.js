@@ -9,6 +9,13 @@ export function formatLedgerTableDate(value) {
   return `${day}-${month}-${year}`;
 }
 
+/** Strip legacy "Other Charges:" prefix from ledger narration for display. */
+export function formatLedgerNarration(label) {
+  const text = String(label || "").trim();
+  if (!text) return "—";
+  return text.replace(/^Other Charges:\s*/i, "").trim() || text;
+}
+
 export function formatOrderDisplayNumber(order) {
   if (order?.orderNumber) return order.orderNumber;
   if (order?.pendingApproval) return "After Approval";
@@ -17,10 +24,18 @@ export function formatOrderDisplayNumber(order) {
 
 export function formatOrderDescription(order) {
   if (!order) return "—";
-  return `${order.paperGsm || "—"}, ${order.size || "—"}, ${order.printingSide || "—"}`;
+  // Cutting is shown separately (label + value) on admin / slip — keep specs clean.
+  const parts = [
+    order.paperGsm || "—",
+    order.size || "—",
+    order.printingSide || "—",
+  ];
+  if (order.finish) parts.push(order.finish);
+  return parts.join(", ");
 }
 
 export const JOB_VERIFIED_LABEL = "PAYMENT VERIFIED AND JOB MOVED TO NEXT PROCESS";
+export const JOB_LIMIT_USED_LABEL = "LIMIT USED AND JOB MOVED TO NEXT PROCESS";
 export const JOB_PRINTING_LABEL = "PRINTING AND OTHER PROCESS STARTED";
 export const JOB_PROCESS_STARTED_LABEL = "PRINTING & OTHER PROCESS STARTED";
 
@@ -33,12 +48,14 @@ export function isOrderCompletedStatus(status) {
   return s === "DISPATCHED" || s === "COMPLETED";
 }
 
-export function formatJobProcess(status) {
+export function formatJobProcess(status, options = {}) {
   const s = String(status || "").toUpperCase();
   if (isOrderCompletedStatus(s)) return ORDER_COMPLETED_LABEL;
   if (s === "PRINTING_PROCESS_STARTED") return JOB_PROCESS_STARTED_LABEL;
   if (s === "IN_PRINTING") return JOB_PRINTING_LABEL;
-  if (s === "PAYMENT_VERIFIED") return JOB_VERIFIED_LABEL;
+  if (s === "PAYMENT_VERIFIED") {
+    return options.hasCreditLimit ? JOB_LIMIT_USED_LABEL : JOB_VERIFIED_LABEL;
+  }
   if (s === "PENDING" || s === "PAYMENT_SUBMITTED" || s === "PAYMENT_PENDING") return "Pending";
   return "Pending";
 }
@@ -47,9 +64,24 @@ export function isPendingPaymentOrder(order) {
   return Boolean(order?.pendingApproval || order?.pendingPayment);
 }
 
-export function formatJobProcessForOrder(order) {
+export function accountHasCreditLimit(accountOrOrder) {
+  return Number(accountOrOrder?.creditLimit || accountOrOrder?.accountCreditLimit || 0) > 0;
+}
+
+export function formatJobProcessForOrder(order, options = {}) {
   if (isPendingPaymentOrder(order)) return "Pending";
-  return formatJobProcess(order?.status);
+  // Per-order payment mode wins; otherwise fall back to account credit limit.
+  let usedCredit;
+  if (order?.paidWithCredit === true) {
+    usedCredit = true;
+  } else if (order?.paidWithCredit === false) {
+    usedCredit = false;
+  } else if (options.hasCreditLimit !== undefined) {
+    usedCredit = Boolean(options.hasCreditLimit);
+  } else {
+    usedCredit = accountHasCreditLimit(options.account) || accountHasCreditLimit(order);
+  }
+  return formatJobProcess(order?.status, { hasCreditLimit: usedCredit });
 }
 
 export function jobProcessClassForOrder(order) {
@@ -184,6 +216,8 @@ export function mergeOrderHistory(orders = [], pendingRequests = []) {
         size: d.size,
         quantity: d.quantity,
         printingSide: d.printingSide,
+        finish: d.finish || "",
+        cutting: d.cutting || "",
         amount: Number(d.amount) || Number(req.amount) || 0,
         artworkName: d.artworkName,
         artworkPath: d.artworkPath,

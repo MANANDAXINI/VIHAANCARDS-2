@@ -22,6 +22,11 @@ const OTHER_REQUIREMENT_OPTIONS = [
   "PERFORATION",
 ];
 
+const CUTTING_OPTIONS = [
+  "Flash Cut",
+  "White border",
+];
+
 const SUPERFAST_MIN_AMOUNT = 3000;
 const SUPERFAST_CHARGE = 400;
 
@@ -38,6 +43,7 @@ export default function OrderPage() {
   const [artworkBack, setArtworkBack] = useState(null);
   const [transportDetails, setTransportDetails] = useState("");
   const [otherRequirement, setOtherRequirement] = useState("");
+  const [cutting, setCutting] = useState("");
   const [superfastDelivery, setSuperfastDelivery] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [quotedAmount, setQuotedAmount] = useState(0);
@@ -251,6 +257,9 @@ export default function OrderPage() {
     if (otherRequirement.trim()) {
       formData.append("finish", otherRequirement.trim());
     }
+    if (cutting.trim()) {
+      formData.append("cutting", cutting.trim());
+    }
     formData.append("superfastDelivery", superfastApplied ? "true" : "false");
     if (selectedPaper?.name) {
       formData.append("product", selectedPaper.name);
@@ -423,6 +432,19 @@ export default function OrderPage() {
                 >
                   <option value="">None</option>
                   {OTHER_REQUIREMENT_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>Cutting</label>
+                <select
+                  className={ui.input}
+                  value={cutting}
+                  onChange={(e) => setCutting(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {CUTTING_OPTIONS.map((option) => (
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>

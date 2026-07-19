@@ -165,6 +165,9 @@ function AccountContent() {
               <p className={ui.muted}>{pageDescription}</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Link href="/complaint" className={btnClass("amber")}>
+                Register Complaint / Suggestion
+              </Link>
               <button
                 type="button"
                 className={btnClass("secondary")}
@@ -199,7 +202,11 @@ function AccountContent() {
               </div>
 
               {activeTab === "orders" ? (
-                <OrderHistoryLedger orders={paged.items} activeTab="orders" />
+                <OrderHistoryLedger
+                  orders={paged.items}
+                  activeTab="orders"
+                  hasCreditLimit={Number(account?.creditLimit || user?.creditLimit || 0) > 0}
+                />
               ) : activeTab === "payments" ? (
                 <OrderHistoryLedger ledgerEntries={paged.items} activeTab="payments" />
               ) : (
@@ -218,6 +225,9 @@ function AccountContent() {
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/order" className={btnClass("primary")}>New Order</Link>
             <Link href="/payment/outstanding" className={btnClass("amber")}>Make Payment</Link>
+            <Link href="/complaint" className={btnClass("secondary")}>
+              Register Complaint / Suggestion
+            </Link>
           </div>
         </div>
       </main>

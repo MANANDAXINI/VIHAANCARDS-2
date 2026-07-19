@@ -210,6 +210,7 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
                   ledgerEntries={ledgerEntries}
                   orders={orders}
                   activeTab={activeTab}
+                  hasCreditLimit={Number(account?.creditLimit || 0) > 0}
                 />
               )}
             </div>

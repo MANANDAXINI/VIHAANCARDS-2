@@ -19,13 +19,14 @@ function upper(value) {
   return String(value || "—").trim().toUpperCase() || "—";
 }
 
-function buildProductLine(order) {
+function buildProductLine(order, overrides = {}) {
   const product = String(order.product || "LEAFLET / PAMPLET").trim();
   const paperGsm = String(order.paperGsm || "").trim();
   const size = String(order.size || "").trim();
   const side = String(order.printingSide || "").trim();
   const qty = Number(order.quantity || 0);
-  const finish = String(order.finish || "").trim();
+  const finish = String(overrides.finish || order.finish || "").trim();
+  const cutting = String(overrides.cutting || order.cutting || "").trim();
 
   const parts = [];
   if (paperGsm && paperGsm.toUpperCase() !== product.toUpperCase()) {
@@ -34,6 +35,7 @@ function buildProductLine(order) {
   if (size) parts.push(size);
   if (side) parts.push(side);
   if (qty > 0) parts.push(`QTY: ${qty.toLocaleString("en-IN")}`);
+  if (cutting) parts.push(cutting);
   if (finish) parts.push(finish);
 
   const specs = parts.join(", ");
@@ -140,7 +142,8 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
   ]);
 
   const width = 920;
-  const height = 620;
+  // Extra height so Cutting / Other Requirements fit below transportation details.
+  const height = 700;
   const margin = 16;
   const innerX = margin;
   const innerY = margin;
@@ -245,12 +248,21 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
     FONTS.customerValue
   );
 
-  const otherRequirement = upper(overrides.finish || order.finish || "");
-  if (otherRequirement && otherRequirement !== "—") {
+  // Label "CUTTING", then selected value on the next line (Flash Cut / White border).
+  const cuttingRaw = String(overrides.cutting || order.cutting || "").trim();
+  if (cuttingRaw) {
+    nextY += 32;
+    drawCenteredText(ctx, "CUTTING", leftX, nextY, leftW, FONTS.label);
+    nextY += 30;
+    drawCenteredText(ctx, upper(cuttingRaw), leftX, nextY, leftW, FONTS.customerValue);
+  }
+
+  const otherRequirement = String(overrides.finish || order.finish || "").trim();
+  if (otherRequirement) {
     nextY += 30;
     drawCenteredText(ctx, "OTHER REQUIREMENTS", leftX, nextY, leftW, FONTS.label);
     nextY += 28;
-    drawCenteredText(ctx, otherRequirement, leftX, nextY, leftW, FONTS.customerValue);
+    drawCenteredText(ctx, upper(otherRequirement), leftX, nextY, leftW, FONTS.customerValue);
   }
 
   const notesText = String(overrides.notes || order.notes || "");
@@ -310,7 +322,7 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
   strokeRect(ctx, innerX, footerY, innerW, footerH, 2.5);
   drawCenteredText(
     ctx,
-    upper(buildProductLine(order)),
+    upper(buildProductLine(order, overrides)),
     innerX,
     footerY + footerH / 2,
     innerW,
@@ -322,16 +334,11 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
 }
 
 function orderSlipFilename(order) {
-  const parts = [
-    order?.orderNumber || "ORDER",
-    order?.paperGsm,
-    order?.size,
-    order?.quantity,
-    String(order?.printingSide || "").toUpperCase(),
-  ]
-    .map((part) => String(part || "").trim().replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " "))
-    .filter(Boolean);
-  return `${parts.join("_")}.png`;
+  // Match folder convention: PD-00104_job_order.png
+  const orderNo = String(order?.orderNumber || "ORDER")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "_");
+  return `${orderNo || "ORDER"}_job_order.png`;
 }
 
 // Renders the order slip and returns it as a PNG blob (for saving into a folder).

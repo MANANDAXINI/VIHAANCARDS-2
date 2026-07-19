@@ -16,6 +16,7 @@ import AdminCustomerCreditOverview from "@/components/AdminCustomerCreditOvervie
 import AdminReceivePaymentSection from "@/components/AdminReceivePaymentSection";
 import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
+import AdminCustomerOrderHistorySection from "@/components/AdminCustomerOrderHistorySection";
 import AdminEditUserModal from "@/components/AdminEditUserModal";
 import AdminOtherChargesSection from "@/components/AdminOtherChargesSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
@@ -107,11 +108,7 @@ export default function AdminPage() {
   useAdminTableState(paymentsSearch, setPaymentsPage);
   useAdminTableState(walletSearch, setWalletPage);
 
-  useEffect(() => {
-    if (isAdmin(user)) load();
-  }, [user]);
-
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const [p, a, w, o, countsData, resetData] = await Promise.all([
         adminApi.pendingAccounts(),
@@ -126,16 +123,47 @@ export default function AdminPage() {
       setWalletRequests(w.requests);
       setPayments(w.requests.filter((r) => r.status === "PENDING"));
       setOrders(o.orders);
-      setNavCounts(countsData.counts || navCounts);
+      setNavCounts(countsData.counts || {});
       setPasswordResets(resetData.resets || []);
     } catch (error) {
       toast.error(error.message);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin(user)) load();
+  }, [user, load]);
 
   const handleAdminAlert = useCallback(() => {
+    // Don't interrupt typing — refresh after the field blur / next tick of idle.
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    const tag = active?.tagName;
+    const typing =
+      tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || active?.isContentEditable;
+    if (typing) {
+      const retry = () => {
+        const still = document.activeElement;
+        const stillTag = still?.tagName;
+        if (
+          stillTag === "INPUT" ||
+          stillTag === "TEXTAREA" ||
+          stillTag === "SELECT" ||
+          still?.isContentEditable
+        ) {
+          still.addEventListener("blur", () => load(), { once: true });
+          return;
+        }
+        load();
+      };
+      window.setTimeout(retry, 400);
+      return;
+    }
     load();
-  }, [user]);
+  }, [load]);
+
+  const handleOrderDispatched = useCallback(() => {
+    setOrdersSubTab("completed-orders");
+  }, []);
 
   async function handleAdminLogin(event) {
     event.preventDefault();
@@ -830,7 +858,7 @@ export default function AdminPage() {
                   orders={orders}
                   view={ordersSubTab === "completed-orders" ? "completed" : "pending"}
                   onRefresh={load}
-                  onOrderDispatched={() => setOrdersSubTab("completed-orders")}
+                  onOrderDispatched={handleOrderDispatched}
                 />
               )}
 
@@ -839,6 +867,10 @@ export default function AdminPage() {
 
           {activeTab === "customer-ledger" && (
             <AdminCustomerLedgerSection accounts={accounts} onDataChange={load} />
+          )}
+
+          {activeTab === "order-history" && (
+            <AdminCustomerOrderHistorySection accounts={accounts} />
           )}
 
           {activeTab === "outstanding" && <AdminOutstandingSection />}

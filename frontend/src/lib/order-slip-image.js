@@ -1,4 +1,5 @@
 import { fetchArtworkBlob } from "@/lib/artwork-save";
+import { isPdfArtwork, loadPdfAsImage } from "@/lib/pdf-preview";
 
 const MAROON = "#8B1A1A";
 const ORDER_BOX_FILL = "#ececec";
@@ -42,10 +43,16 @@ function buildProductLine(order, overrides = {}) {
   return specs ? `${product} - ${specs}` : product;
 }
 
-async function loadArtworkImage(url) {
+async function loadArtworkImage(url, mime, name) {
   if (!url) return null;
   try {
     const blob = await fetchArtworkBlob(url);
+
+    // PDF artwork: render page 1 so packing slip shows this job's file, not a fake mosaic.
+    if (isPdfArtwork(mime, name) || String(blob.type || "").toLowerCase() === "application/pdf") {
+      return loadPdfAsImage(blob, { maxWidth: 900, cacheKey: `slip:${url}` });
+    }
+
     const objectUrl = URL.createObjectURL(blob);
     return new Promise((resolve) => {
       const img = new Image();
@@ -53,9 +60,11 @@ async function loadArtworkImage(url) {
         URL.revokeObjectURL(objectUrl);
         resolve(img);
       };
-      img.onerror = () => {
+      img.onerror = async () => {
         URL.revokeObjectURL(objectUrl);
-        resolve(null);
+        // Some servers serve PDF with wrong mime — try PDF render as fallback.
+        const pdfImg = await loadPdfAsImage(blob, { maxWidth: 900, cacheKey: `slip-fb:${url}` });
+        resolve(pdfImg);
       };
       img.src = objectUrl;
     });
@@ -100,17 +109,14 @@ function drawImageContain(ctx, img, x, y, width, height) {
 }
 
 function drawArtworkPlaceholder(ctx, x, y, width, height) {
-  const colors = ["#b8d4e8", "#f5e6a8", "#f8c8dc", "#c8e6c9", "#ffe0b2", "#d1c4e9"];
-  const cols = 2;
-  const rows = 3;
-  const cellW = width / cols;
-  const cellH = height / rows;
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
-      ctx.fillStyle = colors[(row * cols + col) % colors.length];
-      ctx.fillRect(x + col * cellW + 2, y + row * cellH + 2, cellW - 4, cellH - 4);
-    }
-  }
+  // Plain unavailable state — never draw a colorful mosaic (looked like wrong job artwork).
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+  drawCenteredText(ctx, "ARTWORK PREVIEW", x, y + height / 2 - 12, width, FONTS.sideLabel, "#64748b");
+  drawCenteredText(ctx, "UNAVAILABLE", x, y + height / 2 + 12, width, FONTS.sideLabel, "#64748b");
 }
 
 function strokeRect(ctx, x, y, width, height, lineWidth = 1.5) {
@@ -137,8 +143,8 @@ async function renderOrderSlipCanvas(order, overrides = {}) {
   if (typeof document === "undefined") return null;
 
   const [frontImg, backImg] = await Promise.all([
-    loadArtworkImage(order.artworkUrl),
-    loadArtworkImage(order.artworkBackUrl),
+    loadArtworkImage(order.artworkUrl, order.artworkMime, order.artworkName),
+    loadArtworkImage(order.artworkBackUrl, order.artworkBackMime, order.artworkBackName),
   ]);
 
   const width = 920;

@@ -107,12 +107,32 @@ function ArtworkFileRow({ label, url, name, mime, downloaded }) {
 
 function DispatchForm({ order, onSaved, onOrderDispatched }) {
   // Uncontrolled inputs: keystrokes stay in the DOM and never re-render the heavy order card.
+  const formRef = useRef(null);
   const lrRef = useRef(null);
   const transportRef = useRef(null);
   const dateRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [completing, setCompleting] = useState(false);
   const dispatched = ["DISPATCHED", "PRINTING_PROCESS_STARTED", "COMPLETED"].includes(String(order.status || "").toUpperCase());
+
+  // Tell admin alert refresh to wait while dispatch fields are focused.
+  useEffect(() => {
+    const root = formRef.current;
+    if (!root) return undefined;
+    const mark = () => {
+      window.__pdAdminTyping = true;
+    };
+    const clear = () => {
+      window.__pdAdminTyping = false;
+    };
+    root.addEventListener("focusin", mark);
+    root.addEventListener("focusout", clear);
+    return () => {
+      root.removeEventListener("focusin", mark);
+      root.removeEventListener("focusout", clear);
+      window.__pdAdminTyping = false;
+    };
+  }, []);
 
   function readOverrides() {
     return {
@@ -140,9 +160,9 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
       const { opened } = notifyCustomerDispatch(updatedOrder, overrides);
 
       if (opened) {
-        toast.success("Dispatch saved — WhatsApp opened for customer.");
+        toast.success("Dispatch saved — WhatsApp opened. Order moved to Completed Orders.");
       } else {
-        toast.success("Dispatch saved. Customer phone not available for WhatsApp.");
+        toast.success("Dispatch saved. Order moved to Completed Orders.");
       }
 
       const newStatus = String(response.order?.status || "").toUpperCase();
@@ -158,26 +178,25 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
   }
 
   async function handleJobCompleted() {
+    // WhatsApp notify only — do NOT mark completed / move to Completed Orders.
+    // Order moves to Completed only after Save/Update with dispatch (LR) details.
     setCompleting(true);
     try {
       const { opened } = notifyCustomerJobCompleted(order);
-      await adminApi.updateOrderStatus(order.id, { status: "COMPLETED" }, { silent: true });
       toast.success(
         opened
-          ? "Marked as Job Completed — WhatsApp opened for customer."
-          : "Marked as Job Completed. Customer phone not available for WhatsApp."
+          ? "Job-completed WhatsApp message opened for customer."
+          : "Customer phone not available for WhatsApp."
       );
-      await Promise.resolve(onSaved?.());
-      onOrderDispatched?.();
     } catch (error) {
-      toast.error(error.message || "Could not update status.");
+      toast.error(error.message || "Could not open WhatsApp.");
     } finally {
       setCompleting(false);
     }
   }
 
   return (
-    <div className="grid w-full gap-2">
+    <div ref={formRef} className="grid w-full gap-2">
       <label className="grid gap-1">
         <span className={`${ui.small} font-semibold text-slate-700`}>LR Number</span>
         <input
@@ -186,6 +205,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
           defaultValue={order.lrNumber || ""}
           placeholder="LR / Bilty no."
           autoComplete="off"
+          spellCheck={false}
         />
       </label>
       <label className="grid gap-1">
@@ -196,6 +216,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
           defaultValue={order.transportDetails || ""}
           placeholder="Courier, bus, transport..."
           autoComplete="off"
+          spellCheck={false}
         />
       </label>
       <label className="grid gap-1">
@@ -221,7 +242,7 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
         disabled={completing}
         onClick={handleJobCompleted}
       >
-        {completing ? "Updating..." : "Job Completed (WhatsApp)"}
+        {completing ? "Opening..." : "Job Completed (WhatsApp)"}
       </button>
     </div>
   );
@@ -481,7 +502,23 @@ const OrderProcessingCard = memo(function OrderProcessingCard({ order, onRefresh
       </div>
     </article>
   );
-});
+}, (prev, next) => (
+  prev.onRefresh === next.onRefresh
+  && prev.onOrderDispatched === next.onOrderDispatched
+  && prev.order.id === next.order.id
+  && prev.order.status === next.order.status
+  && prev.order.paymentStatus === next.order.paymentStatus
+  && prev.order.lrNumber === next.order.lrNumber
+  && prev.order.transportDetails === next.order.transportDetails
+  && prev.order.dispatchDate === next.order.dispatchDate
+  && prev.order.artworkDownloaded === next.order.artworkDownloaded
+  && prev.order.artworkBackDownloaded === next.order.artworkBackDownloaded
+  && prev.order.artworkUrl === next.order.artworkUrl
+  && prev.order.artworkBackUrl === next.order.artworkBackUrl
+  && prev.order.amount === next.order.amount
+  && prev.order.cutting === next.order.cutting
+  && prev.order.paidWithCredit === next.order.paidWithCredit
+));
 
 export default function AdminOrderProcessingSection({
   orders = [],
@@ -525,7 +562,7 @@ export default function AdminOrderProcessingSection({
         <h3 className={isPendingView && count > 0 ? pendingSectionTitleClass(true) : ui.adminH3}>
           {title} ({count})
         </h3>
-        <div className="w-full sm:max-w-xs">
+        <div className="w-full sm:max-w-xs" onFocusCapture={() => { window.__pdAdminTyping = true; }} onBlurCapture={() => { window.__pdAdminTyping = false; }}>
           <AdminSearchBar value={search} onChange={setSearch} placeholder="Search orders..." />
         </div>
       </div>

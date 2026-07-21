@@ -135,30 +135,37 @@ export default function AdminPage() {
   }, [user, load]);
 
   const handleAdminAlert = useCallback(() => {
-    // Don't interrupt typing — refresh after the field blur / next tick of idle.
+    // Never refresh while admin is typing in dispatch / search fields.
     const active = typeof document !== "undefined" ? document.activeElement : null;
     const tag = active?.tagName;
     const typing =
-      tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || active?.isContentEditable;
+      window.__pdAdminTyping
+      || tag === "INPUT"
+      || tag === "TEXTAREA"
+      || tag === "SELECT"
+      || active?.isContentEditable;
+
     if (typing) {
-      const retry = () => {
-        const still = document.activeElement;
-        const stillTag = still?.tagName;
-        if (
-          stillTag === "INPUT" ||
-          stillTag === "TEXTAREA" ||
-          stillTag === "SELECT" ||
-          still?.isContentEditable
-        ) {
-          still.addEventListener("blur", () => load(), { once: true });
-          return;
-        }
-        load();
+      const onBlur = () => {
+        window.setTimeout(() => {
+          if (!window.__pdAdminTyping) load();
+        }, 300);
       };
-      window.setTimeout(retry, 400);
+      if (active && (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")) {
+        active.addEventListener("blur", onBlur, { once: true });
+      } else {
+        window.setTimeout(() => {
+          if (!window.__pdAdminTyping) load();
+        }, 1500);
+      }
       return;
     }
-    load();
+
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(() => load(), { timeout: 2000 });
+    } else {
+      window.setTimeout(() => load(), 200);
+    }
   }, [load]);
 
   const handleOrderDispatched = useCallback(() => {

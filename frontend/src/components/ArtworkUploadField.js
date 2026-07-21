@@ -108,7 +108,7 @@ export default function ArtworkUploadField({
                 <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
                 <p className={`${ui.small} ${ui.muted}`}>
                   {(file.size / 1024).toFixed(0)} KB
-                  {isPdf ? " — PDF preview not available" : ""}
+                  {isPdf ? " — PDF" : ""}
                 </p>
               </div>
             </div>

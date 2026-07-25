@@ -132,6 +132,13 @@ export const adminApi = {
   deliver: (id, options) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT", ...options }),
   cancelOrder: (id, options) => api(`/api/admin/orders/${id}`, { method: "DELETE", ...options }),
   dayBook: (date) => api(`/api/admin/day-book${date ? `?date=${encodeURIComponent(date)}` : ""}`),
+  receipts: ({ fromDate, toDate } = {}) => {
+    const params = new URLSearchParams();
+    if (fromDate) params.set("fromDate", fromDate);
+    if (toDate) params.set("toDate", toDate);
+    const query = params.toString();
+    return api(`/api/admin/receipts${query ? `?${query}` : ""}`);
+  },
   customerLedger: (accountId, { fromDate, toDate } = {}) => {
     const params = new URLSearchParams();
     if (fromDate) params.set("fromDate", fromDate);

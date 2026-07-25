@@ -1,6 +1,7 @@
 "use client";
 
-import { formatRupees } from "@/lib/api";
+import { useState } from "react";
+import { catalogApi, formatRupees } from "@/lib/api";
 import { OrderArtworkCell } from "@/components/OrderArtworkThumb";
 import {
   formatDespatchLabel,
@@ -16,7 +17,9 @@ import {
   isPendingPaymentOrder,
   jobProcessClassForOrder,
 } from "@/lib/order-display";
-import { ui } from "@/lib/ui";
+import { downloadOrderBill, resolveHsnFromCatalog } from "@/lib/order-bill";
+import { toast } from "@/lib/toast";
+import { btnClass, isOrderDispatched, ui } from "@/lib/ui";
 
 function CustomerPaymentsTable({ ledgerEntries = [] }) {
   const payments = ledgerEntries.filter((entry) => Number(entry.credit || 0) > 0);
@@ -88,8 +91,33 @@ function PaymentLedgerTable({ ledgerEntries = [], offset = 0 }) {
   );
 }
 
-function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
+function canDownloadBill(order) {
+  if (!order || isPendingPaymentOrder(order)) return false;
+  return isOrderDispatched(order.status);
+}
+
+function OrderHistoryTable({ orders = [], hasCreditLimit = false, account = null }) {
   const jobOptions = { hasCreditLimit };
+  const [billingId, setBillingId] = useState(null);
+  const [catalogCache, setCatalogCache] = useState(null);
+
+  async function handleDownloadBill(order) {
+    if (!canDownloadBill(order)) return;
+    setBillingId(order.id);
+    try {
+      let catalog = catalogCache;
+      if (!catalog) {
+        catalog = await catalogApi.get();
+        setCatalogCache(catalog);
+      }
+      const hsnCode = resolveHsnFromCatalog(catalog, order);
+      downloadOrderBill({ order, account, hsnCode });
+    } catch (error) {
+      toast.error(error.message || "Could not generate bill.");
+    } finally {
+      setBillingId(null);
+    }
+  }
 
   return (
     <section className={ui.cardFlat}>
@@ -107,11 +135,12 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
               <th className={ui.th}>JOB PROCESS</th>
               <th className={ui.th}>DESPATCH</th>
               <th className={ui.th}>LR / BILTY / BUS / TRANSPORT</th>
+              <th className={ui.th}>BILL</th>
             </tr>
           </thead>
           <tbody>
             {orders.length === 0 ? (
-              <tr><td className={ui.td} colSpan="9">No orders yet.</td></tr>
+              <tr><td className={ui.td} colSpan="10">No orders yet.</td></tr>
             ) : (
               orders.map((order) => (
                 <tr key={order.id} className={isPendingPaymentOrder(order) ? "bg-amber-50/60" : ""}>
@@ -128,6 +157,20 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
                   </td>
                   <td className={ui.td}>{formatDespatchLabel(order)}</td>
                   <td className={ui.td}>{formatTransportLine(order)}</td>
+                  <td className={ui.td}>
+                    {canDownloadBill(order) ? (
+                      <button
+                        type="button"
+                        className={btnClass("secondary", true)}
+                        disabled={billingId === order.id}
+                        onClick={() => handleDownloadBill(order)}
+                      >
+                        {billingId === order.id ? "Preparing..." : "DOWNLOAD BILL"}
+                      </button>
+                    ) : (
+                      <span className={ui.muted}>—</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}
@@ -162,6 +205,16 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false }) {
                 <span className={ui.muted}>Transport</span>
                 <span>{formatTransportLine(order)}</span>
               </div>
+              {canDownloadBill(order) ? (
+                <button
+                  type="button"
+                  className={`${btnClass("secondary", true)} mt-2 w-full`}
+                  disabled={billingId === order.id}
+                  onClick={() => handleDownloadBill(order)}
+                >
+                  {billingId === order.id ? "Preparing..." : "DOWNLOAD BILL"}
+                </button>
+              ) : null}
             </li>
           ))
         )}
@@ -176,6 +229,7 @@ export default function OrderHistoryLedger({
   activeTab = "orders",
   offset = 0,
   hasCreditLimit = false,
+  account = null,
 }) {
   if (activeTab === "payments") {
     return <CustomerPaymentsTable ledgerEntries={ledgerEntries} />;
@@ -184,13 +238,23 @@ export default function OrderHistoryLedger({
     return <PaymentLedgerTable ledgerEntries={ledgerEntries} offset={offset} />;
   }
   if (activeTab === "orders") {
-    return <OrderHistoryTable orders={orders} hasCreditLimit={hasCreditLimit} />;
+    return (
+      <OrderHistoryTable
+        orders={orders}
+        hasCreditLimit={hasCreditLimit}
+        account={account}
+      />
+    );
   }
   return (
     <div className="grid gap-6">
       <CustomerPaymentsTable ledgerEntries={ledgerEntries} />
       <PaymentLedgerTable ledgerEntries={ledgerEntries} />
-      <OrderHistoryTable orders={orders} hasCreditLimit={hasCreditLimit} />
+      <OrderHistoryTable
+        orders={orders}
+        hasCreditLimit={hasCreditLimit}
+        account={account}
+      />
     </div>
   );
 }

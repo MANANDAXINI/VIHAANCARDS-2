@@ -78,3 +78,49 @@ export function notifyCustomerJobCompleted(order) {
   const opened = openWhatsAppToCustomer(order.customerPhone, message);
   return { opened, message };
 }
+
+export function buildReceiptWhatsAppMessage({
+  business,
+  customerName,
+  amount,
+  receiptNumber,
+  remainingOutstanding,
+}) {
+  const customer = business || customerName || "Customer";
+  const lines = [
+    "*PIXEL DIGITAL - Payment Receipt*",
+    "",
+    `Dear *${customer}*`,
+    "",
+    `We have received payment of *${formatRupees(amount)}*.`,
+  ];
+  if (receiptNumber) {
+    lines.push(`Receipt No: *${receiptNumber}*`);
+  }
+  lines.push(
+    "",
+    `Your remaining outstanding balance is *${formatRupees(remainingOutstanding)}*.`,
+    "",
+    "Thank you."
+  );
+  return lines.join("\n");
+}
+
+export function notifyCustomerReceipt({
+  phone,
+  business,
+  customerName,
+  amount,
+  receiptNumber,
+  remainingOutstanding,
+}) {
+  const message = buildReceiptWhatsAppMessage({
+    business,
+    customerName,
+    amount,
+    receiptNumber,
+    remainingOutstanding,
+  });
+  const opened = openWhatsAppToCustomer(phone, message);
+  return { opened, message };
+}

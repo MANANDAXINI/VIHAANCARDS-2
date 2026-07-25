@@ -91,10 +91,12 @@ export default function AdminOrderCatalogSection() {
   const [sideDraft, setSideDraft] = useState("");
   const [qtyDraft, setQtyDraft] = useState("");
   const [comboAmount, setComboAmount] = useState("");
+  const [hsnCode, setHsnCode] = useState("");
 
   const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [savingPaper, setSavingPaper] = useState(false);
+  const [savingHsn, setSavingHsn] = useState(false);
   const [savingRule, setSavingRule] = useState(false);
 
   const selectedPaper = paperTypes.find((p) => p.id === paperTypeId);
@@ -159,14 +161,20 @@ export default function AdminOrderCatalogSection() {
     }
   }, [activeRule?.id, activeRule?.amount, paperTypeId, sizeId, printingSideId, quantityId]);
 
+  useEffect(() => {
+    setHsnCode(selectedPaper?.hsnCode || "");
+  }, [selectedPaper?.id, selectedPaper?.hsnCode]);
+
   async function addPaper() {
     const name = window.prompt("Paper GSM name?", "");
     if (!name?.trim()) return;
+    const hsn = window.prompt("HSN CODE (optional)?", "") || "";
 
     setSavingPaper(true);
     try {
       const created = await adminCatalogApi.createPaperType({
         name: name.trim(),
+        hsnCode: hsn.trim(),
         availableQuantity: 100000,
         ratePerThousand: 0,
       });
@@ -196,11 +204,14 @@ export default function AdminOrderCatalogSection() {
       return;
     }
 
+    const hsn = window.prompt("HSN CODE?", selectedPaper.hsnCode || "") ?? selectedPaper.hsnCode || "";
+
     setSavingPaper(true);
     try {
       await adminCatalogApi.updatePaperType(paperTypeId, {
         name: name.trim(),
         availableQuantity,
+        hsnCode: String(hsn).trim(),
       });
       await loadAll();
       toast.success("Paper updated.");
@@ -208,6 +219,25 @@ export default function AdminOrderCatalogSection() {
       toast.error(e.message);
     } finally {
       setSavingPaper(false);
+    }
+  }
+
+  async function saveHsnCode() {
+    if (!paperTypeId) {
+      toast.error("Select a paper first.");
+      return;
+    }
+    setSavingHsn(true);
+    try {
+      await adminCatalogApi.updatePaperType(paperTypeId, {
+        hsnCode: hsnCode.trim(),
+      });
+      await loadAll();
+      toast.success("HSN CODE saved.");
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSavingHsn(false);
     }
   }
 
@@ -287,7 +317,12 @@ export default function AdminOrderCatalogSection() {
                   setHistoryData(null);
                 }}
               >
-                {p.name}
+                <span className="block">{p.name}</span>
+                {p.hsnCode ? (
+                  <span className="block text-[0.65rem] font-normal text-slate-500">
+                    HSN: {p.hsnCode}
+                  </span>
+                ) : null}
                 {!p.active && <span className="ml-1 text-xs text-slate-400">(off)</span>}
               </button>
             ))}
@@ -322,6 +357,29 @@ export default function AdminOrderCatalogSection() {
               Select a paper GSM from the left, or use Add Paper.
             </p>
           )}
+
+          {paperTypeId ? (
+            <div className={ui.field}>
+              <label className={ui.label}>HSN CODE</label>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  className={`${ui.input} min-w-[8rem] flex-1`}
+                  value={hsnCode}
+                  onChange={(e) => setHsnCode(e.target.value)}
+                  placeholder="e.g. 4802"
+                  disabled={savingHsn}
+                />
+                <button
+                  type="button"
+                  className={btnClass("secondary", true)}
+                  disabled={savingHsn}
+                  onClick={saveHsnCode}
+                >
+                  {savingHsn ? "Saving..." : "Save HSN"}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <DropdownCrud
             label="Size"

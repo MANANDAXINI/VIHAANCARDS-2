@@ -43,6 +43,7 @@ export default function AdminRatesSection() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [savingId, setSavingId] = useState(null);
+  const [savingHsnId, setSavingHsnId] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -62,6 +63,26 @@ export default function AdminRatesSection() {
   useEffect(() => {
     load();
   }, []);
+
+  async function editHsn(paper) {
+    if (!paper?.id) return;
+    const next = window.prompt(
+      `HSN CODE for ${paper.name || "this paper"}`,
+      String(paper.hsnCode || "")
+    );
+    if (next === null) return;
+
+    setSavingHsnId(paper.id);
+    try {
+      await adminCatalogApi.updatePaperType(paper.id, { hsnCode: String(next).trim() });
+      await load();
+      toast.success("HSN CODE saved for all rates of this paper.");
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSavingHsnId(null);
+    }
+  }
 
   async function editRate(rule) {
     const next = window.prompt(
@@ -108,6 +129,7 @@ export default function AdminRatesSection() {
     () =>
       filterItems(rules, search, [
         "paperType.name",
+        "paperType.hsnCode",
         "size.name",
         "quantity",
         "printingSide.name",
@@ -188,19 +210,36 @@ export default function AdminRatesSection() {
           </p>
         </section>
       ) : (
-        grouped.map((group) => (
+        grouped.map((group) => {
+          const hsn = group.paper?.hsnCode || group.rules[0]?.paperType?.hsnCode || "";
+          return (
           <section key={group.paper?.id || group.paper?.name} className={ui.adminCard}>
-            <h3 className="text-base font-semibold text-slate-900">
-              {group.paper?.name || "Unknown paper"}
-            </h3>
-            <p className={`${ui.muted} ${ui.small} mb-3`}>
-              {group.rules.length} combination{group.rules.length === 1 ? "" : "s"}
-            </p>
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  {group.paper?.name || "Unknown paper"}
+                </h3>
+                <p className={`${ui.muted} ${ui.small}`}>
+                  HSN CODE: <strong className="text-slate-800">{hsn || "—"}</strong>
+                  {" · "}
+                  {group.rules.length} combination{group.rules.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <button
+                type="button"
+                className={btnClass("secondary", true)}
+                disabled={!group.paper?.id || savingHsnId === group.paper?.id}
+                onClick={() => editHsn(group.paper)}
+              >
+                {savingHsnId === group.paper?.id ? "Saving..." : hsn ? "Update HSN" : "Add HSN CODE"}
+              </button>
+            </div>
 
             <div className={ui.tableWrap}>
               <table className={ui.table}>
                 <thead>
                   <tr>
+                    <th className={ui.th}>HSN CODE</th>
                     <th className={ui.th}>Size</th>
                     <th className={ui.th}>Quantity</th>
                     <th className={ui.th}>Printing Side</th>
@@ -211,6 +250,9 @@ export default function AdminRatesSection() {
                 <tbody>
                   {group.rules.map((rule) => (
                     <tr key={rule.id}>
+                      <td className={`${ui.td} font-medium`}>
+                        {rule.paperType?.hsnCode || hsn || "—"}
+                      </td>
                       <td className={ui.td}>{rule.size?.name || "—"}</td>
                       <td className={ui.td}>
                         {Number(rule.quantity).toLocaleString("en-IN")}
@@ -237,6 +279,10 @@ export default function AdminRatesSection() {
               {group.rules.map((rule) => (
                 <li key={`m-${rule.id}`} className={ui.mobileCard}>
                   <div className={ui.mobileCardRow}>
+                    <span className={ui.muted}>HSN CODE</span>
+                    <strong>{rule.paperType?.hsnCode || hsn || "—"}</strong>
+                  </div>
+                  <div className={ui.mobileCardRow}>
                     <span className={ui.muted}>Size</span>
                     <strong>{rule.size?.name || "—"}</strong>
                   </div>
@@ -262,7 +308,8 @@ export default function AdminRatesSection() {
               ))}
             </ul>
           </section>
-        ))
+          );
+        })
       )}
     </div>
   );

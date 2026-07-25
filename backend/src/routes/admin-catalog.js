@@ -34,7 +34,7 @@ function crudRoutes(modelName, label) {
   });
 
   router.post(`/${label}`, authAdmin, async (req, res) => {
-    const { name, availableQuantity, ratePerThousand, active, sortOrder } = req.body;
+    const { name, availableQuantity, ratePerThousand, active, sortOrder, hsnCode } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: "Name is required." });
 
     const data = {
@@ -46,6 +46,7 @@ function crudRoutes(modelName, label) {
     if (modelName === "paperType") {
       data.availableQuantity = Number(availableQuantity) || 0;
       data.ratePerThousand = Number(ratePerThousand) || 0;
+      data.hsnCode = String(hsnCode || "").trim();
     }
 
     const item = await model.create({ data });
@@ -53,7 +54,7 @@ function crudRoutes(modelName, label) {
   });
 
   router.put(`/${label}/:id`, authAdmin, async (req, res) => {
-    const { name, availableQuantity, ratePerThousand, active, sortOrder } = req.body;
+    const { name, availableQuantity, ratePerThousand, active, sortOrder, hsnCode } = req.body;
     const data = {
       ...(name !== undefined && { name: name.trim() }),
       ...(active !== undefined && { active }),
@@ -63,6 +64,7 @@ function crudRoutes(modelName, label) {
     if (modelName === "paperType") {
       if (availableQuantity !== undefined) data.availableQuantity = Number(availableQuantity);
       if (ratePerThousand !== undefined) data.ratePerThousand = Number(ratePerThousand);
+      if (hsnCode !== undefined) data.hsnCode = String(hsnCode || "").trim();
     }
 
     const item = await model.update({ where: { id: req.params.id }, data });

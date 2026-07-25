@@ -151,6 +151,7 @@ export default function AdminCustomerOrderHistorySection({ accounts = [] }) {
         <OrderHistoryLedger
           orders={orders}
           activeTab="orders"
+          account={account}
           hasCreditLimit={hasCreditLimit}
         />
       )}

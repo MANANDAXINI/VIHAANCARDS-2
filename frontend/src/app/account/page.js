@@ -205,6 +205,7 @@ function AccountContent() {
                 <OrderHistoryLedger
                   orders={paged.items}
                   activeTab="orders"
+                  account={account || user}
                   hasCreditLimit={Number(account?.creditLimit || user?.creditLimit || 0) > 0}
                 />
               ) : activeTab === "payments" ? (

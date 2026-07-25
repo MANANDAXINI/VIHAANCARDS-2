@@ -189,6 +189,7 @@ model ReceiptCounter {
 model PaperType {
   id                String      @id @default(cuid())
   name              String      @unique
+  hsnCode           String      @default("")
   availableQuantity Int         @default(0)
   ratePerThousand   Float       @default(0)
   active            Boolean     @default(true)

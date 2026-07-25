@@ -82,6 +82,28 @@ function SectionLabel({ children }) {
 }
 
 function ArtworkFileRow({ label, url, name, mime, downloaded }) {
+  // Defer thumbs so Dispatch typing never competes with image fetch/decode on first paint.
+  const [showThumb, setShowThumb] = useState(false);
+  useEffect(() => {
+    if (!url) return undefined;
+    let cancelled = false;
+    const show = () => {
+      if (!cancelled && !window.__pdAdminTyping) setShowThumb(true);
+    };
+    const idle =
+      typeof window.requestIdleCallback === "function"
+        ? window.requestIdleCallback(show, { timeout: 2500 })
+        : null;
+    const timer = idle == null ? window.setTimeout(show, 800) : null;
+    return () => {
+      cancelled = true;
+      if (idle != null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idle);
+      }
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [url]);
+
   return (
     <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2">
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -91,13 +113,19 @@ function ArtworkFileRow({ label, url, name, mime, downloaded }) {
         </span>
       </div>
       {url ? (
-        <ArtworkThumb
-          url={url}
-          mime={mime}
-          name={name}
-          className="h-14 w-14"
-          secure
-        />
+        showThumb ? (
+          <ArtworkThumb
+            url={url}
+            mime={mime}
+            name={name}
+            className="h-14 w-14"
+            secure
+          />
+        ) : (
+          <div className="flex h-14 w-14 items-center justify-center rounded border border-slate-200 bg-white text-[0.65rem] text-slate-400">
+            …
+          </div>
+        )
       ) : (
         <p className={`${ui.small} break-all text-slate-700`}>{name || "—"}</p>
       )}
@@ -105,7 +133,25 @@ function ArtworkFileRow({ label, url, name, mime, downloaded }) {
   );
 }
 
-function DispatchForm({ order, onSaved, onOrderDispatched }) {
+function markAdminTyping() {
+  window.__pdAdminTyping = true;
+}
+
+function clearAdminTyping(event) {
+  // Only clear when focus leaves the form entirely — not when tabbing LR → Transport.
+  const next = event?.relatedTarget;
+  const root = event?.currentTarget;
+  if (root && next && typeof root.contains === "function" && root.contains(next)) {
+    return;
+  }
+  window.__pdAdminTyping = false;
+  if (window.__pdAdminLoadPending && typeof window.__pdAdminFlushLoad === "function") {
+    window.__pdAdminLoadPending = false;
+    window.setTimeout(() => window.__pdAdminFlushLoad?.(), 50);
+  }
+}
+
+const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatched }) {
   // Uncontrolled inputs: keystrokes stay in the DOM and never re-render the heavy order card.
   const formRef = useRef(null);
   const lrRef = useRef(null);
@@ -119,17 +165,11 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
   useEffect(() => {
     const root = formRef.current;
     if (!root) return undefined;
-    const mark = () => {
-      window.__pdAdminTyping = true;
-    };
-    const clear = () => {
-      window.__pdAdminTyping = false;
-    };
-    root.addEventListener("focusin", mark);
-    root.addEventListener("focusout", clear);
+    root.addEventListener("focusin", markAdminTyping);
+    root.addEventListener("focusout", clearAdminTyping);
     return () => {
-      root.removeEventListener("focusin", mark);
-      root.removeEventListener("focusout", clear);
+      root.removeEventListener("focusin", markAdminTyping);
+      root.removeEventListener("focusout", clearAdminTyping);
       window.__pdAdminTyping = false;
     };
   }, []);
@@ -246,7 +286,20 @@ function DispatchForm({ order, onSaved, onOrderDispatched }) {
       </button>
     </div>
   );
-}
+}, (prev, next) => (
+  prev.onSaved === next.onSaved
+  && prev.onOrderDispatched === next.onOrderDispatched
+  && prev.order.id === next.order.id
+  && prev.order.status === next.order.status
+  && prev.order.lrNumber === next.order.lrNumber
+  && prev.order.transportDetails === next.order.transportDetails
+  && prev.order.dispatchDate === next.order.dispatchDate
+  && prev.order.cutting === next.order.cutting
+  && prev.order.finish === next.order.finish
+  && prev.order.orderNumber === next.order.orderNumber
+  && prev.order.customerPhone === next.order.customerPhone
+  && prev.order.business === next.order.business
+));
 
 const OrderProcessingCard = memo(function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
   const [printingBusy, setPrintingBusy] = useState(false);
@@ -562,7 +615,11 @@ export default function AdminOrderProcessingSection({
         <h3 className={isPendingView && count > 0 ? pendingSectionTitleClass(true) : ui.adminH3}>
           {title} ({count})
         </h3>
-        <div className="w-full sm:max-w-xs" onFocusCapture={() => { window.__pdAdminTyping = true; }} onBlurCapture={() => { window.__pdAdminTyping = false; }}>
+        <div
+          className="w-full sm:max-w-xs"
+          onFocusCapture={markAdminTyping}
+          onBlurCapture={clearAdminTyping}
+        >
           <AdminSearchBar value={search} onChange={setSearch} placeholder="Search orders..." />
         </div>
       </div>

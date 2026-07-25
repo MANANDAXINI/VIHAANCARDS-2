@@ -109,6 +109,11 @@ export default function AdminPage() {
   useAdminTableState(walletSearch, setWalletPage);
 
   const load = useCallback(async () => {
+    // Hard stop: never re-render the heavy admin tree while typing in Dispatch / search.
+    if (typeof window !== "undefined" && window.__pdAdminTyping) {
+      window.__pdAdminLoadPending = true;
+      return;
+    }
     try {
       const [p, a, w, o, countsData, resetData] = await Promise.all([
         adminApi.pendingAccounts(),
@@ -118,6 +123,11 @@ export default function AdminPage() {
         adminApi.navCounts().catch(() => ({ counts: {} })),
         adminApi.passwordResets().catch(() => ({ resets: [] })),
       ]);
+      // Typing may have started while the request was in flight — discard stale update.
+      if (typeof window !== "undefined" && window.__pdAdminTyping) {
+        window.__pdAdminLoadPending = true;
+        return;
+      }
       setPending(p.accounts);
       setAccounts(a.accounts);
       setWalletRequests(w.requests);
@@ -125,10 +135,20 @@ export default function AdminPage() {
       setOrders(o.orders);
       setNavCounts(countsData.counts || {});
       setPasswordResets(resetData.resets || []);
+      if (typeof window !== "undefined") window.__pdAdminLoadPending = false;
     } catch (error) {
       toast.error(error.message);
     }
   }, []);
+
+  useEffect(() => {
+    window.__pdAdminFlushLoad = () => {
+      if (!window.__pdAdminTyping) load();
+    };
+    return () => {
+      delete window.__pdAdminFlushLoad;
+    };
+  }, [load]);
 
   useEffect(() => {
     if (isAdmin(user)) load();
@@ -146,18 +166,7 @@ export default function AdminPage() {
       || active?.isContentEditable;
 
     if (typing) {
-      const onBlur = () => {
-        window.setTimeout(() => {
-          if (!window.__pdAdminTyping) load();
-        }, 300);
-      };
-      if (active && (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")) {
-        active.addEventListener("blur", onBlur, { once: true });
-      } else {
-        window.setTimeout(() => {
-          if (!window.__pdAdminTyping) load();
-        }, 1500);
-      }
+      window.__pdAdminLoadPending = true;
       return;
     }
 

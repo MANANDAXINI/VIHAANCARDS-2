@@ -971,6 +971,67 @@ router.get("/day-book", authAdmin, async (req, res) => {
   });
 });
 
+/** Receipts = ledger credit entries (payments). Supports from/to date (IST). */
+router.get("/receipts", authAdmin, async (req, res) => {
+  const today = istDateString();
+  const fromDate = String(req.query.fromDate || "").trim() || today;
+  const toDate = String(req.query.toDate || "").trim() || today;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+    return res.status(400).json({ error: "Invalid date. Use YYYY-MM-DD." });
+  }
+  if (fromDate > toDate) {
+    return res.status(400).json({ error: "From date must be on or before To date." });
+  }
+
+  const { start: todayStart, end: todayEnd } = istDayRange(today);
+  const rangeStart = new Date(`${fromDate}T00:00:00+05:30`);
+  const rangeEnd = new Date(`${toDate}T23:59:59.999+05:30`);
+
+  const receiptWhere = { credit: { gt: 0 } };
+
+  const [todayEntries, rangeEntries] = await Promise.all([
+    prisma.ledgerEntry.findMany({
+      where: { ...receiptWhere, entryDate: { gte: todayStart, lte: todayEnd } },
+      include: { account: true },
+      orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.ledgerEntry.findMany({
+      where: { ...receiptWhere, entryDate: { gte: rangeStart, lte: rangeEnd } },
+      include: { account: true },
+      orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+    }),
+  ]);
+
+  const mapReceipt = (entry) => ({
+    id: entry.id,
+    receiptNumber: entry.receiptNumber || null,
+    label: entry.label,
+    amount: entry.credit || entry.amount || 0,
+    outstandingAfter: entry.outstandingAfter,
+    entryDate: entry.entryDate,
+    createdAt: entry.createdAt,
+    accountId: entry.accountId,
+    customerName: entry.account?.name || "",
+    business: entry.account?.business || "",
+    phone: entry.account?.phone || "",
+  });
+
+  const todayTotal = todayEntries.reduce((sum, e) => sum + (e.credit || e.amount || 0), 0);
+  const rangeTotal = rangeEntries.reduce((sum, e) => sum + (e.credit || e.amount || 0), 0);
+
+  res.json({
+    today,
+    fromDate,
+    toDate,
+    todayTotal,
+    todayCount: todayEntries.length,
+    rangeTotal,
+    rangeCount: rangeEntries.length,
+    receipts: rangeEntries.map(mapReceipt),
+  });
+});
+
 router.get("/accounts/:id/details", authAdmin, async (req, res) => {
   const account = await prisma.account.findUnique({ where: { id: req.params.id } });
   if (!account) return res.status(404).json({ error: "Account not found." });

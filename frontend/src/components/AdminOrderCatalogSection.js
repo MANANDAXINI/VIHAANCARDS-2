@@ -204,7 +204,8 @@ export default function AdminOrderCatalogSection() {
       return;
     }
 
-    const hsn = window.prompt("HSN CODE?", selectedPaper.hsnCode || "") ?? selectedPaper.hsnCode || "";
+    const hsnPrompt = window.prompt("HSN CODE?", selectedPaper.hsnCode || "");
+    const hsn = (hsnPrompt ?? selectedPaper.hsnCode) || "";
 
     setSavingPaper(true);
     try {

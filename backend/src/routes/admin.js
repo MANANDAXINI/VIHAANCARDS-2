@@ -399,15 +399,25 @@ router.delete("/accounts/:id", authAdmin, async (req, res) => {
 });
 
 router.put("/accounts/:id/credit", authAdmin, async (req, res) => {
-  const { creditLimit, previousOutstanding, balance } = req.body;
+  const { creditLimit, reminderCreditLimit, previousOutstanding, balance } = req.body;
+  const data = {};
+  if (creditLimit !== undefined) data.creditLimit = Number(creditLimit);
+  if (reminderCreditLimit !== undefined) {
+    const reminder = Number(reminderCreditLimit);
+    if (!Number.isFinite(reminder) || reminder < 0) {
+      return res.status(400).json({ error: "Valid reminder credit limit required." });
+    }
+    data.reminderCreditLimit = reminder;
+  }
+  if (previousOutstanding !== undefined) {
+    data.previousOutstanding = Number(previousOutstanding);
+    data.oldOutstanding = Number(previousOutstanding);
+  }
+  if (balance !== undefined) data.balance = Number(balance);
+
   const account = await prisma.account.update({
     where: { id: req.params.id },
-    data: {
-      creditLimit: creditLimit !== undefined ? Number(creditLimit) : undefined,
-      previousOutstanding: previousOutstanding !== undefined ? Number(previousOutstanding) : undefined,
-      oldOutstanding: previousOutstanding !== undefined ? Number(previousOutstanding) : undefined,
-      balance: balance !== undefined ? Number(balance) : undefined,
-    },
+    data,
   });
   res.json({ account: publicAccount(account) });
 });
@@ -825,15 +835,40 @@ router.put("/orders/:id/mark-artwork", authAdmin, async (req, res) => {
 });
 
 router.put("/orders/:id/status", authAdmin, async (req, res) => {
-  const { status, paymentStatus } = req.body;
-  const order = await prisma.order.update({
-    where: { id: req.params.id },
-    data: {
-      status: status || undefined,
-      paymentStatus: paymentStatus || undefined,
-    },
-  });
-  res.json({ order: secureOrder(order) });
+  try {
+    const { status, paymentStatus } = req.body;
+    const existing = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { account: true },
+    });
+    if (!existing) return res.status(404).json({ error: "Order not found." });
+
+    const nextStatus = status ? String(status).toUpperCase() : undefined;
+    const allowed = [
+      "ORDER_CREATED",
+      "PAYMENT_SUBMITTED",
+      "PAYMENT_VERIFIED",
+      "IN_PRINTING",
+      "PRINTING_PROCESS_STARTED",
+      "DISPATCHED",
+      "COMPLETED",
+    ];
+    if (nextStatus && !allowed.includes(nextStatus)) {
+      return res.status(400).json({ error: `Invalid status: ${status}` });
+    }
+
+    const order = await prisma.order.update({
+      where: { id: req.params.id },
+      data: {
+        status: nextStatus || undefined,
+        paymentStatus: paymentStatus || undefined,
+      },
+      include: { account: true },
+    });
+    res.json({ order: adminOrderPayload(order) });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Could not update order status." });
+  }
 });
 
 router.put("/orders/:id/dispatch", authAdmin, async (req, res) => {

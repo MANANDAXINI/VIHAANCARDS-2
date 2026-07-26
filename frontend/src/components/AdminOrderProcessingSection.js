@@ -151,7 +151,7 @@ function clearAdminTyping(event) {
   }
 }
 
-const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatched }) {
+const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatched, onJobCompleted }) {
   // Uncontrolled inputs: keystrokes stay in the DOM and never re-render the heavy order card.
   const formRef = useRef(null);
   const lrRef = useRef(null);
@@ -218,40 +218,50 @@ const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatc
   }
 
   async function handleJobCompleted() {
-    // Persist PRINTING_PROCESS_STARTED so customer Order History shows ORDER COMPLETED.
-    // Order stays in Pending until Save/Update dispatch (LR) → DISPATCHED.
+    // Must persist status first — customer portal reads Order.status from API.
+    // PRINTING_PROCESS_STARTED → customer JOB PROCESS shows "ORDER COMPLETED".
+    // Stays in Pending list until LR Save → DISPATCHED.
     setCompleting(true);
     try {
-      let response;
-      try {
+      // Use long-standing /status route first (works even if /job-completed not deployed).
+      let response = await adminApi.updateOrderStatus(
+        order.id,
+        { status: "PRINTING_PROCESS_STARTED" },
+        { silent: true }
+      );
+      let newStatus = String(response?.order?.status || "").toUpperCase();
+
+      if (newStatus !== "PRINTING_PROCESS_STARTED") {
         response = await adminApi.markJobCompleted(order.id, { silent: true });
-      } catch (primaryError) {
-        // Fallback if backend has not redeployed /job-completed yet.
-        response = await adminApi.updateOrderStatus(
-          order.id,
-          { status: "PRINTING_PROCESS_STARTED" },
-          { silent: true }
-        );
-        if (!response?.order) throw primaryError;
+        newStatus = String(response?.order?.status || "").toUpperCase();
+      }
+
+      if (newStatus !== "PRINTING_PROCESS_STARTED" && newStatus !== "DISPATCHED" && newStatus !== "COMPLETED") {
+        throw new Error("Job status did not save. Please try again.");
       }
 
       const updatedOrder = {
         ...order,
         ...response.order,
-        status: response.order?.status || "PRINTING_PROCESS_STARTED",
+        status: "PRINTING_PROCESS_STARTED",
       };
-      const { opened } = notifyCustomerJobCompleted(updatedOrder);
 
-      // Allow admin refresh even if dispatch inputs still hold focus.
+      // Instant admin UI update (don't wait for full reload).
+      onJobCompleted?.(order.id, updatedOrder);
+
       window.__pdAdminTyping = false;
       window.__pdAdminLoadPending = false;
-
-      toast.success(
-        opened
-          ? "Job completed — customer portal updated. WhatsApp opened."
-          : "Job completed — customer portal shows ORDER COMPLETED."
-      );
       await Promise.resolve(onSaved?.());
+
+      // WhatsApp after DB save — delay so deeplink does not abort the request.
+      window.setTimeout(() => {
+        const { opened } = notifyCustomerJobCompleted(updatedOrder);
+        if (!opened) {
+          toast.info("Customer phone not available for WhatsApp.");
+        }
+      }, 500);
+
+      toast.success("Job completed saved — customer portal shows ORDER COMPLETED.");
     } catch (error) {
       toast.error(error.message || "Could not mark job completed.");
     } finally {
@@ -306,13 +316,18 @@ const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatc
         disabled={completing}
         onClick={handleJobCompleted}
       >
-        {completing ? "Opening..." : "Job Completed (WhatsApp)"}
+        {completing
+          ? "Saving..."
+          : String(order.status || "").toUpperCase() === "PRINTING_PROCESS_STARTED"
+            ? "Job Completed ✓ (Resend WhatsApp)"
+            : "Job Completed (WhatsApp)"}
       </button>
     </div>
   );
 }, (prev, next) => (
   prev.onSaved === next.onSaved
   && prev.onOrderDispatched === next.onOrderDispatched
+  && prev.onJobCompleted === next.onJobCompleted
   && prev.order.id === next.order.id
   && prev.order.status === next.order.status
   && prev.order.lrNumber === next.order.lrNumber
@@ -325,7 +340,12 @@ const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatc
   && prev.order.business === next.order.business
 ));
 
-const OrderProcessingCard = memo(function OrderProcessingCard({ order, onRefresh, onOrderDispatched }) {
+const OrderProcessingCard = memo(function OrderProcessingCard({
+  order,
+  onRefresh,
+  onOrderDispatched,
+  onJobCompleted,
+}) {
   const [printingBusy, setPrintingBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -534,6 +554,7 @@ const OrderProcessingCard = memo(function OrderProcessingCard({ order, onRefresh
             order={order}
             onSaved={onRefresh}
             onOrderDispatched={onOrderDispatched}
+            onJobCompleted={onJobCompleted}
           />
         </div>
 
@@ -583,6 +604,7 @@ const OrderProcessingCard = memo(function OrderProcessingCard({ order, onRefresh
 }, (prev, next) => (
   prev.onRefresh === next.onRefresh
   && prev.onOrderDispatched === next.onOrderDispatched
+  && prev.onJobCompleted === next.onJobCompleted
   && prev.order.id === next.order.id
   && prev.order.status === next.order.status
   && prev.order.paymentStatus === next.order.paymentStatus
@@ -603,6 +625,7 @@ export default function AdminOrderProcessingSection({
   view = "pending",
   onRefresh,
   onOrderDispatched,
+  onJobCompleted,
 }) {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -669,6 +692,7 @@ export default function AdminOrderProcessingSection({
               order={order}
               onRefresh={onRefresh}
               onOrderDispatched={onOrderDispatched}
+              onJobCompleted={onJobCompleted}
             />
           ))
         )}

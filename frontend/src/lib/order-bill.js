@@ -4,7 +4,7 @@ import {
   formatOrderDisplayNumber,
 } from "@/lib/order-display";
 
-/** Seller details — PIXEL DIGITAL tax invoice (reference format). */
+/** Seller details — PIXEL DIGITAL tax invoice (exact reference). */
 export const SELLER = {
   gstin: "27BHGPP8249E1Z0",
   name: "PIXEL DIGITAL",
@@ -41,19 +41,16 @@ function qtyFmt(value) {
   });
 }
 
-/** Indian financial year label from a date, e.g. 26-27 */
 function financialYearLabel(dateValue) {
   const d = dateValue ? new Date(dateValue) : new Date();
   if (Number.isNaN(d.getTime())) return financialYearLabel(new Date());
   const year = d.getFullYear();
-  const month = d.getMonth(); // 0-based; Apr = 3
+  const month = d.getMonth();
   const start = month >= 3 ? year : year - 1;
-  const a = String(start).slice(-2);
-  const b = String(start + 1).slice(-2);
-  return `${a}-${b}`;
+  return `${String(start).slice(-2)}-${String(start + 1).slice(-2)}`;
 }
 
-/** PD-00128 → PD/128/26-27 */
+/** PD-00128 → PD/128/26-27 (reference style PD/4/26-27) */
 function formatInvoiceNumber(order) {
   const raw = formatOrderDisplayNumber(order);
   const match = String(raw).match(/(\d+)/);
@@ -84,7 +81,6 @@ function threeDigits(n) {
   return twoDigits(rest);
 }
 
-/** Amount in words (Indian: Crore / Lakh / Thousand). */
 export function amountInWords(value) {
   let n = Math.round(Number(value || 0));
   if (!Number.isFinite(n) || n < 0) n = 0;
@@ -108,27 +104,27 @@ export function amountInWords(value) {
 }
 
 /**
- * Order amount is treated as GST-inclusive grand total (matches portal amount).
- * Taxable + CGST + SGST = order.amount.
+ * Reference invoice treats line amounts as taxable (exclusive), then adds CGST/SGST.
+ * Order.amount = taxable / subtotal (same as catalog rate shown to customer before tax on bill).
  */
-function splitInclusiveGst(grandTotal, cgstRate = SELLER.cgstRate, sgstRate = SELLER.sgstRate) {
-  const rate = (Number(cgstRate) + Number(sgstRate)) / 100;
-  const grand = Math.round(Number(grandTotal || 0) * 100) / 100;
-  const taxable = Math.round((grand / (1 + rate)) * 100) / 100;
-  const taxTotal = Math.round((grand - taxable) * 100) / 100;
-  const cgst = Math.round((taxTotal / 2) * 100) / 100;
-  const sgst = Math.round((taxTotal - cgst) * 100) / 100;
+function splitExclusiveGst(taxableAmount, cgstRate = SELLER.cgstRate, sgstRate = SELLER.sgstRate) {
+  const taxable = Math.round(Number(taxableAmount || 0) * 100) / 100;
+  const cgst = Math.round(taxable * (Number(cgstRate) / 100) * 100) / 100;
+  const sgst = Math.round(taxable * (Number(sgstRate) / 100) * 100) / 100;
+  const taxTotal = Math.round((cgst + sgst) * 100) / 100;
+  const grand = Math.round((taxable + taxTotal) * 100) / 100;
   return { taxable, cgst, sgst, taxTotal, grand };
 }
 
 /**
- * Opens a print-ready TAX INVOICE matching the PIXEL DIGITAL reference format.
+ * Opens print-ready TAX INVOICE matching the PIXEL DIGITAL reference layout.
  */
 export function downloadOrderBill({ order, account, hsnCode = "" }) {
   if (!order) throw new Error("Order not found.");
 
   const invoiceNo = formatInvoiceNumber(order);
   const dated = formatLedgerTableDate(order.dispatchDate || order.orderDate || order.createdAt);
+  const orderDate = formatLedgerTableDate(order.orderDate || order.createdAt);
   const business = account?.business || account?.name || "Customer";
   const buyerAddress = String(account?.address || "").trim();
   const buyerGstin = String(account?.gstNumber || "").trim();
@@ -136,19 +132,42 @@ export function downloadOrderBill({ order, account, hsnCode = "" }) {
   const description = formatOrderDescription(order);
   const cutting = String(order.cutting || "").trim();
   const qty = Number(order.quantity || 0) || 0;
-  const hsn = String(hsnCode || order.hsnCode || "").trim();
+  const hsn = String(hsnCode || order.hsnCode || "").trim() || "—";
   const lrNumber = String(order.lrNumber || "").trim();
   const transport = String(order.transportDetails || "").trim();
   const taxRate = SELLER.cgstRate + SELLER.sgstRate;
 
-  const { taxable, cgst, sgst, taxTotal, grand } = splitInclusiveGst(order.amount);
+  const { taxable, cgst, sgst, taxTotal, grand } = splitExclusiveGst(order.amount);
   const unitPrice = qty > 0 ? Math.round((taxable / qty) * 100) / 100 : taxable;
 
-  const descHtml = [
-    escapeHtml(product),
-    description ? `<br/><i>${escapeHtml(description)}</i>` : "",
-    cutting ? `<br/><i>Cutting: ${escapeHtml(cutting)}</i>` : "",
+  const descLines = [
+    `<div class="item-name">${escapeHtml(product)}</div>`,
+    description ? `<div class="item-sub">${escapeHtml(description)}</div>` : "",
+    cutting ? `<div class="item-sub">Cutting: ${escapeHtml(cutting)}</div>` : "",
   ].join("");
+
+  const buyerBlock = `
+    <div class="party-title">Billed to :</div>
+    <div class="party-name">${escapeHtml(business)}</div>
+    ${buyerAddress ? `<div class="party-addr">${escapeHtml(buyerAddress)}</div>` : ""}
+    <div class="party-gst"><b>GSTIN / UIN :</b> ${escapeHtml(buyerGstin || "")}</div>
+  `;
+  const shipBlock = `
+    <div class="party-title">Shipped to :</div>
+    <div class="party-name">${escapeHtml(business)}</div>
+    ${buyerAddress ? `<div class="party-addr">${escapeHtml(buyerAddress)}</div>` : ""}
+    <div class="party-gst"><b>GSTIN / UIN :</b> ${escapeHtml(buyerGstin || "")}</div>
+  `;
+
+  // Blank rows so item table has height like the reference invoice
+  const blankRows = Array.from({ length: 6 })
+    .map(
+      () => `
+      <tr class="blank">
+        <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>`
+    )
+    .join("");
 
   const fileTitle = `Tax Invoice - ${invoiceNo} - ${business}`;
 
@@ -159,220 +178,285 @@ export function downloadOrderBill({ order, account, hsnCode = "" }) {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(fileTitle)}</title>
 <style>
+  @page { size: A4; margin: 8mm; }
   * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
   body {
     font-family: Arial, Helvetica, sans-serif;
-    color: #111;
-    margin: 12px;
+    color: #000;
     font-size: 11px;
-    line-height: 1.35;
+    line-height: 1.3;
+    background: #fff;
   }
-  .sheet { border: 1.5px solid #222; max-width: 210mm; margin: 0 auto; }
-  .pad { padding: 8px 10px; }
-  .row { display: flex; justify-content: space-between; gap: 8px; }
-  .gstin { font-size: 11px; font-weight: 700; }
-  .copy { font-size: 11px; font-weight: 700; }
-  .center { text-align: center; }
-  .title { font-size: 16px; font-weight: 800; letter-spacing: .04em; margin: 2px 0; }
-  .brand { font-size: 20px; font-weight: 800; margin: 2px 0 4px; }
-  .addr { font-size: 11px; }
-  .contact { font-size: 11px; margin-top: 2px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #222; }
-  .cell { padding: 6px 8px; font-size: 11px; }
-  .cell + .cell { border-left: 1px solid #222; }
-  .kv { margin: 1px 0; }
-  .kv b { font-weight: 700; }
-  .party-head { font-weight: 700; margin-bottom: 4px; }
-  .party-name { font-weight: 700; font-size: 12px; }
-  table.items { width: 100%; border-collapse: collapse; border-top: 1px solid #222; }
-  table.items th, table.items td {
-    border: 1px solid #222;
-    padding: 5px 6px;
+  .invoice {
+    width: 100%;
+    max-width: 190mm;
+    margin: 0 auto;
+    border: 1px solid #000;
+    border-collapse: collapse;
+  }
+  .invoice td, .invoice th {
+    border: 1px solid #000;
+    padding: 4px 6px;
     vertical-align: top;
   }
+  .no-border { border: none !important; }
+  .outer > tbody > tr > td { padding: 0; border: none; }
+  .head-wrap { padding: 6px 8px 8px; }
+  .top-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .center { text-align: center; }
+  .tax-title {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin: 2px 0 0;
+  }
+  .brand {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 2px 0 4px;
+    letter-spacing: 0.3px;
+  }
+  .addr, .contact { font-size: 11px; }
+  .contact { margin-top: 2px; }
+  table.meta { width: 100%; border-collapse: collapse; }
+  table.meta td {
+    width: 50%;
+    border: 1px solid #000;
+    padding: 5px 8px;
+    font-size: 11px;
+    vertical-align: top;
+  }
+  .kv { margin: 1px 0; }
+  .kv .lbl { font-weight: 700; }
+  .party-title { font-weight: 700; margin-bottom: 3px; }
+  .party-name { font-weight: 700; font-size: 12px; }
+  .party-addr { margin-top: 2px; white-space: pre-wrap; }
+  .party-gst { margin-top: 6px; }
+  table.items { width: 100%; border-collapse: collapse; }
   table.items th {
     font-size: 10px;
     font-weight: 700;
-    background: #f3f3f3;
     text-align: center;
+    background: #fff;
+    padding: 5px 4px;
+    border: 1px solid #000;
+  }
+  table.items td {
+    border: 1px solid #000;
+    padding: 4px 5px;
+    font-size: 11px;
   }
   table.items td.c { text-align: center; }
   table.items td.r { text-align: right; white-space: nowrap; }
-  table.items td.desc { text-align: left; }
-  .totals-row td { font-weight: 700; }
-  .words { padding: 6px 8px; border-top: 1px solid #222; font-size: 11px; }
-  .tax-wrap { padding: 0; border-top: 1px solid #222; }
-  table.tax { width: 100%; border-collapse: collapse; }
-  table.tax th, table.tax td {
-    border: 1px solid #222;
-    padding: 4px 6px;
+  table.items tr.blank td { height: 18px; border-left: 1px solid #000; border-right: 1px solid #000; border-top: none; border-bottom: none; }
+  table.items tr.blank:last-of-type td { border-bottom: 1px solid #000; }
+  .item-name { font-weight: 700; }
+  .item-sub { font-style: italic; font-size: 10px; margin-top: 1px; }
+  .tot-label { text-align: right; font-weight: 700; }
+  .grand td { font-weight: 800; }
+  .words {
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    border-top: 1px solid #000;
+  }
+  table.taxsum { width: 100%; border-collapse: collapse; }
+  table.taxsum th, table.taxsum td {
+    border: 1px solid #000;
+    padding: 4px 5px;
     font-size: 10px;
     text-align: center;
   }
-  table.tax th { background: #f3f3f3; }
-  table.tax td.r { text-align: right; }
-  .decl { padding: 6px 8px; border-top: 1px solid #222; font-size: 10px; }
-  .bank { padding: 6px 8px; border-top: 1px solid #222; font-size: 11px; font-weight: 700; }
-  .foot { display: grid; grid-template-columns: 1.2fr 0.9fr 0.9fr; border-top: 1px solid #222; }
-  .foot > div { padding: 6px 8px; min-height: 88px; }
-  .foot > div + div { border-left: 1px solid #222; }
+  table.taxsum td.r { text-align: right; }
+  .decl {
+    padding: 8px;
+    text-align: center;
+    font-size: 10px;
+    border-top: 1px solid #000;
+  }
+  .bank {
+    padding: 6px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    border-top: 1px solid #000;
+  }
+  table.foot { width: 100%; border-collapse: collapse; }
+  table.foot td {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    vertical-align: top;
+    height: 100px;
+  }
   .terms-title { font-weight: 700; margin-bottom: 4px; }
   .terms ol { margin: 0; padding-left: 16px; font-size: 10px; }
-  .sign-label { font-weight: 700; margin-bottom: 48px; }
-  .sign-for { font-weight: 700; text-align: right; }
-  .muted { color: #444; font-weight: 400; }
+  .terms li { margin: 2px 0; }
+  .sign-title { font-weight: 700; }
+  .sign-for {
+    font-weight: 800;
+    text-align: right;
+    margin-top: 4px;
+  }
+  .auth {
+    text-align: right;
+    margin-top: 52px;
+    font-size: 10px;
+  }
   @media print {
     body { margin: 0; }
-    @page { margin: 8mm; size: A4; }
-    .sheet { border-width: 1px; }
+    .invoice { max-width: none; }
   }
 </style>
 </head>
 <body>
-  <div class="sheet">
-    <div class="pad">
-      <div class="row">
-        <div class="gstin">GSTIN: ${escapeHtml(SELLER.gstin)}</div>
-        <div class="copy">Original Copy</div>
-      </div>
-      <div class="center">
-        <div class="title">TAX INVOICE</div>
-        <div class="brand">${escapeHtml(SELLER.name)}</div>
-        <div class="addr">${escapeHtml(SELLER.address)}</div>
-        <div class="contact">Tel.: ${escapeHtml(SELLER.tel)} &nbsp; email: ${escapeHtml(SELLER.email)}</div>
-      </div>
-    </div>
+  <table class="invoice outer" cellspacing="0" cellpadding="0">
+    <tr>
+      <td>
+        <div class="head-wrap">
+          <div class="top-line">
+            <span>GSTIN : ${escapeHtml(SELLER.gstin)}</span>
+            <span>Original Copy</span>
+          </div>
+          <div class="center">
+            <div class="tax-title">TAX INVOICE</div>
+            <div class="brand">${escapeHtml(SELLER.name)}</div>
+            <div class="addr">${escapeHtml(SELLER.address)}</div>
+            <div class="contact">Tel. : ${escapeHtml(SELLER.tel)} &nbsp;|&nbsp; email: ${escapeHtml(SELLER.email)}</div>
+          </div>
+        </div>
 
-    <div class="grid2">
-      <div class="cell">
-        <div class="kv"><b>Invoice No. :</b> ${escapeHtml(invoiceNo)}</div>
-        <div class="kv"><b>Dated :</b> ${escapeHtml(dated)}</div>
-        <div class="kv"><b>Place of Supply :</b> ${escapeHtml(SELLER.placeOfSupply)}</div>
-        <div class="kv"><b>Reverse Charge :</b> N</div>
-        <div class="kv"><b>GR/RR No. :</b> ${escapeHtml(lrNumber)}</div>
-      </div>
-      <div class="cell">
-        <div class="kv"><b>Transport :</b> ${escapeHtml(transport)}</div>
-        <div class="kv"><b>Vehicle No. :</b></div>
-        <div class="kv"><b>Station :</b></div>
-        <div class="kv"><b>Buyer's Order No. :</b> ${escapeHtml(formatOrderDisplayNumber(order))}</div>
-        <div class="kv"><b>Date :</b> ${escapeHtml(formatLedgerTableDate(order.orderDate || order.createdAt))}</div>
-      </div>
-    </div>
-
-    <div class="grid2">
-      <div class="cell">
-        <div class="party-head">Billed to :</div>
-        <div class="party-name">${escapeHtml(business)}</div>
-        ${buyerAddress ? `<div>${escapeHtml(buyerAddress)}</div>` : ""}
-        <div style="margin-top:4px"><b>GSTIN / UIN :</b> ${escapeHtml(buyerGstin || "—")}</div>
-      </div>
-      <div class="cell">
-        <div class="party-head">Shipped to :</div>
-        <div class="party-name">${escapeHtml(business)}</div>
-        ${buyerAddress ? `<div>${escapeHtml(buyerAddress)}</div>` : ""}
-        <div style="margin-top:4px"><b>GSTIN / UIN :</b> ${escapeHtml(buyerGstin || "—")}</div>
-      </div>
-    </div>
-
-    <table class="items">
-      <thead>
-        <tr>
-          <th style="width:2.2rem">S.N.</th>
-          <th>Description of Goods</th>
-          <th style="width:6.5rem">HSN/SAC<br/>Code</th>
-          <th style="width:4.5rem">Qty.</th>
-          <th style="width:3.5rem">Unit</th>
-          <th style="width:5.5rem">Price</th>
-          <th style="width:6.5rem">Amount (₹)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="c">1</td>
-          <td class="desc">${descHtml}</td>
-          <td class="c">${escapeHtml(hsn || "—")}</td>
-          <td class="r">${escapeHtml(qtyFmt(qty))}</td>
-          <td class="c">Pcs.</td>
-          <td class="r">${escapeHtml(money(unitPrice))}</td>
-          <td class="r">${escapeHtml(money(taxable))}</td>
-        </tr>
-        <tr class="totals-row">
-          <td colspan="3" class="r">Subtotal</td>
-          <td class="r">${escapeHtml(qtyFmt(qty))}</td>
-          <td></td>
-          <td></td>
-          <td class="r">${escapeHtml(money(taxable))}</td>
-        </tr>
-        <tr>
-          <td colspan="6" class="r">Add: CGST @ ${SELLER.cgstRate.toFixed(2)}%</td>
-          <td class="r">${escapeHtml(money(cgst))}</td>
-        </tr>
-        <tr>
-          <td colspan="6" class="r">Add: SGST @ ${SELLER.sgstRate.toFixed(2)}%</td>
-          <td class="r">${escapeHtml(money(sgst))}</td>
-        </tr>
-        <tr class="totals-row">
-          <td colspan="3"><span class="muted">Grand Total</span> &nbsp; ${escapeHtml(qtyFmt(qty))} Pcs.</td>
-          <td colspan="3" class="r">Grand Total</td>
-          <td class="r">₹ ${escapeHtml(money(grand))}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="words"><b>Amount in Words :</b> ${escapeHtml(amountInWords(grand))}</div>
-
-    <div class="tax-wrap">
-      <table class="tax">
-        <thead>
+        <table class="meta" cellspacing="0" cellpadding="0">
           <tr>
-            <th>HSN/SAC</th>
-            <th>Tax Rate</th>
-            <th>Taxable Amt.</th>
-            <th>CGST Amt.</th>
-            <th>SGST Amt.</th>
-            <th>Total Tax</th>
+            <td>
+              <div class="kv"><span class="lbl">Invoice No. :</span> ${escapeHtml(invoiceNo)}</div>
+              <div class="kv"><span class="lbl">Dated :</span> ${escapeHtml(dated)}</div>
+              <div class="kv"><span class="lbl">Place of Supply :</span> ${escapeHtml(SELLER.placeOfSupply)}</div>
+              <div class="kv"><span class="lbl">Reverse Charge :</span> N</div>
+              <div class="kv"><span class="lbl">GR/RR No. :</span> ${escapeHtml(lrNumber)}</div>
+            </td>
+            <td>
+              <div class="kv"><span class="lbl">Transport :</span> ${escapeHtml(transport)}</div>
+              <div class="kv"><span class="lbl">Vehicle No. :</span></div>
+              <div class="kv"><span class="lbl">Station :</span></div>
+              <div class="kv"><span class="lbl">Buyer's Order No. :</span> ${escapeHtml(formatOrderDisplayNumber(order))}</div>
+              <div class="kv"><span class="lbl">Date :</span> ${escapeHtml(orderDate)}</div>
+            </td>
           </tr>
-        </thead>
-        <tbody>
           <tr>
-            <td>${escapeHtml(hsn || "—")}</td>
-            <td>${taxRate}%</td>
-            <td class="r">${escapeHtml(money(taxable))}</td>
-            <td class="r">${escapeHtml(money(cgst))}</td>
-            <td class="r">${escapeHtml(money(sgst))}</td>
-            <td class="r">${escapeHtml(money(taxTotal))}</td>
+            <td>${buyerBlock}</td>
+            <td>${shipBlock}</td>
           </tr>
-        </tbody>
-      </table>
-    </div>
+        </table>
 
-    <div class="decl">
-      <b>Declaration :</b> We declare that this invoice shows the actual price of the goods Described and that all particulars are true and correct.
-    </div>
+        <table class="items" cellspacing="0" cellpadding="0">
+          <thead>
+            <tr>
+              <th style="width:6%">S.N.</th>
+              <th style="width:34%">Description of Goods</th>
+              <th style="width:12%">HSN/SAC Code</th>
+              <th style="width:10%">Qty.</th>
+              <th style="width:8%">Unit</th>
+              <th style="width:12%">Price</th>
+              <th style="width:18%">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="c">1</td>
+              <td>${descLines}</td>
+              <td class="c">${escapeHtml(hsn)}</td>
+              <td class="r">${escapeHtml(qtyFmt(qty))}</td>
+              <td class="c">Pcs.</td>
+              <td class="r">${escapeHtml(money(unitPrice))}</td>
+              <td class="r">${escapeHtml(money(taxable))}</td>
+            </tr>
+            ${blankRows}
+            <tr>
+              <td colspan="3" class="tot-label">Subtotal</td>
+              <td class="r">${escapeHtml(qtyFmt(qty))}</td>
+              <td></td>
+              <td></td>
+              <td class="r">${escapeHtml(money(taxable))}</td>
+            </tr>
+            <tr>
+              <td colspan="6" class="tot-label">Add : CGST @ ${SELLER.cgstRate.toFixed(2)} %</td>
+              <td class="r">${escapeHtml(money(cgst))}</td>
+            </tr>
+            <tr>
+              <td colspan="6" class="tot-label">Add : SGST @ ${SELLER.sgstRate.toFixed(2)} %</td>
+              <td class="r">${escapeHtml(money(sgst))}</td>
+            </tr>
+            <tr class="grand">
+              <td colspan="3">${escapeHtml(qtyFmt(qty))} Pcs.</td>
+              <td colspan="3" class="tot-label">Grand Total</td>
+              <td class="r">₹ ${escapeHtml(money(grand))}</td>
+            </tr>
+          </tbody>
+        </table>
 
-    <div class="bank">
-      BANK DETAILS : ${escapeHtml(SELLER.bank)} &nbsp;|&nbsp; A/C NO: ${escapeHtml(SELLER.accountNo)} &nbsp;|&nbsp; IFSC: ${escapeHtml(SELLER.ifsc)}
-    </div>
+        <table class="taxsum" cellspacing="0" cellpadding="0">
+          <thead>
+            <tr>
+              <th>HSN/SAC</th>
+              <th>Tax Rate</th>
+              <th>Taxable Amt.</th>
+              <th>CGST Amt.</th>
+              <th>SGST Amt.</th>
+              <th>Total Tax</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${escapeHtml(hsn)}</td>
+              <td>${taxRate}%</td>
+              <td class="r">${escapeHtml(money(taxable))}</td>
+              <td class="r">${escapeHtml(money(cgst))}</td>
+              <td class="r">${escapeHtml(money(sgst))}</td>
+              <td class="r">${escapeHtml(money(taxTotal))}</td>
+            </tr>
+          </tbody>
+        </table>
 
-    <div class="foot">
-      <div>
-        <div class="terms-title">Terms &amp; Conditions :</div>
-        <ol>
-          <li>E.&amp; O.E.</li>
-          <li>Goods once sold will not be taken back.</li>
-          <li>Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.</li>
-          <li>Subject to 'NAGPUR' Jurisdiction only.</li>
-        </ol>
-      </div>
-      <div>
-        <div class="sign-label">Receiver's Signature :</div>
-      </div>
-      <div>
-        <div class="sign-for">For ${escapeHtml(SELLER.name)}</div>
-      </div>
-    </div>
-  </div>
+        <div class="words">${escapeHtml(amountInWords(grand))}</div>
+
+        <div class="decl">
+          We declare that this invoice shows the actual price of the goods Described and that all particulars are true and correct.
+        </div>
+
+        <div class="bank">
+          Bank Details : ${escapeHtml(SELLER.bank)} &nbsp;|&nbsp; A/C NO: ${escapeHtml(SELLER.accountNo)} &nbsp;|&nbsp; IFSC: ${escapeHtml(SELLER.ifsc)}
+        </div>
+
+        <table class="foot" cellspacing="0" cellpadding="0">
+          <tr>
+            <td style="width:40%">
+              <div class="terms-title">Terms &amp; Conditions</div>
+              <ol class="terms">
+                <li>E. &amp; O.E.</li>
+                <li>Goods once sold will not be taken back.</li>
+                <li>Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.</li>
+                <li>Subject to 'NAGPUR' Jurisdiction only.</li>
+              </ol>
+            </td>
+            <td style="width:30%">
+              <div class="sign-title">Receiver's Signature :</div>
+            </td>
+            <td style="width:30%">
+              <div class="sign-for">For ${escapeHtml(SELLER.name)}</div>
+              <div class="auth">Authorised Signatory</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
@@ -390,9 +474,9 @@ export function downloadOrderBill({ order, account, hsnCode = "" }) {
   };
 
   if (win.document.readyState === "complete") {
-    setTimeout(triggerPrint, 300);
+    setTimeout(triggerPrint, 350);
   } else {
-    win.onload = () => setTimeout(triggerPrint, 300);
+    win.onload = () => setTimeout(triggerPrint, 350);
   }
 }
 

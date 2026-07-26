@@ -70,9 +70,10 @@ model Account {
   role                AccountRole   @default(CUSTOMER)
   status              AccountStatus @default(PENDING)
   balance             Float         @default(0)
-  creditLimit         Float         @default(0)
-  usedCredit          Float         @default(0)
-  previousOutstanding Float         @default(0)
+  creditLimit          Float         @default(0)
+  reminderCreditLimit  Float         @default(0)
+  usedCredit           Float         @default(0)
+  previousOutstanding  Float         @default(0)
   oldOutstanding      Float         @default(0)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt

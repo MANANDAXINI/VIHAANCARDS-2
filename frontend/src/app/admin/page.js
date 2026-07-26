@@ -181,6 +181,21 @@ export default function AdminPage() {
     setOrdersSubTab("completed-orders");
   }, []);
 
+  /** Instant patch after Job Completed — customer portal reads this status. */
+  const handleJobCompleted = useCallback((orderId, updatedOrder) => {
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              ...updatedOrder,
+              status: "PRINTING_PROCESS_STARTED",
+            }
+          : order
+      )
+    );
+  }, []);
+
   async function handleAdminLogin(event) {
     event.preventDefault();
     setLoginLoading(true);
@@ -875,6 +890,7 @@ export default function AdminPage() {
                   view={ordersSubTab === "completed-orders" ? "completed" : "pending"}
                   onRefresh={load}
                   onOrderDispatched={handleOrderDispatched}
+                  onJobCompleted={handleJobCompleted}
                 />
               )}
 

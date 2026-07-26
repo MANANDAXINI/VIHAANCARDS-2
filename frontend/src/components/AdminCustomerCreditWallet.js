@@ -51,19 +51,30 @@ function StatLine({ label, value, hint }) {
 
 function CreditWalletPanel({ account, onUpdated }) {
   const [creditLimit, setCreditLimit] = useState(String(account.creditLimit || ""));
+  const [reminderCreditLimit, setReminderCreditLimit] = useState(
+    String(account.reminderCreditLimit ?? "")
+  );
   const [outstandingAdd, setOutstandingAdd] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(todayInputValue());
   const [savingLimit, setSavingLimit] = useState(false);
+  const [savingReminder, setSavingReminder] = useState(false);
   const [addingOutstanding, setAddingOutstanding] = useState(false);
   const [receivingPayment, setReceivingPayment] = useState(false);
 
   useEffect(() => {
     setCreditLimit(String(account.creditLimit || ""));
+    setReminderCreditLimit(String(account.reminderCreditLimit ?? ""));
     setOutstandingAdd("");
     setPaymentAmount("");
     setPaymentDate(todayInputValue());
-  }, [account.id, account.creditLimit, account.previousOutstanding, account.usedCredit]);
+  }, [
+    account.id,
+    account.creditLimit,
+    account.reminderCreditLimit,
+    account.previousOutstanding,
+    account.usedCredit,
+  ]);
 
   async function saveLimit() {
     const limit = Number(creditLimit);
@@ -80,6 +91,28 @@ function CreditWalletPanel({ account, onUpdated }) {
       toast.error(error.message);
     } finally {
       setSavingLimit(false);
+    }
+  }
+
+  async function saveReminderLimit() {
+    const limit = Number(reminderCreditLimit);
+    if (!Number.isFinite(limit) || limit < 0) {
+      toast.error("Enter a valid reminder credit limit.");
+      return;
+    }
+    setSavingReminder(true);
+    try {
+      await adminApi.updateCredit(
+        account.id,
+        { reminderCreditLimit: limit },
+        { silent: true }
+      );
+      toast.success("Reminder credit limit saved.");
+      await onUpdated();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSavingReminder(false);
     }
   }
 
@@ -138,6 +171,11 @@ function CreditWalletPanel({ account, onUpdated }) {
           hint={`Available: ${formatWalletAmount(account.availableCredit)} · Used: ${formatWalletAmount(account.usedCredit)}`}
         />
         <StatLine
+          label="Reminder Credit Limit"
+          value={formatWalletAmount(account.reminderCreditLimit)}
+          hint="When outstanding crosses this, customer sees reminder on Place Order."
+        />
+        <StatLine
           label="Previous Outstanding"
           value={formatWalletAmount(account.previousOutstanding)}
         />
@@ -165,6 +203,31 @@ function CreditWalletPanel({ account, onUpdated }) {
               onClick={saveLimit}
             >
               {savingLimit ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 p-4">
+          <h4 className="mb-1 text-sm font-bold text-slate-800">Reminder Credit Limit</h4>
+          <p className={`${ui.small} ${ui.muted} mb-3`}>
+            When outstanding crosses this amount, customer sees a reminder image whenever they place a new order.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              className={`${ui.input} min-w-[10rem] flex-1`}
+              type="number"
+              min="0"
+              placeholder="Reminder credit limit"
+              value={reminderCreditLimit}
+              onChange={(e) => setReminderCreditLimit(e.target.value)}
+            />
+            <button
+              type="button"
+              className={btnClass("amber")}
+              disabled={savingReminder}
+              onClick={saveReminderLimit}
+            >
+              {savingReminder ? "Saving..." : "Save Reminder"}
             </button>
           </div>
         </section>

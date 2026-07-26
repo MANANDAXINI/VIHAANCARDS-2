@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import ArtworkUploadField from "@/components/ArtworkUploadField";
+import CreditReminderModal, { isCreditReminderDue } from "@/components/CreditReminderModal";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { catalogApi, formatRupees, orderApi } from "@/lib/api";
 import {
@@ -48,6 +49,7 @@ export default function OrderPage() {
   const [submitting, setSubmitting] = useState(false);
   const [quotedAmount, setQuotedAmount] = useState(0);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [showCreditReminder, setShowCreditReminder] = useState(false);
 
   const pricedPapers = useMemo(() => {
     if (!catalog?.paperTypes?.length) return [];
@@ -127,6 +129,13 @@ export default function OrderPage() {
     if (ready && user?.status === "PENDING") router.replace("/?pending=1");
     if (ready && user?.profileNeedsPhone) router.replace("/profile");
   }, [ready, user, router]);
+
+  // Reminder credit limit crossed → show image whenever customer opens Place Order.
+  useEffect(() => {
+    if (ready && user && isCreditReminderDue(user)) {
+      setShowCreditReminder(true);
+    }
+  }, [ready, user]);
 
   useEffect(() => {
     catalogApi.get()
@@ -214,6 +223,10 @@ export default function OrderPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    // Every new order attempt: show reminder again if outstanding crossed the limit.
+    if (isCreditReminderDue(user)) {
+      setShowCreditReminder(true);
+    }
     if (!artworkFront) {
       toast.error("Please upload front side artwork.");
       return;
@@ -307,6 +320,11 @@ export default function OrderPage() {
   return (
     <>
       <SiteHeader user={user} />
+      <CreditReminderModal
+        open={showCreditReminder}
+        account={user}
+        onClose={() => setShowCreditReminder(false)}
+      />
       <main className={ui.page}>
         <div className={ui.pageNarrow}>
           <h1 className={ui.h1}>Place Order — Leaflet / Pamphlet</h1>

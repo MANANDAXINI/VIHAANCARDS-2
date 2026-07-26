@@ -17,7 +17,7 @@ import {
   isPendingPaymentOrder,
   jobProcessClassForOrder,
 } from "@/lib/order-display";
-import { downloadOrderBill, resolveHsnFromCatalog } from "@/lib/order-bill";
+import { downloadOrderBill, resolveBillMetaFromCatalog } from "@/lib/order-bill";
 import { toast } from "@/lib/toast";
 import { btnClass, isOrderDispatched, ui } from "@/lib/ui";
 
@@ -110,8 +110,8 @@ function OrderHistoryTable({ orders = [], hasCreditLimit = false, account = null
         catalog = await catalogApi.get();
         setCatalogCache(catalog);
       }
-      const hsnCode = resolveHsnFromCatalog(catalog, order);
-      downloadOrderBill({ order, account, hsnCode });
+      const { hsnCode, gstRate } = resolveBillMetaFromCatalog(catalog, order);
+      downloadOrderBill({ order, account, hsnCode, gstRate });
     } catch (error) {
       toast.error(error.message || "Could not generate bill.");
     } finally {

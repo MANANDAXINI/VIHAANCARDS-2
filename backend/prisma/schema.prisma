@@ -191,6 +191,8 @@ model PaperType {
   id                String      @id @default(cuid())
   name              String      @unique
   hsnCode           String      @default("")
+  /// Total GST % for invoices (e.g. 5 or 18). Split equally into CGST + SGST.
+  gstRate           Float       @default(18)
   availableQuantity Int         @default(0)
   ratePerThousand   Float       @default(0)
   active            Boolean     @default(true)

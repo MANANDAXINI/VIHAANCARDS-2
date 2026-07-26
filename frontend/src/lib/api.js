@@ -140,6 +140,13 @@ export const adminApi = {
     const query = params.toString();
     return api(`/api/admin/receipts${query ? `?${query}` : ""}`);
   },
+  bills: ({ fromDate, toDate } = {}) => {
+    const params = new URLSearchParams();
+    if (fromDate) params.set("fromDate", fromDate);
+    if (toDate) params.set("toDate", toDate);
+    const query = params.toString();
+    return api(`/api/admin/bills${query ? `?${query}` : ""}`);
+  },
   customerLedger: (accountId, { fromDate, toDate } = {}) => {
     const params = new URLSearchParams();
     if (fromDate) params.set("fromDate", fromDate);

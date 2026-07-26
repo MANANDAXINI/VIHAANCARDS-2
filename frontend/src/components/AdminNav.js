@@ -14,6 +14,7 @@ const ADMIN_TABS = [
   { id: "customer-credit", label: "Customer Credit" },
   { id: "customer-ledger", label: "Customer Ledger" },
   { id: "order-history", label: "Order History" },
+  { id: "download-bills", label: "Download Bills" },
   { id: "other-charges", label: "Other Charges" },
   { id: "orders", label: "Orders", countKey: "orders" },
   { id: "qr", label: "Payment QR" },

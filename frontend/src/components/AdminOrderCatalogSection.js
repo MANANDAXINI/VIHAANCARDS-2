@@ -92,11 +92,13 @@ export default function AdminOrderCatalogSection() {
   const [qtyDraft, setQtyDraft] = useState("");
   const [comboAmount, setComboAmount] = useState("");
   const [hsnCode, setHsnCode] = useState("");
+  const [gstRate, setGstRate] = useState("18");
 
   const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [savingPaper, setSavingPaper] = useState(false);
   const [savingHsn, setSavingHsn] = useState(false);
+  const [savingGst, setSavingGst] = useState(false);
   const [savingRule, setSavingRule] = useState(false);
 
   const selectedPaper = paperTypes.find((p) => p.id === paperTypeId);
@@ -163,18 +165,23 @@ export default function AdminOrderCatalogSection() {
 
   useEffect(() => {
     setHsnCode(selectedPaper?.hsnCode || "");
-  }, [selectedPaper?.id, selectedPaper?.hsnCode]);
+    const rate = Number(selectedPaper?.gstRate);
+    setGstRate(Number.isFinite(rate) && rate > 0 ? String(rate) : "18");
+  }, [selectedPaper?.id, selectedPaper?.hsnCode, selectedPaper?.gstRate]);
 
   async function addPaper() {
     const name = window.prompt("Paper GSM name?", "");
     if (!name?.trim()) return;
     const hsn = window.prompt("HSN CODE (optional)?", "") || "";
+    const gstPrompt = window.prompt("GST RATE % (5 or 18)?", "18") || "18";
+    const gst = Number(gstPrompt);
 
     setSavingPaper(true);
     try {
       const created = await adminCatalogApi.createPaperType({
         name: name.trim(),
         hsnCode: hsn.trim(),
+        gstRate: Number.isFinite(gst) && gst >= 0 ? gst : 18,
         availableQuantity: 100000,
         ratePerThousand: 0,
       });
@@ -206,6 +213,11 @@ export default function AdminOrderCatalogSection() {
 
     const hsnPrompt = window.prompt("HSN CODE?", selectedPaper.hsnCode || "");
     const hsn = (hsnPrompt ?? selectedPaper.hsnCode) || "";
+    const gstPrompt = window.prompt(
+      "GST RATE % (5 or 18)?",
+      String(selectedPaper.gstRate ?? 18)
+    );
+    const gst = Number(gstPrompt ?? selectedPaper.gstRate ?? 18);
 
     setSavingPaper(true);
     try {
@@ -213,6 +225,7 @@ export default function AdminOrderCatalogSection() {
         name: name.trim(),
         availableQuantity,
         hsnCode: String(hsn).trim(),
+        gstRate: Number.isFinite(gst) && gst >= 0 ? gst : 18,
       });
       await loadAll();
       toast.success("Paper updated.");
@@ -239,6 +252,28 @@ export default function AdminOrderCatalogSection() {
       toast.error(e.message);
     } finally {
       setSavingHsn(false);
+    }
+  }
+
+  async function saveGstRate() {
+    if (!paperTypeId) {
+      toast.error("Select a paper first.");
+      return;
+    }
+    const rate = Number(gstRate);
+    if (!Number.isFinite(rate) || rate < 0) {
+      toast.error("Enter a valid GST rate (e.g. 5 or 18).");
+      return;
+    }
+    setSavingGst(true);
+    try {
+      await adminCatalogApi.updatePaperType(paperTypeId, { gstRate: rate });
+      await loadAll();
+      toast.success(`GST rate ${rate}% saved — bills will use this.`);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSavingGst(false);
     }
   }
 
@@ -324,6 +359,9 @@ export default function AdminOrderCatalogSection() {
                     HSN: {p.hsnCode}
                   </span>
                 ) : null}
+                <span className="block text-[0.65rem] font-normal text-slate-500">
+                  GST: {Number(p.gstRate) > 0 ? Number(p.gstRate) : 18}%
+                </span>
                 {!p.active && <span className="ml-1 text-xs text-slate-400">(off)</span>}
               </button>
             ))}
@@ -360,24 +398,53 @@ export default function AdminOrderCatalogSection() {
           )}
 
           {paperTypeId ? (
-            <div className={ui.field}>
-              <label className={ui.label}>HSN CODE</label>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  className={`${ui.input} min-w-[8rem] flex-1`}
-                  value={hsnCode}
-                  onChange={(e) => setHsnCode(e.target.value)}
-                  placeholder="e.g. 4802"
-                  disabled={savingHsn}
-                />
-                <button
-                  type="button"
-                  className={btnClass("secondary", true)}
-                  disabled={savingHsn}
-                  onClick={saveHsnCode}
-                >
-                  {savingHsn ? "Saving..." : "Save HSN"}
-                </button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className={ui.field}>
+                <label className={ui.label}>HSN CODE</label>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    className={`${ui.input} min-w-[8rem] flex-1`}
+                    value={hsnCode}
+                    onChange={(e) => setHsnCode(e.target.value)}
+                    placeholder="e.g. 4802"
+                    disabled={savingHsn}
+                  />
+                  <button
+                    type="button"
+                    className={btnClass("secondary", true)}
+                    disabled={savingHsn}
+                    onClick={saveHsnCode}
+                  >
+                    {savingHsn ? "Saving..." : "Save HSN"}
+                  </button>
+                </div>
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>GST RATE (%)</label>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className={`${ui.input} min-w-[8rem] flex-1`}
+                    value={gstRate}
+                    onChange={(e) => setGstRate(e.target.value)}
+                    disabled={savingGst}
+                  >
+                    <option value="5">5%</option>
+                    <option value="12">12%</option>
+                    <option value="18">18%</option>
+                    <option value="28">28%</option>
+                  </select>
+                  <button
+                    type="button"
+                    className={btnClass("secondary", true)}
+                    disabled={savingGst}
+                    onClick={saveGstRate}
+                  >
+                    {savingGst ? "Saving..." : "Save GST"}
+                  </button>
+                </div>
+                <p className={`${ui.small} ${ui.muted} mt-1`}>
+                  Bill calculates CGST + SGST as half each (e.g. 18% → 9% + 9%).
+                </p>
               </div>
             </div>
           ) : null}

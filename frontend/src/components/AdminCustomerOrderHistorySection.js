@@ -82,6 +82,17 @@ export default function AdminCustomerOrderHistorySection({ accounts = [] }) {
     loadOrders();
   }, [loadOrders]);
 
+  // When Job Completed is clicked on Orders tab, refresh this history view.
+  useEffect(() => {
+    function onJobCompleted(event) {
+      const accountId = event?.detail?.accountId;
+      if (accountId && selectedId && accountId !== selectedId) return;
+      loadOrders();
+    }
+    window.addEventListener("pd-job-completed", onJobCompleted);
+    return () => window.removeEventListener("pd-job-completed", onJobCompleted);
+  }, [loadOrders, selectedId]);
+
   const selectedCustomer = filteredCustomers.find((a) => a.id === selectedId);
   const hasCreditLimit = Number(account?.creditLimit || selectedCustomer?.creditLimit || 0) > 0;
 

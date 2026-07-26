@@ -103,23 +103,53 @@ export function amountInWords(value) {
   return `Rupees ${parts.join(" ")} Only`;
 }
 
-/**
- * Reference invoice treats line amounts as taxable (exclusive), then adds CGST/SGST.
- * Order.amount = taxable / subtotal (same as catalog rate shown to customer before tax on bill).
- */
-function splitExclusiveGst(taxableAmount, cgstRate = SELLER.cgstRate, sgstRate = SELLER.sgstRate) {
-  const taxable = Math.round(Number(taxableAmount || 0) * 100) / 100;
-  const cgst = Math.round(taxable * (Number(cgstRate) / 100) * 100) / 100;
-  const sgst = Math.round(taxable * (Number(sgstRate) / 100) * 100) / 100;
-  const taxTotal = Math.round((cgst + sgst) * 100) / 100;
-  const grand = Math.round((taxable + taxTotal) * 100) / 100;
-  return { taxable, cgst, sgst, taxTotal, grand };
+/** Normalize catalog GST % (5 or 18 typical). Defaults to 18. */
+export function normalizeGstRate(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 18;
+  return Math.round(n * 100) / 100;
 }
 
 /**
- * Opens print-ready TAX INVOICE matching the PIXEL DIGITAL reference layout.
+ * Line amounts are taxable (exclusive); CGST/SGST = half of total GST each.
  */
-export function downloadOrderBill({ order, account, hsnCode = "" }) {
+function splitExclusiveGst(taxableAmount, totalGstRate = 18) {
+  const taxRate = normalizeGstRate(totalGstRate);
+  const half = taxRate / 2;
+  const taxable = Math.round(Number(taxableAmount || 0) * 100) / 100;
+  const cgst = Math.round(taxable * (half / 100) * 100) / 100;
+  const sgst = Math.round(taxable * (half / 100) * 100) / 100;
+  const taxTotal = Math.round((cgst + sgst) * 100) / 100;
+  const grand = Math.round((taxable + taxTotal) * 100) / 100;
+  return { taxable, cgst, sgst, taxTotal, grand, taxRate, cgstRate: half, sgstRate: half };
+}
+
+function openPrintHtml(html, fileTitle) {
+  const win = window.open("", "_blank");
+  if (!win) {
+    throw new Error("Popup blocked. Please allow popups to download the bill.");
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  try {
+    win.document.title = fileTitle;
+  } catch {
+    // ignore
+  }
+  win.focus();
+  const triggerPrint = () => {
+    win.print();
+  };
+  if (win.document.readyState === "complete") {
+    setTimeout(triggerPrint, 350);
+  } else {
+    win.onload = () => setTimeout(triggerPrint, 350);
+  }
+}
+
+/** Single invoice sheet (inner table) for one order. */
+export function buildOrderBillSheetHtml({ order, account, hsnCode = "", gstRate = 18 }) {
   if (!order) throw new Error("Order not found.");
 
   const invoiceNo = formatInvoiceNumber(order);
@@ -135,9 +165,11 @@ export function downloadOrderBill({ order, account, hsnCode = "" }) {
   const hsn = String(hsnCode || order.hsnCode || "").trim() || "—";
   const lrNumber = String(order.lrNumber || "").trim();
   const transport = String(order.transportDetails || "").trim();
-  const taxRate = SELLER.cgstRate + SELLER.sgstRate;
 
-  const { taxable, cgst, sgst, taxTotal, grand } = splitExclusiveGst(order.amount);
+  const { taxable, cgst, sgst, taxTotal, grand, taxRate, cgstRate, sgstRate } = splitExclusiveGst(
+    order.amount,
+    gstRate
+  );
   const unitPrice = qty > 0 ? Math.round((taxable / qty) * 100) / 100 : taxable;
 
   const descLines = [
@@ -171,13 +203,152 @@ export function downloadOrderBill({ order, account, hsnCode = "" }) {
 
   const fileTitle = `Tax Invoice - ${invoiceNo} - ${business}`;
 
-  const html = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(fileTitle)}</title>
-<style>
+  const sheet = `<table class="invoice outer page-break" cellspacing="0" cellpadding="0">
+    <tr>
+      <td>
+        <div class="head-wrap">
+          <div class="top-line">
+            <span>GSTIN : ${escapeHtml(SELLER.gstin)}</span>
+            <span>Original Copy</span>
+          </div>
+          <div class="center">
+            <div class="tax-title">TAX INVOICE</div>
+            <div class="brand">${escapeHtml(SELLER.name)}</div>
+            <div class="addr">${escapeHtml(SELLER.address)}</div>
+            <div class="contact">Tel. : ${escapeHtml(SELLER.tel)} &nbsp;|&nbsp; email: ${escapeHtml(SELLER.email)}</div>
+          </div>
+        </div>
+
+        <table class="meta" cellspacing="0" cellpadding="0">
+          <tr>
+            <td>
+              <div class="kv"><span class="lbl">Invoice No. :</span> ${escapeHtml(invoiceNo)}</div>
+              <div class="kv"><span class="lbl">Dated :</span> ${escapeHtml(dated)}</div>
+              <div class="kv"><span class="lbl">Place of Supply :</span> ${escapeHtml(SELLER.placeOfSupply)}</div>
+              <div class="kv"><span class="lbl">Reverse Charge :</span> N</div>
+              <div class="kv"><span class="lbl">GR/RR No. :</span> ${escapeHtml(lrNumber)}</div>
+            </td>
+            <td>
+              <div class="kv"><span class="lbl">Transport :</span> ${escapeHtml(transport)}</div>
+              <div class="kv"><span class="lbl">Vehicle No. :</span></div>
+              <div class="kv"><span class="lbl">Station :</span></div>
+              <div class="kv"><span class="lbl">Buyer's Order No. :</span> ${escapeHtml(formatOrderDisplayNumber(order))}</div>
+              <div class="kv"><span class="lbl">Date :</span> ${escapeHtml(orderDate)}</div>
+            </td>
+          </tr>
+          <tr>
+            <td>${buyerBlock}</td>
+            <td>${shipBlock}</td>
+          </tr>
+        </table>
+
+        <table class="items" cellspacing="0" cellpadding="0">
+          <thead>
+            <tr>
+              <th style="width:6%">S.N.</th>
+              <th style="width:34%">Description of Goods</th>
+              <th style="width:12%">HSN/SAC Code</th>
+              <th style="width:10%">Qty.</th>
+              <th style="width:8%">Unit</th>
+              <th style="width:12%">Price</th>
+              <th style="width:18%">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="c">1</td>
+              <td>${descLines}</td>
+              <td class="c">${escapeHtml(hsn)}</td>
+              <td class="r">${escapeHtml(qtyFmt(qty))}</td>
+              <td class="c">Pcs.</td>
+              <td class="r">${escapeHtml(money(unitPrice))}</td>
+              <td class="r">${escapeHtml(money(taxable))}</td>
+            </tr>
+            ${blankRows}
+            <tr>
+              <td colspan="3" class="tot-label">Subtotal</td>
+              <td class="r">${escapeHtml(qtyFmt(qty))}</td>
+              <td></td>
+              <td></td>
+              <td class="r">${escapeHtml(money(taxable))}</td>
+            </tr>
+            <tr>
+              <td colspan="6" class="tot-label">Add : CGST @ ${cgstRate.toFixed(2)} %</td>
+              <td class="r">${escapeHtml(money(cgst))}</td>
+            </tr>
+            <tr>
+              <td colspan="6" class="tot-label">Add : SGST @ ${sgstRate.toFixed(2)} %</td>
+              <td class="r">${escapeHtml(money(sgst))}</td>
+            </tr>
+            <tr class="grand">
+              <td colspan="3">${escapeHtml(qtyFmt(qty))} Pcs.</td>
+              <td colspan="3" class="tot-label">Grand Total</td>
+              <td class="r">₹ ${escapeHtml(money(grand))}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="taxsum" cellspacing="0" cellpadding="0">
+          <thead>
+            <tr>
+              <th>HSN/SAC</th>
+              <th>Tax Rate</th>
+              <th>Taxable Amt.</th>
+              <th>CGST Amt.</th>
+              <th>SGST Amt.</th>
+              <th>Total Tax</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${escapeHtml(hsn)}</td>
+              <td>${taxRate}%</td>
+              <td class="r">${escapeHtml(money(taxable))}</td>
+              <td class="r">${escapeHtml(money(cgst))}</td>
+              <td class="r">${escapeHtml(money(sgst))}</td>
+              <td class="r">${escapeHtml(money(taxTotal))}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="words">${escapeHtml(amountInWords(grand))}</div>
+
+        <div class="decl">
+          We declare that this invoice shows the actual price of the goods Described and that all particulars are true and correct.
+        </div>
+
+        <div class="bank">
+          Bank Details : ${escapeHtml(SELLER.bank)} &nbsp;|&nbsp; A/C NO: ${escapeHtml(SELLER.accountNo)} &nbsp;|&nbsp; IFSC: ${escapeHtml(SELLER.ifsc)}
+        </div>
+
+        <table class="foot" cellspacing="0" cellpadding="0">
+          <tr>
+            <td style="width:40%">
+              <div class="terms-title">Terms &amp; Conditions</div>
+              <ol class="terms">
+                <li>E. &amp; O.E.</li>
+                <li>Goods once sold will not be taken back.</li>
+                <li>Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.</li>
+                <li>Subject to 'NAGPUR' Jurisdiction only.</li>
+              </ol>
+            </td>
+            <td style="width:30%">
+              <div class="sign-title">Receiver's Signature :</div>
+            </td>
+            <td style="width:30%">
+              <div class="sign-for">For ${escapeHtml(SELLER.name)}</div>
+              <div class="auth">Authorised Signatory</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>`;
+
+  return { sheet, fileTitle, invoiceNo, business };
+}
+
+const BILL_DOCUMENT_STYLES = `
   @page { size: A4; margin: 8mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -200,7 +371,6 @@ export function downloadOrderBill({ order, account, hsnCode = "" }) {
     padding: 4px 6px;
     vertical-align: top;
   }
-  .no-border { border: none !important; }
   .outer > tbody > tr > td { padding: 0; border: none; }
   .head-wrap { padding: 6px 8px 8px; }
   .top-line {
@@ -309,183 +479,67 @@ export function downloadOrderBill({ order, account, hsnCode = "" }) {
     margin-top: 52px;
     font-size: 10px;
   }
+  .page-break { page-break-after: always; margin-bottom: 16px; }
+  .page-break:last-child { page-break-after: auto; }
   @media print {
     body { margin: 0; }
     .invoice { max-width: none; }
   }
+`;
+
+function wrapBillDocument(title, bodyHtml) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(title)}</title>
+<style>
+${BILL_DOCUMENT_STYLES}
 </style>
 </head>
 <body>
-  <table class="invoice outer" cellspacing="0" cellpadding="0">
-    <tr>
-      <td>
-        <div class="head-wrap">
-          <div class="top-line">
-            <span>GSTIN : ${escapeHtml(SELLER.gstin)}</span>
-            <span>Original Copy</span>
-          </div>
-          <div class="center">
-            <div class="tax-title">TAX INVOICE</div>
-            <div class="brand">${escapeHtml(SELLER.name)}</div>
-            <div class="addr">${escapeHtml(SELLER.address)}</div>
-            <div class="contact">Tel. : ${escapeHtml(SELLER.tel)} &nbsp;|&nbsp; email: ${escapeHtml(SELLER.email)}</div>
-          </div>
-        </div>
-
-        <table class="meta" cellspacing="0" cellpadding="0">
-          <tr>
-            <td>
-              <div class="kv"><span class="lbl">Invoice No. :</span> ${escapeHtml(invoiceNo)}</div>
-              <div class="kv"><span class="lbl">Dated :</span> ${escapeHtml(dated)}</div>
-              <div class="kv"><span class="lbl">Place of Supply :</span> ${escapeHtml(SELLER.placeOfSupply)}</div>
-              <div class="kv"><span class="lbl">Reverse Charge :</span> N</div>
-              <div class="kv"><span class="lbl">GR/RR No. :</span> ${escapeHtml(lrNumber)}</div>
-            </td>
-            <td>
-              <div class="kv"><span class="lbl">Transport :</span> ${escapeHtml(transport)}</div>
-              <div class="kv"><span class="lbl">Vehicle No. :</span></div>
-              <div class="kv"><span class="lbl">Station :</span></div>
-              <div class="kv"><span class="lbl">Buyer's Order No. :</span> ${escapeHtml(formatOrderDisplayNumber(order))}</div>
-              <div class="kv"><span class="lbl">Date :</span> ${escapeHtml(orderDate)}</div>
-            </td>
-          </tr>
-          <tr>
-            <td>${buyerBlock}</td>
-            <td>${shipBlock}</td>
-          </tr>
-        </table>
-
-        <table class="items" cellspacing="0" cellpadding="0">
-          <thead>
-            <tr>
-              <th style="width:6%">S.N.</th>
-              <th style="width:34%">Description of Goods</th>
-              <th style="width:12%">HSN/SAC Code</th>
-              <th style="width:10%">Qty.</th>
-              <th style="width:8%">Unit</th>
-              <th style="width:12%">Price</th>
-              <th style="width:18%">Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="c">1</td>
-              <td>${descLines}</td>
-              <td class="c">${escapeHtml(hsn)}</td>
-              <td class="r">${escapeHtml(qtyFmt(qty))}</td>
-              <td class="c">Pcs.</td>
-              <td class="r">${escapeHtml(money(unitPrice))}</td>
-              <td class="r">${escapeHtml(money(taxable))}</td>
-            </tr>
-            ${blankRows}
-            <tr>
-              <td colspan="3" class="tot-label">Subtotal</td>
-              <td class="r">${escapeHtml(qtyFmt(qty))}</td>
-              <td></td>
-              <td></td>
-              <td class="r">${escapeHtml(money(taxable))}</td>
-            </tr>
-            <tr>
-              <td colspan="6" class="tot-label">Add : CGST @ ${SELLER.cgstRate.toFixed(2)} %</td>
-              <td class="r">${escapeHtml(money(cgst))}</td>
-            </tr>
-            <tr>
-              <td colspan="6" class="tot-label">Add : SGST @ ${SELLER.sgstRate.toFixed(2)} %</td>
-              <td class="r">${escapeHtml(money(sgst))}</td>
-            </tr>
-            <tr class="grand">
-              <td colspan="3">${escapeHtml(qtyFmt(qty))} Pcs.</td>
-              <td colspan="3" class="tot-label">Grand Total</td>
-              <td class="r">₹ ${escapeHtml(money(grand))}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table class="taxsum" cellspacing="0" cellpadding="0">
-          <thead>
-            <tr>
-              <th>HSN/SAC</th>
-              <th>Tax Rate</th>
-              <th>Taxable Amt.</th>
-              <th>CGST Amt.</th>
-              <th>SGST Amt.</th>
-              <th>Total Tax</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>${escapeHtml(hsn)}</td>
-              <td>${taxRate}%</td>
-              <td class="r">${escapeHtml(money(taxable))}</td>
-              <td class="r">${escapeHtml(money(cgst))}</td>
-              <td class="r">${escapeHtml(money(sgst))}</td>
-              <td class="r">${escapeHtml(money(taxTotal))}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="words">${escapeHtml(amountInWords(grand))}</div>
-
-        <div class="decl">
-          We declare that this invoice shows the actual price of the goods Described and that all particulars are true and correct.
-        </div>
-
-        <div class="bank">
-          Bank Details : ${escapeHtml(SELLER.bank)} &nbsp;|&nbsp; A/C NO: ${escapeHtml(SELLER.accountNo)} &nbsp;|&nbsp; IFSC: ${escapeHtml(SELLER.ifsc)}
-        </div>
-
-        <table class="foot" cellspacing="0" cellpadding="0">
-          <tr>
-            <td style="width:40%">
-              <div class="terms-title">Terms &amp; Conditions</div>
-              <ol class="terms">
-                <li>E. &amp; O.E.</li>
-                <li>Goods once sold will not be taken back.</li>
-                <li>Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.</li>
-                <li>Subject to 'NAGPUR' Jurisdiction only.</li>
-              </ol>
-            </td>
-            <td style="width:30%">
-              <div class="sign-title">Receiver's Signature :</div>
-            </td>
-            <td style="width:30%">
-              <div class="sign-for">For ${escapeHtml(SELLER.name)}</div>
-              <div class="auth">Authorised Signatory</div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+${bodyHtml}
 </body>
 </html>`;
-
-  const win = window.open("", "_blank");
-  if (!win) {
-    throw new Error("Popup blocked. Please allow popups to download the bill.");
-  }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-
-  const triggerPrint = () => {
-    win.print();
-  };
-
-  if (win.document.readyState === "complete") {
-    setTimeout(triggerPrint, 350);
-  } else {
-    win.onload = () => setTimeout(triggerPrint, 350);
-  }
 }
 
-/** Resolve HSN from public catalog by matching order paperGsm to paper type name. */
-export function resolveHsnFromCatalog(catalog, order) {
+/**
+ * Opens print-ready TAX INVOICE matching the PIXEL DIGITAL reference layout.
+ */
+export function downloadOrderBill({ order, account, hsnCode = "", gstRate = 18 }) {
+  const { sheet, fileTitle } = buildOrderBillSheetHtml({ order, account, hsnCode, gstRate });
+  openPrintHtml(wrapBillDocument(fileTitle, sheet), fileTitle);
+}
+
+/**
+ * Print / save multiple tax invoices (one page each) for a date range.
+ */
+export function downloadOrderBillsBulk(items = []) {
+  if (!items.length) throw new Error("No bills found for the selected dates.");
+  const sheets = items
+    .map((item) => buildOrderBillSheetHtml(item).sheet)
+    .join("\n");
+  const title = `Tax Invoices (${items.length})`;
+  openPrintHtml(wrapBillDocument(title, sheets), title);
+}
+
+/** Resolve HSN + GST % from public catalog by matching order paperGsm. */
+export function resolveBillMetaFromCatalog(catalog, order) {
   const paperName = String(order?.paperGsm || "").trim().toLowerCase();
-  if (!paperName || !catalog?.paperTypes?.length) return "";
+  if (!paperName || !catalog?.paperTypes?.length) {
+    return { hsnCode: "", gstRate: 18 };
+  }
   const match = catalog.paperTypes.find(
     (p) => String(p.name || "").trim().toLowerCase() === paperName
   );
-  return String(match?.hsnCode || "").trim();
+  return {
+    hsnCode: String(match?.hsnCode || "").trim(),
+    gstRate: normalizeGstRate(match?.gstRate ?? 18),
+  };
+}
+
+/** @deprecated use resolveBillMetaFromCatalog */
+export function resolveHsnFromCatalog(catalog, order) {
+  return resolveBillMetaFromCatalog(catalog, order).hsnCode;
 }

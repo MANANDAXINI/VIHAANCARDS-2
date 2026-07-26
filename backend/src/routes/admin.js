@@ -955,9 +955,14 @@ router.put("/orders/:id/job-completed", authAdmin, async (req, res) => {
     if (["DISPATCHED", "COMPLETED"].includes(existing.status)) {
       return res.json({ order: adminOrderPayload(existing) });
     }
-    if (!["PAYMENT_VERIFIED", "IN_PRINTING"].includes(existing.status)) {
+    // Allow from verified / printing stages (and already dispatched update is no-op above).
+    if (
+      !["PAYMENT_VERIFIED", "IN_PRINTING", "PAYMENT_SUBMITTED", "ORDER_CREATED"].includes(
+        existing.status
+      )
+    ) {
       return res.status(400).json({
-        error: "Order must be verified / in printing before marking job completed.",
+        error: `Order status ${existing.status} cannot be marked job completed.`,
       });
     }
 
@@ -1036,6 +1041,64 @@ router.get("/day-book", authAdmin, async (req, res) => {
       customerName: order.account.name,
       business: order.account.business,
     })),
+  });
+});
+
+/** Dispatched/completed orders for bulk tax invoice download (by dispatch date, IST). */
+router.get("/bills", authAdmin, async (req, res) => {
+  const today = istDateString();
+  const fromDate = String(req.query.fromDate || "").trim() || today;
+  const toDate = String(req.query.toDate || "").trim() || today;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+    return res.status(400).json({ error: "Invalid date. Use YYYY-MM-DD." });
+  }
+  if (fromDate > toDate) {
+    return res.status(400).json({ error: "From date must be on or before To date." });
+  }
+
+  const rangeStart = new Date(`${fromDate}T00:00:00+05:30`);
+  const rangeEnd = new Date(`${toDate}T23:59:59.999+05:30`);
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: { in: ["DISPATCHED", "COMPLETED"] },
+      OR: [
+        { dispatchDate: { gte: rangeStart, lte: rangeEnd } },
+        {
+          AND: [
+            { dispatchDate: null },
+            { updatedAt: { gte: rangeStart, lte: rangeEnd } },
+          ],
+        },
+      ],
+    },
+    include: { account: true },
+    orderBy: [{ dispatchDate: "asc" }, { createdAt: "asc" }],
+  });
+
+  const paperTypes = await prisma.paperType.findMany({
+    select: { id: true, name: true, hsnCode: true, gstRate: true },
+  });
+  const paperByName = new Map(
+    paperTypes.map((p) => [String(p.name || "").trim().toLowerCase(), p])
+  );
+
+  const bills = orders.map((order) => {
+    const paper = paperByName.get(String(order.paperGsm || "").trim().toLowerCase());
+    return {
+      order: secureOrder(order),
+      account: publicAccount(order.account),
+      hsnCode: paper?.hsnCode || "",
+      gstRate: Number(paper?.gstRate) > 0 ? Number(paper.gstRate) : 18,
+    };
+  });
+
+  res.json({
+    fromDate,
+    toDate,
+    count: bills.length,
+    bills,
   });
 });
 

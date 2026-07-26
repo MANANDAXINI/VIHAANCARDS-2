@@ -218,25 +218,31 @@ const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatc
   }
 
   async function handleJobCompleted() {
-    // Must persist status first — customer portal reads Order.status from API.
-    // PRINTING_PROCESS_STARTED → customer JOB PROCESS shows "ORDER COMPLETED".
-    // Stays in Pending list until LR Save → DISPATCHED.
+    // Persist PRINTING_PROCESS_STARTED so Admin Order History + customer portal
+    // both show JOB PROCESS = ORDER COMPLETED. Stays in Pending until LR Save.
     setCompleting(true);
     try {
-      // Use long-standing /status route first (works even if /job-completed not deployed).
-      let response = await adminApi.updateOrderStatus(
-        order.id,
-        { status: "PRINTING_PROCESS_STARTED" },
-        { silent: true }
-      );
+      window.__pdAdminTyping = false;
+      window.__pdAdminLoadPending = false;
+
+      let response;
+      try {
+        response = await adminApi.markJobCompleted(order.id, { silent: true });
+      } catch {
+        response = null;
+      }
       let newStatus = String(response?.order?.status || "").toUpperCase();
 
       if (newStatus !== "PRINTING_PROCESS_STARTED") {
-        response = await adminApi.markJobCompleted(order.id, { silent: true });
+        response = await adminApi.updateOrderStatus(
+          order.id,
+          { status: "PRINTING_PROCESS_STARTED" },
+          { silent: true }
+        );
         newStatus = String(response?.order?.status || "").toUpperCase();
       }
 
-      if (newStatus !== "PRINTING_PROCESS_STARTED" && newStatus !== "DISPATCHED" && newStatus !== "COMPLETED") {
+      if (newStatus !== "PRINTING_PROCESS_STARTED") {
         throw new Error("Job status did not save. Please try again.");
       }
 
@@ -246,22 +252,33 @@ const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatc
         status: "PRINTING_PROCESS_STARTED",
       };
 
-      // Instant admin UI update (don't wait for full reload).
+      // Patch list immediately (Orders tab Job Process → Order Completed).
       onJobCompleted?.(order.id, updatedOrder);
 
-      window.__pdAdminTyping = false;
-      window.__pdAdminLoadPending = false;
+      // Full refresh, then patch again so a slow/stale load cannot wipe the status.
       await Promise.resolve(onSaved?.());
+      onJobCompleted?.(order.id, updatedOrder);
 
-      // WhatsApp after DB save — delay so deeplink does not abort the request.
+      // Tell Admin Order History to reload for this customer.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("pd-job-completed", {
+            detail: {
+              orderId: order.id,
+              accountId: order.accountId || order.account?.id || null,
+            },
+          })
+        );
+      }
+
       window.setTimeout(() => {
         const { opened } = notifyCustomerJobCompleted(updatedOrder);
         if (!opened) {
           toast.info("Customer phone not available for WhatsApp.");
         }
-      }, 500);
+      }, 600);
 
-      toast.success("Job completed saved — customer portal shows ORDER COMPLETED.");
+      toast.success("Job completed — Order History (admin + customer) updated.");
     } catch (error) {
       toast.error(error.message || "Could not mark job completed.");
     } finally {

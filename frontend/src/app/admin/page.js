@@ -17,6 +17,7 @@ import AdminReceivePaymentSection from "@/components/AdminReceivePaymentSection"
 import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
 import AdminCustomerOrderHistorySection from "@/components/AdminCustomerOrderHistorySection";
+import AdminDownloadBillsSection from "@/components/AdminDownloadBillsSection";
 import AdminEditUserModal from "@/components/AdminEditUserModal";
 import AdminOtherChargesSection from "@/components/AdminOtherChargesSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
@@ -181,7 +182,7 @@ export default function AdminPage() {
     setOrdersSubTab("completed-orders");
   }, []);
 
-  /** Instant patch after Job Completed — customer portal reads this status. */
+  /** Keep Orders list + history in sync after Job Completed (DB status PRINTING_PROCESS_STARTED). */
   const handleJobCompleted = useCallback((orderId, updatedOrder) => {
     setOrders((prev) =>
       prev.map((order) =>
@@ -904,6 +905,8 @@ export default function AdminPage() {
           {activeTab === "order-history" && (
             <AdminCustomerOrderHistorySection accounts={accounts} />
           )}
+
+          {activeTab === "download-bills" && <AdminDownloadBillsSection />}
 
           {activeTab === "outstanding" && <AdminOutstandingSection />}
 

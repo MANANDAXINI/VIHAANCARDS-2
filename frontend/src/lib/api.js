@@ -129,6 +129,7 @@ export const adminApi = {
   updateOrderStatus: (id, body, options) => api(`/api/admin/orders/${id}/status`, { method: "PUT", body, ...options }),
   markArtworkDownloaded: (id, side, options) => api(`/api/admin/orders/${id}/mark-artwork`, { method: "PUT", body: { side }, ...options }),
   dispatch: (id, body, options) => api(`/api/admin/orders/${id}/dispatch`, { method: "PUT", body, ...options }),
+  markJobCompleted: (id, options) => api(`/api/admin/orders/${id}/job-completed`, { method: "PUT", ...options }),
   deliver: (id, options) => api(`/api/admin/orders/${id}/deliver`, { method: "PUT", ...options }),
   cancelOrder: (id, options) => api(`/api/admin/orders/${id}`, { method: "DELETE", ...options }),
   dayBook: (date) => api(`/api/admin/day-book${date ? `?date=${encodeURIComponent(date)}` : ""}`),

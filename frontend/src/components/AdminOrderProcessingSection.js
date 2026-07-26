@@ -218,18 +218,42 @@ const DispatchForm = memo(function DispatchForm({ order, onSaved, onOrderDispatc
   }
 
   async function handleJobCompleted() {
-    // WhatsApp notify only — do NOT mark completed / move to Completed Orders.
-    // Order moves to Completed only after Save/Update with dispatch (LR) details.
+    // Persist PRINTING_PROCESS_STARTED so customer Order History shows ORDER COMPLETED.
+    // Order stays in Pending until Save/Update dispatch (LR) → DISPATCHED.
     setCompleting(true);
     try {
-      const { opened } = notifyCustomerJobCompleted(order);
+      let response;
+      try {
+        response = await adminApi.markJobCompleted(order.id, { silent: true });
+      } catch (primaryError) {
+        // Fallback if backend has not redeployed /job-completed yet.
+        response = await adminApi.updateOrderStatus(
+          order.id,
+          { status: "PRINTING_PROCESS_STARTED" },
+          { silent: true }
+        );
+        if (!response?.order) throw primaryError;
+      }
+
+      const updatedOrder = {
+        ...order,
+        ...response.order,
+        status: response.order?.status || "PRINTING_PROCESS_STARTED",
+      };
+      const { opened } = notifyCustomerJobCompleted(updatedOrder);
+
+      // Allow admin refresh even if dispatch inputs still hold focus.
+      window.__pdAdminTyping = false;
+      window.__pdAdminLoadPending = false;
+
       toast.success(
         opened
-          ? "Job-completed WhatsApp message opened for customer."
-          : "Customer phone not available for WhatsApp."
+          ? "Job completed — customer portal updated. WhatsApp opened."
+          : "Job completed — customer portal shows ORDER COMPLETED."
       );
+      await Promise.resolve(onSaved?.());
     } catch (error) {
-      toast.error(error.message || "Could not open WhatsApp.");
+      toast.error(error.message || "Could not mark job completed.");
     } finally {
       setCompleting(false);
     }
@@ -482,7 +506,8 @@ const OrderProcessingCard = memo(function OrderProcessingCard({ order, onRefresh
 
         <div className="min-w-0">
           <SectionLabel>Job Process</SectionLabel>
-          {isOrderCompleted(order.status) ? (
+          {isOrderCompleted(order.status)
+            || String(order.status || "").toUpperCase() === "PRINTING_PROCESS_STARTED" ? (
             <button type="button" className={`${btnClass("success", true)} w-full whitespace-normal leading-tight`} disabled>
               Order Completed
             </button>

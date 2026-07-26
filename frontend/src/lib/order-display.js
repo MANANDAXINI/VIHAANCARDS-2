@@ -40,6 +40,8 @@ export const JOB_PRINTING_LABEL = "PRINTING AND OTHER PROCESS STARTED";
 export const JOB_PROCESS_STARTED_LABEL = "PRINTING & OTHER PROCESS STARTED";
 
 export const ORDER_COMPLETED_LABEL = "ORDER COMPLETED";
+/** Shown after admin clicks Job Completed (before despatch). */
+export const JOB_COMPLETED_LABEL = "ORDER COMPLETED";
 const ORDER_COMPLETED_CLASS =
   "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-emerald-600 sm:text-xs";
 
@@ -48,10 +50,16 @@ export function isOrderCompletedStatus(status) {
   return s === "DISPATCHED" || s === "COMPLETED";
 }
 
+/** Job Completed button / Job Update folder — ready for despatch, not yet LR-saved. */
+export function isJobCompletedStatus(status) {
+  return String(status || "").toUpperCase() === "PRINTING_PROCESS_STARTED";
+}
+
 export function formatJobProcess(status, options = {}) {
   const s = String(status || "").toUpperCase();
-  if (isOrderCompletedStatus(s)) return ORDER_COMPLETED_LABEL;
-  if (s === "PRINTING_PROCESS_STARTED") return JOB_PROCESS_STARTED_LABEL;
+  // Job Completed → PRINTING_PROCESS_STARTED → green ORDER COMPLETED on customer + admin history.
+  // Dispatch Save → DISPATCHED / COMPLETED → same label.
+  if (isOrderCompletedStatus(s) || isJobCompletedStatus(s)) return JOB_COMPLETED_LABEL;
   if (s === "IN_PRINTING") return JOB_PRINTING_LABEL;
   if (s === "PAYMENT_VERIFIED") {
     return options.hasCreditLimit ? JOB_LIMIT_USED_LABEL : JOB_VERIFIED_LABEL;
@@ -88,19 +96,20 @@ export function jobProcessClassForOrder(order) {
   if (isPendingPaymentOrder(order)) {
     return `${ui.pill} bg-amber-100 text-amber-800`;
   }
-  if (isOrderCompletedStatus(order?.status)) return ORDER_COMPLETED_CLASS;
+  const s = String(order?.status || "").toUpperCase();
+  if (isOrderCompletedStatus(s) || isJobCompletedStatus(s)) return ORDER_COMPLETED_CLASS;
   return jobProcessClass(order?.status);
 }
 
 export function jobProcessClass(status) {
   const s = String(status || "").toUpperCase();
-  if (s === "COMPLETED") {
+  if (s === "COMPLETED" || isJobCompletedStatus(s)) {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-emerald-600 sm:text-xs";
   }
   if (s === "DISPATCHED") {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-indigo-600 sm:text-xs";
   }
-  if (s === "PRINTING_PROCESS_STARTED" || s === "IN_PRINTING") {
+  if (s === "IN_PRINTING") {
     return "inline-block max-w-[12rem] rounded px-2 py-1.5 text-center text-[0.65rem] font-bold uppercase leading-tight tracking-wide text-white bg-blue-600 sm:text-xs";
   }
   if (s === "PAYMENT_VERIFIED") {
@@ -115,7 +124,8 @@ export function jobProcessClass(status) {
 export function formatDespatchLabel(order) {
   if (isPendingPaymentOrder(order)) return "Pending";
   const s = String(order?.status || "").toUpperCase();
-  if (s === "DISPATCHED" || s === "COMPLETED" || s === "PRINTING_PROCESS_STARTED") {
+  // Only after dispatch Save (LR) — not when Job Completed alone.
+  if (s === "DISPATCHED" || s === "COMPLETED") {
     const date = order.dispatchDate ? formatLedgerTableDate(order.dispatchDate) : "";
     return date ? `Despatched ${date}` : "Despatched";
   }

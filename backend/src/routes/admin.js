@@ -904,6 +904,39 @@ router.put("/orders/:id/deliver", authAdmin, async (req, res) => {
   res.json({ order: secureOrder(order) });
 });
 
+/** Job finished / ready for despatch — customer portal shows ORDER COMPLETED.
+ *  Does NOT move order to Completed tab (that happens on dispatch Save → DISPATCHED). */
+router.put("/orders/:id/job-completed", authAdmin, async (req, res) => {
+  try {
+    const existing = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { account: true },
+    });
+    if (!existing) return res.status(404).json({ error: "Order not found." });
+
+    if (existing.status === "PRINTING_PROCESS_STARTED") {
+      return res.json({ order: adminOrderPayload(existing) });
+    }
+    if (["DISPATCHED", "COMPLETED"].includes(existing.status)) {
+      return res.json({ order: adminOrderPayload(existing) });
+    }
+    if (!["PAYMENT_VERIFIED", "IN_PRINTING"].includes(existing.status)) {
+      return res.status(400).json({
+        error: "Order must be verified / in printing before marking job completed.",
+      });
+    }
+
+    const order = await prisma.order.update({
+      where: { id: existing.id },
+      data: { status: "PRINTING_PROCESS_STARTED" },
+      include: { account: true },
+    });
+    res.json({ order: adminOrderPayload(order) });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Could not mark job completed." });
+  }
+});
+
 // Cancels/deletes an order: restores paper stock, removes the order's billing
 // ledger charge, recomputes the customer's outstanding, and deletes artwork.
 router.delete("/orders/:id", authAdmin, async (req, res) => {

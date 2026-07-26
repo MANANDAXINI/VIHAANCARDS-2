@@ -65,7 +65,9 @@ export default function AdminJobUpdateSection({ onRefresh }) {
         skippedCount: data.skippedCount,
       });
       setResults(data.results || []);
-      toast.success(`Updated ${data.updatedCount} job(s) — printing & other process started.`);
+      toast.success(
+        `Updated ${data.updatedCount} job(s) — customer portal shows ORDER COMPLETED.`
+      );
       onRefresh?.();
     } catch (error) {
       toast.error(error.message || "Job update failed.");

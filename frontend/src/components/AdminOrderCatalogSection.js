@@ -443,7 +443,7 @@ export default function AdminOrderCatalogSection() {
                   </button>
                 </div>
                 <p className={`${ui.small} ${ui.muted} mt-1`}>
-                  Bill calculates CGST + SGST as half each (e.g. 18% → 9% + 9%).
+                  Order amount already includes GST. Bill shows taxable + CGST/SGST (half each) that sum to that amount.
                 </p>
               </div>
             </div>

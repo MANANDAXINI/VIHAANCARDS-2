@@ -111,16 +111,20 @@ export function normalizeGstRate(value) {
 }
 
 /**
- * Line amounts are taxable (exclusive); CGST/SGST = half of total GST each.
+ * Order amount is GST-inclusive (same as portal / catalog total).
+ * Back-calculate taxable + CGST + SGST so Grand Total = order.amount (no extra GST on top).
  */
-function splitExclusiveGst(taxableAmount, totalGstRate = 18) {
+function splitInclusiveGst(inclusiveAmount, totalGstRate = 18) {
   const taxRate = normalizeGstRate(totalGstRate);
   const half = taxRate / 2;
-  const taxable = Math.round(Number(taxableAmount || 0) * 100) / 100;
-  const cgst = Math.round(taxable * (half / 100) * 100) / 100;
-  const sgst = Math.round(taxable * (half / 100) * 100) / 100;
-  const taxTotal = Math.round((cgst + sgst) * 100) / 100;
-  const grand = Math.round((taxable + taxTotal) * 100) / 100;
+  const grand = Math.round(Number(inclusiveAmount || 0) * 100) / 100;
+  const taxable =
+    taxRate > 0
+      ? Math.round((grand / (1 + taxRate / 100)) * 100) / 100
+      : grand;
+  const taxTotal = Math.round((grand - taxable) * 100) / 100;
+  const cgst = Math.round((taxTotal / 2) * 100) / 100;
+  const sgst = Math.round((taxTotal - cgst) * 100) / 100;
   return { taxable, cgst, sgst, taxTotal, grand, taxRate, cgstRate: half, sgstRate: half };
 }
 
@@ -166,7 +170,7 @@ export function buildOrderBillSheetHtml({ order, account, hsnCode = "", gstRate 
   const lrNumber = String(order.lrNumber || "").trim();
   const transport = String(order.transportDetails || "").trim();
 
-  const { taxable, cgst, sgst, taxTotal, grand, taxRate, cgstRate, sgstRate } = splitExclusiveGst(
+  const { taxable, cgst, sgst, taxTotal, grand, taxRate, cgstRate, sgstRate } = splitInclusiveGst(
     order.amount,
     gstRate
   );

@@ -44,13 +44,16 @@ export default function CreditReminderModal({
           alt="Aapka Credit Limit khatam hone aya hai — Part Payment ya Full Payment kare"
           className="block w-full object-contain"
         />
-        <div className="grid gap-2 border-t border-slate-100 px-4 py-3">
-          <Link href="/payment/outstanding" className={`${btnClass("primary")} w-full text-center`}>
-            Make Payment
+        <div className="grid gap-2 border-t border-slate-100 px-4 py-3 sm:grid-cols-2">
+          <Link
+            href="/payment/outstanding"
+            className={`${btnClass("primary")} w-full text-center sm:col-span-2`}
+          >
+            Part Payment / Full Payment
           </Link>
           <button
             type="button"
-            className={`${btnClass("ghost")} w-full border border-amber-400`}
+            className={`${btnClass("ghost")} w-full border border-amber-400 sm:col-span-2`}
             onClick={onClose}
           >
             Skip this and continue to Order

@@ -9,10 +9,13 @@ import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { catalogApi, formatRupees, orderApi } from "@/lib/api";
 import {
   calcOrderAmount,
+  filterPapersByCategory,
   getPricedPrintingSides,
   getPricedQuantities,
   getPricedSizes,
+  listPaperCategories,
   needsBackUpload,
+  resolvePaperCategory,
 } from "@/lib/catalog";
 import { toast } from "@/lib/toast";
 import { btnClass, chipClass, ui } from "@/lib/ui";
@@ -36,6 +39,7 @@ export default function OrderPage() {
   const { refresh, ready } = useAuth();
   const user = useAuthUser();
   const [catalog, setCatalog] = useState(null);
+  const [paperCategory, setPaperCategory] = useState("");
   const [paperTypeId, setPaperTypeId] = useState("");
   const [sizeId, setSizeId] = useState("");
   const [printingSideId, setPrintingSideId] = useState("");
@@ -64,6 +68,16 @@ export default function OrderPage() {
   const paperList = useMemo(
     () => (pricedPapers.length ? pricedPapers : (catalog?.paperTypes || [])),
     [pricedPapers, catalog?.paperTypes]
+  );
+
+  const paperCategories = useMemo(
+    () => listPaperCategories(paperList),
+    [paperList]
+  );
+
+  const categoryPapers = useMemo(
+    () => filterPapersByCategory(paperList, paperCategory),
+    [paperList, paperCategory]
   );
 
   const selectedPaper = paperList.find((p) => p.id === paperTypeId)
@@ -152,18 +166,20 @@ export default function OrderPage() {
           (data.priceRules || []).some((r) => r.paperTypeId === p.id && Number(r.amount) > 0)
         );
         const paperList = papersWithPrices.length ? papersWithPrices : data.paperTypes;
-        const firstPaper = paperList[0].id;
-        setPaperTypeId(firstPaper);
+        const firstPaper = paperList[0];
+        const firstPaperId = firstPaper.id;
+        setPaperCategory(resolvePaperCategory(firstPaper));
+        setPaperTypeId(firstPaperId);
 
-        const sizes = getPricedSizes(data, firstPaper);
+        const sizes = getPricedSizes(data, firstPaperId);
         const firstSize = sizes[0]?.id || "";
         setSizeId(firstSize);
 
-        const sides = getPricedPrintingSides(data, firstPaper, firstSize);
+        const sides = getPricedPrintingSides(data, firstPaperId, firstSize);
         const firstSide = sides[0]?.id || "";
         setPrintingSideId(firstSide);
 
-        const qtys = getPricedQuantities(data, firstPaper, firstSize, firstSide);
+        const qtys = getPricedQuantities(data, firstPaperId, firstSize, firstSide);
         if (qtys[0]) setQuantity(String(qtys[0].value));
       })
       .catch((e) => toast.error(e.message));
@@ -360,33 +376,64 @@ export default function OrderPage() {
             </p>
 
             <div className={ui.field}>
-              <label className={ui.label}>Paper Type (GSM)</label>
-              <div
-                className="grid max-h-64 grid-cols-2 gap-2.5 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-3"
-                role="group"
-                aria-label="Paper type GSM"
-              >
-                {paperList.map((p) => {
-                  const active = paperTypeId === p.id;
+              <label className={ui.label}>Paper Type</label>
+              <div className="flex flex-wrap gap-2.5" role="group" aria-label="Paper type">
+                {paperCategories.map((cat) => {
+                  const active = paperCategory === cat;
                   return (
                     <button
-                      key={p.id}
+                      key={cat}
                       type="button"
                       aria-pressed={active}
-                      className={`${chipClass(active)} w-full justify-center text-center`}
-                      onClick={() => setPaperTypeId(p.id)}
+                      className={chipClass(active)}
+                      onClick={() => {
+                        setPaperCategory(cat);
+                        const nextPapers = filterPapersByCategory(paperList, cat);
+                        const nextId = nextPapers[0]?.id || "";
+                        setPaperTypeId(nextId);
+                      }}
                     >
-                      {p.name}
+                      {cat}
                     </button>
                   );
                 })}
               </div>
-              {selectedPaper ? (
-                <p className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900">
-                  Selected: {selectedPaper.name}
-                </p>
-              ) : null}
             </div>
+
+            {paperCategory ? (
+              <div className={ui.field}>
+                <label className={ui.label}>GSM / Subcategory</label>
+                <div
+                  className="grid max-h-56 grid-cols-2 gap-2.5 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-3"
+                  role="group"
+                  aria-label="GSM subcategory"
+                >
+                  {categoryPapers.length === 0 ? (
+                    <p className={`${ui.small} col-span-full`}>No papers in this category yet.</p>
+                  ) : (
+                    categoryPapers.map((p) => {
+                      const active = paperTypeId === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          aria-pressed={active}
+                          className={`${chipClass(active)} w-full justify-center text-center`}
+                          onClick={() => setPaperTypeId(p.id)}
+                        >
+                          {p.name}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                {selectedPaper ? (
+                  <p className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900">
+                    Selected: {paperCategory} → {selectedPaper.name}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className={ui.grid2}>
               <div className={ui.field}>

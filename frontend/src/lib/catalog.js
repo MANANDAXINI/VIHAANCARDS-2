@@ -1,3 +1,43 @@
+/** Main Paper Type buttons on Place Order (D53). */
+export const PAPER_CATEGORIES = [
+  "MAPLITHO",
+  "ART PAPER",
+  "DIGITAL DIE CUT STICKER",
+  "STICKER",
+];
+
+export const PAPER_CATEGORY_OTHER = "OTHER";
+
+/**
+ * Resolve main category for a paper GSM.
+ * Uses saved `category` when set; otherwise infers from the GSM name.
+ */
+export function resolvePaperCategory(paper) {
+  const stored = String(paper?.category || "").trim().toUpperCase();
+  if (PAPER_CATEGORIES.includes(stored) || stored === PAPER_CATEGORY_OTHER) {
+    return stored;
+  }
+
+  const n = String(paper?.name || "").toLowerCase();
+  if (/die\s*cut|diecut/.test(n)) return "DIGITAL DIE CUT STICKER";
+  if (/\bsticker\b/.test(n)) return "STICKER";
+  if (/mapl|maplitho/.test(n)) return "MAPLITHO";
+  if (/art\s*paper|\bart\b/.test(n)) return "ART PAPER";
+  if (/\b(250|300|350)\s*gsm/.test(n)) return "ART PAPER";
+  return PAPER_CATEGORY_OTHER;
+}
+
+/** 4 main categories always; OTHER only when needed. */
+export function listPaperCategories(papers = []) {
+  const hasOther = papers.some((p) => resolvePaperCategory(p) === PAPER_CATEGORY_OTHER);
+  return hasOther ? [...PAPER_CATEGORIES, PAPER_CATEGORY_OTHER] : [...PAPER_CATEGORIES];
+}
+
+export function filterPapersByCategory(papers = [], category) {
+  if (!category) return papers;
+  return papers.filter((p) => resolvePaperCategory(p) === category);
+}
+
 export function findPriceRule(catalog, paperTypeId, sizeId, printingSideId, quantity) {
   const qty = Number(quantity);
   if (!catalog?.priceRules || !Number.isFinite(qty) || qty <= 0) return null;

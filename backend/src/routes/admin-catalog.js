@@ -34,7 +34,7 @@ function crudRoutes(modelName, label) {
   });
 
   router.post(`/${label}`, authAdmin, async (req, res) => {
-    const { name, availableQuantity, ratePerThousand, active, sortOrder, hsnCode, gstRate } = req.body;
+    const { name, availableQuantity, ratePerThousand, active, sortOrder, hsnCode, gstRate, category } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: "Name is required." });
 
     const data = {
@@ -47,6 +47,7 @@ function crudRoutes(modelName, label) {
       data.availableQuantity = Number(availableQuantity) || 0;
       data.ratePerThousand = Number(ratePerThousand) || 0;
       data.hsnCode = String(hsnCode || "").trim();
+      data.category = String(category || "").trim().toUpperCase();
       const gst = Number(gstRate);
       data.gstRate = Number.isFinite(gst) && gst >= 0 ? gst : 18;
     }
@@ -56,7 +57,7 @@ function crudRoutes(modelName, label) {
   });
 
   router.put(`/${label}/:id`, authAdmin, async (req, res) => {
-    const { name, availableQuantity, ratePerThousand, active, sortOrder, hsnCode, gstRate } = req.body;
+    const { name, availableQuantity, ratePerThousand, active, sortOrder, hsnCode, gstRate, category } = req.body;
     const data = {
       ...(name !== undefined && { name: name.trim() }),
       ...(active !== undefined && { active }),
@@ -67,6 +68,7 @@ function crudRoutes(modelName, label) {
       if (availableQuantity !== undefined) data.availableQuantity = Number(availableQuantity);
       if (ratePerThousand !== undefined) data.ratePerThousand = Number(ratePerThousand);
       if (hsnCode !== undefined) data.hsnCode = String(hsnCode || "").trim();
+      if (category !== undefined) data.category = String(category || "").trim().toUpperCase();
       if (gstRate !== undefined) {
         const gst = Number(gstRate);
         if (!Number.isFinite(gst) || gst < 0) {

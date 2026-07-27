@@ -569,8 +569,8 @@ export default function OrderPage() {
                   <strong>Superfast Delivery</strong>
                   <span>
                     {superfastEligible
-                      ? `+ ₹${superfastCharge} for this order (< ₹2,000 → ₹200 · ₹2,000–₹5,000 → ₹300 · > ₹5,000 → ₹400)`
-                      : "Select a priced combination to see the charge"}
+                      ? `+ ₹${superfastCharge}`
+                      : "Select a priced combination first"}
                   </span>
                 </span>
                 <span className="superfast-btn__badge">

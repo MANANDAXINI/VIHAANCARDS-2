@@ -2,27 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { adminCatalogApi, formatDate } from "@/lib/api";
-import { PAPER_CATEGORIES, PAPER_CATEGORY_OTHER, resolvePaperCategory } from "@/lib/catalog";
 import { toast } from "@/lib/toast";
 import { btnClass, formatOrderStatus, orderStatusClass, ui } from "@/lib/ui";
-
-const CATEGORY_CHOICES = [...PAPER_CATEGORIES, PAPER_CATEGORY_OTHER];
-
-function promptPaperCategory(current = "") {
-  const currentNorm = String(current || "").trim().toUpperCase();
-  const hint = CATEGORY_CHOICES.join(" | ");
-  const value = window.prompt(
-    `Paper category?\n${hint}`,
-    currentNorm && CATEGORY_CHOICES.includes(currentNorm) ? currentNorm : PAPER_CATEGORIES[0]
-  );
-  if (value == null) return null;
-  const next = String(value).trim().toUpperCase();
-  if (!CATEGORY_CHOICES.includes(next)) {
-    toast.error(`Category must be one of: ${hint}`);
-    return null;
-  }
-  return next;
-}
 
 function formatPhone(phone) {
   return phone?.startsWith("g-") ? "Not set" : phone;
@@ -191,8 +172,6 @@ export default function AdminOrderCatalogSection() {
   async function addPaper() {
     const name = window.prompt("Paper GSM name?", "");
     if (!name?.trim()) return;
-    const category = promptPaperCategory("");
-    if (!category) return;
     const hsn = window.prompt("HSN CODE (optional)?", "") || "";
     const gstPrompt = window.prompt("GST RATE % (5 or 18)?", "18") || "18";
     const gst = Number(gstPrompt);
@@ -201,7 +180,6 @@ export default function AdminOrderCatalogSection() {
     try {
       const created = await adminCatalogApi.createPaperType({
         name: name.trim(),
-        category,
         hsnCode: hsn.trim(),
         gstRate: Number.isFinite(gst) && gst >= 0 ? gst : 18,
         availableQuantity: 100000,
@@ -226,9 +204,6 @@ export default function AdminOrderCatalogSection() {
     const name = window.prompt("Paper GSM name?", selectedPaper.name);
     if (!name?.trim()) return;
 
-    const category = promptPaperCategory(resolvePaperCategory(selectedPaper));
-    if (!category) return;
-
     const stockStr = window.prompt("Available stock?", String(selectedPaper.availableQuantity ?? 0));
     const availableQuantity = Number(stockStr);
     if (!Number.isFinite(availableQuantity) || availableQuantity < 0) {
@@ -248,7 +223,6 @@ export default function AdminOrderCatalogSection() {
     try {
       await adminCatalogApi.updatePaperType(paperTypeId, {
         name: name.trim(),
-        category,
         availableQuantity,
         hsnCode: String(hsn).trim(),
         gstRate: Number.isFinite(gst) && gst >= 0 ? gst : 18,
@@ -369,39 +343,28 @@ export default function AdminOrderCatalogSection() {
         <aside className={ui.paperSidebar}>
           <h2 className={ui.paperSidebarTitle}>Paper GSM</h2>
           <nav className="grid max-h-[24rem] gap-0.5 overflow-y-auto" aria-label="Paper GSM">
-            {CATEGORY_CHOICES.map((cat) => {
-              const group = paperTypes.filter((p) => resolvePaperCategory(p) === cat);
-              if (!group.length) return null;
-              return (
-                <div key={cat} className="mb-1">
-                  <div className="px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">
-                    {cat}
-                  </div>
-                  {group.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={`${ui.paperNavItem} ${paperTypeId === p.id ? ui.paperNavItemActive : ""}`}
-                      onClick={() => {
-                        setPaperTypeId(p.id);
-                        setHistoryData(null);
-                      }}
-                    >
-                      <span className="block">{p.name}</span>
-                      {p.hsnCode ? (
-                        <span className="block text-[0.65rem] font-normal text-slate-500">
-                          HSN: {p.hsnCode}
-                        </span>
-                      ) : null}
-                      <span className="block text-[0.65rem] font-normal text-slate-500">
-                        GST: {Number(p.gstRate) > 0 ? Number(p.gstRate) : 18}%
-                      </span>
-                      {!p.active && <span className="ml-1 text-xs text-slate-400">(off)</span>}
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
+            {paperTypes.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`${ui.paperNavItem} ${paperTypeId === p.id ? ui.paperNavItemActive : ""}`}
+                onClick={() => {
+                  setPaperTypeId(p.id);
+                  setHistoryData(null);
+                }}
+              >
+                <span className="block">{p.name}</span>
+                {p.hsnCode ? (
+                  <span className="block text-[0.65rem] font-normal text-slate-500">
+                    HSN: {p.hsnCode}
+                  </span>
+                ) : null}
+                <span className="block text-[0.65rem] font-normal text-slate-500">
+                  GST: {Number(p.gstRate) > 0 ? Number(p.gstRate) : 18}%
+                </span>
+                {!p.active && <span className="ml-1 text-xs text-slate-400">(off)</span>}
+              </button>
+            ))}
           </nav>
 
           <div className="mt-3 grid gap-2 border-t border-slate-200 pt-3">

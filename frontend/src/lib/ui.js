@@ -79,9 +79,9 @@ export function btnClass(variant = "primary", small = false) {
 /** Mutually exclusive — avoids text-color class conflicts */
 export function chipClass(active) {
   if (active) {
-    return "rounded-md border border-blue-700 bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+    return "rounded-md border-2 border-blue-800 bg-blue-700 px-3.5 py-2 text-sm font-bold text-white shadow-md ring-2 ring-blue-300 ring-offset-1 hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700";
   }
-  return "rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
+  return "rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 }
 
 export function tabClass(active) {

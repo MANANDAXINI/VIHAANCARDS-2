@@ -377,44 +377,57 @@ export default function OrderPage() {
 
             <div className={ui.field}>
               <label className={ui.label}>Paper Type</label>
-              <div className="flex flex-wrap gap-2">
-                {paperCategories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    className={chipClass(paperCategory === cat)}
-                    onClick={() => {
-                      setPaperCategory(cat);
-                      const nextPapers = filterPapersByCategory(paperList, cat);
-                      const nextId = nextPapers[0]?.id || "";
-                      setPaperTypeId(nextId);
-                    }}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Paper type">
+                {paperCategories.map((cat) => {
+                  const active = paperCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      aria-pressed={active}
+                      className={chipClass(active)}
+                      onClick={() => {
+                        setPaperCategory(cat);
+                        const nextPapers = filterPapersByCategory(paperList, cat);
+                        const nextId = nextPapers[0]?.id || "";
+                        setPaperTypeId(nextId);
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {paperCategory ? (
               <div className={ui.field}>
                 <label className={ui.label}>GSM / Subcategory</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" role="group" aria-label="GSM subcategory">
                   {categoryPapers.length === 0 ? (
                     <p className={ui.small}>No papers in this category yet.</p>
                   ) : (
-                    categoryPapers.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={chipClass(paperTypeId === p.id)}
-                        onClick={() => setPaperTypeId(p.id)}
-                      >
-                        {p.name}
-                      </button>
-                    ))
+                    categoryPapers.map((p) => {
+                      const active = paperTypeId === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          aria-pressed={active}
+                          className={chipClass(active)}
+                          onClick={() => setPaperTypeId(p.id)}
+                        >
+                          {p.name}
+                        </button>
+                      );
+                    })
                   )}
                 </div>
+                {selectedPaper ? (
+                  <p className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900">
+                    Selected: {paperCategory} → {selectedPaper.name}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

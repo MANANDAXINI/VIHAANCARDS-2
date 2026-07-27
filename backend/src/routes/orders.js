@@ -144,15 +144,14 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
 
     await persistOrderArtwork(req.files);
 
-    // Superfast +₹400 ONLY when catalog/base price is above ₹3000.
-    // Below/equal ₹3000 → never add the charge, even if the flag is sent.
-    const SUPERFAST_MIN = 3000;
-    const SUPERFAST_CHARGE = 400;
+    // Superfast surcharge by base amount: <2k→₹200 | 2k–5k→₹300 | >5k→₹400
     const wantSuperfast = req.body.superfastDelivery === "true" || req.body.superfastDelivery === true;
     const baseAmount = Number(selection.amount) || 0;
-    const superfastEligible = baseAmount > SUPERFAST_MIN;
+    const superfastCharge =
+      baseAmount <= 0 ? 0 : baseAmount < 2000 ? 200 : baseAmount <= 5000 ? 300 : 400;
+    const superfastEligible = baseAmount > 0 && superfastCharge > 0;
     const superfastApplied = Boolean(wantSuperfast) && superfastEligible;
-    const orderAmount = superfastApplied ? baseAmount + SUPERFAST_CHARGE : baseAmount;
+    const orderAmount = superfastApplied ? baseAmount + superfastCharge : baseAmount;
 
     const clientAmount = Number(amount);
     if (Number.isFinite(clientAmount) && Math.abs(clientAmount - orderAmount) > 1) {
@@ -171,8 +170,8 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
     if (superfastApplied) {
       const note = String(orderFields.notes || "").trim();
       orderFields.notes = note
-        ? `${note} | SUPERFAST DELIVERY (+₹${SUPERFAST_CHARGE})`
-        : `SUPERFAST DELIVERY (+₹${SUPERFAST_CHARGE})`;
+        ? `${note} | SUPERFAST DELIVERY (+₹${superfastCharge})`
+        : `SUPERFAST DELIVERY (+₹${superfastCharge})`;
     }
 
     if (!hasEnoughFunds) {

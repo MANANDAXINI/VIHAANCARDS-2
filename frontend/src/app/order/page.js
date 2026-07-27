@@ -13,6 +13,7 @@ import {
   getPricedPrintingSides,
   getPricedQuantities,
   getPricedSizes,
+  getSuperfastCharge,
   listPaperCategories,
   needsBackUpload,
   resolvePaperCategory,
@@ -30,9 +31,6 @@ const CUTTING_OPTIONS = [
   "Flash Cut",
   "White border",
 ];
-
-const SUPERFAST_MIN_AMOUNT = 3000;
-const SUPERFAST_CHARGE = 400;
 
 export default function OrderPage() {
   const router = useRouter();
@@ -103,11 +101,12 @@ export default function OrderPage() {
     [catalog, paperTypeId, sizeId, printingSideId, quantity]
   );
 
-  // +₹400 only when base order price is above ₹3000 AND button is ON.
+  // Superfast surcharge by base amount: <2k→₹200 | 2k–5k→₹300 | >5k→₹400
   const baseAmount = Number(quotedAmount > 0 ? quotedAmount : localAmount) || 0;
-  const superfastEligible = baseAmount > SUPERFAST_MIN_AMOUNT;
+  const superfastCharge = getSuperfastCharge(baseAmount);
+  const superfastEligible = baseAmount > 0 && superfastCharge > 0;
   const superfastApplied = Boolean(superfastDelivery) && superfastEligible;
-  const amount = superfastApplied ? baseAmount + SUPERFAST_CHARGE : baseAmount;
+  const amount = superfastApplied ? baseAmount + superfastCharge : baseAmount;
 
   useEffect(() => {
     if (!superfastEligible && superfastDelivery) {
@@ -558,7 +557,7 @@ export default function OrderPage() {
                 className={`superfast-btn ${superfastApplied ? "superfast-btn--active" : ""} ${!superfastEligible ? "superfast-btn--disabled" : ""}`}
                 onClick={() => {
                   if (!superfastEligible) {
-                    toast.error(`Superfast Delivery is available for orders above ₹${SUPERFAST_MIN_AMOUNT.toLocaleString("en-IN")}.`);
+                    toast.error("Select a priced paper combination first.");
                     return;
                   }
                   setSuperfastDelivery((prev) => !prev);
@@ -570,8 +569,8 @@ export default function OrderPage() {
                   <strong>Superfast Delivery</strong>
                   <span>
                     {superfastEligible
-                      ? `+ ₹${SUPERFAST_CHARGE} (orders above ₹${SUPERFAST_MIN_AMOUNT.toLocaleString("en-IN")})`
-                      : `Available when order is above ₹${SUPERFAST_MIN_AMOUNT.toLocaleString("en-IN")}`}
+                      ? `+ ₹${superfastCharge} for this order (< ₹2,000 → ₹200 · ₹2,000–₹5,000 → ₹300 · > ₹5,000 → ₹400)`
+                      : "Select a priced combination to see the charge"}
                   </span>
                 </span>
                 <span className="superfast-btn__badge">
@@ -586,7 +585,7 @@ export default function OrderPage() {
                 <div>Quantity: <strong>{quantity || "—"}</strong></div>
                 {superfastApplied ? (
                   <div className={`${ui.small} mt-1 text-orange-700`}>
-                    Base {formatRupees(baseAmount)} + Superfast {formatRupees(SUPERFAST_CHARGE)}
+                    Base {formatRupees(baseAmount)} + Superfast {formatRupees(superfastCharge)}
                   </div>
                 ) : null}
                 <div>Total Price</div>

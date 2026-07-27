@@ -122,3 +122,15 @@ export function formatOrderDate(value = new Date()) {
 export function isValidIndianMobile(phone) {
   return /^[0-9]{10}$/.test(String(phone || "").replace(/\D/g, ""));
 }
+
+/**
+ * Superfast delivery surcharge by base order value:
+ * < ₹2000 → ₹200 | ₹2000–₹5000 → ₹300 | > ₹5000 → ₹400
+ */
+export function getSuperfastCharge(orderAmount) {
+  const amount = Number(orderAmount) || 0;
+  if (amount <= 0) return 0;
+  if (amount < 2000) return 200;
+  if (amount <= 5000) return 300;
+  return 400;
+}

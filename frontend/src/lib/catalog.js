@@ -35,7 +35,34 @@ export function listPaperCategories(papers = []) {
 
 export function filterPapersByCategory(papers = [], category) {
   if (!category) return papers;
-  return papers.filter((p) => resolvePaperCategory(p) === category);
+  return sortPapersByGsm(papers.filter((p) => resolvePaperCategory(p) === category));
+}
+
+/** Pull first GSM / weight number from a paper name (e.g. "120 gsm. Mapl." → 120). */
+export function extractGsmNumber(paper) {
+  const name = String(paper?.name || "");
+  const match = name.match(/(\d+(?:\.\d+)?)\s*(?:gsm)?/i);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Serial order by GSM: increasing (70 → 80 → 100 → 120 …).
+ * Papers without a number stay at the end, A–Z.
+ */
+export function sortPapersByGsm(papers = []) {
+  return [...papers].sort((a, b) => {
+    const ga = extractGsmNumber(a);
+    const gb = extractGsmNumber(b);
+    if (ga != null && gb != null && ga !== gb) return ga - gb;
+    if (ga != null && gb == null) return -1;
+    if (ga == null && gb != null) return 1;
+    return String(a?.name || "").localeCompare(String(b?.name || ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
 }
 
 export function findPriceRule(catalog, paperTypeId, sizeId, printingSideId, quantity) {

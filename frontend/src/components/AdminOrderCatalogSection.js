@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminCatalogApi, formatDate } from "@/lib/api";
-import { PAPER_CATEGORIES, PAPER_CATEGORY_OTHER, resolvePaperCategory } from "@/lib/catalog";
+import { PAPER_CATEGORIES, PAPER_CATEGORY_OTHER, resolvePaperCategory, sortPapersByGsm } from "@/lib/catalog";
 import { toast } from "@/lib/toast";
 import { btnClass, formatOrderStatus, orderStatusClass, ui } from "@/lib/ui";
 
@@ -370,7 +370,9 @@ export default function AdminOrderCatalogSection() {
           <h2 className={ui.paperSidebarTitle}>Paper GSM</h2>
           <nav className="grid max-h-[24rem] gap-0.5 overflow-y-auto" aria-label="Paper GSM">
             {CATEGORY_CHOICES.map((cat) => {
-              const group = paperTypes.filter((p) => resolvePaperCategory(p) === cat);
+              const group = sortPapersByGsm(
+                paperTypes.filter((p) => resolvePaperCategory(p) === cat)
+              );
               if (!group.length) return null;
               return (
                 <div key={cat} className="mb-1">

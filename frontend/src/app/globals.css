@@ -212,38 +212,38 @@
   padding: 0.35rem 0.65rem;
 }
 
-/* Paper Type chips — brand magenta #e400f5 (D65) */
+/* Paper Type chips — same orange family as Superfast Delivery */
 .paper-type-chip {
-  --paper-type: #e400f5;
-  border-color: color-mix(in srgb, var(--paper-type) 35%, white);
-  background: color-mix(in srgb, var(--paper-type) 10%, white);
-  color: #7a0083;
+  border-color: #fdba74;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  color: #9a3412;
 }
 
 .paper-type-chip:hover {
-  border-color: var(--paper-type);
-  background: color-mix(in srgb, var(--paper-type) 18%, white);
-  color: #5c0063;
+  border-color: #f97316;
+  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 50%, #fdba74 100%);
+  color: #7c2d12;
 }
 
 .paper-type-chip:focus-visible {
-  outline-color: var(--paper-type);
+  outline-color: #f97316;
 }
 
 .paper-type-chip--active {
-  border-color: #b000c0;
-  background: var(--paper-type);
-  color: #fff;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper-type) 35%, white);
+  border-color: #ea580c;
+  background: linear-gradient(135deg, #ffedd5 0%, #fb923c 45%, #f97316 100%);
+  color: #7c2d12;
+  box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
 }
 
 .paper-type-chip--active:hover {
-  background: #c700d4;
-  color: #fff;
+  border-color: #ea580c;
+  background: linear-gradient(135deg, #ffedd5 0%, #fb923c 45%, #f97316 100%);
+  color: #7c2d12;
 }
 
 .paper-type-selected {
-  border-color: color-mix(in srgb, #e400f5 35%, white);
-  background: color-mix(in srgb, #e400f5 10%, white);
-  color: #7a0083;
+  border-color: #fdba74;
+  background: #ffedd5;
+  color: #9a3412;
 }

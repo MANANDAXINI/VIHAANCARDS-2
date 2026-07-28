@@ -84,10 +84,10 @@ export function chipClass(active) {
   return "inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:border-blue-500 hover:bg-blue-50 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 }
 
-/** Paper Type category chips (D65) — brand magenta #e400f5 */
+/** Paper Type category chips (D65) — same orange as Superfast Delivery */
 export function paperTypeChipClass(active) {
   if (active) {
-    return "paper-type-chip paper-type-chip--active inline-flex items-center rounded-md border-2 px-3 py-2.5 text-sm font-bold text-white shadow-md ring-2 ring-offset-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+    return "paper-type-chip paper-type-chip--active inline-flex items-center rounded-md border-2 px-3 py-2.5 text-sm font-bold shadow-md ring-offset-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
   }
   return "paper-type-chip inline-flex items-center rounded-md border px-3 py-2.5 text-sm font-medium shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 }

@@ -6,6 +6,7 @@ export const PAPER_CATEGORIES = [
   "BOND",
   "ENVELOPE",
   "DIGITAL PRINTOUT",
+  "DIE CUT STICKER",
 ];
 
 export const PAPER_CATEGORY_OTHER = "OTHER";
@@ -13,8 +14,7 @@ export const PAPER_CATEGORY_OTHER = "OTHER";
 /** Older category labels → current ones. */
 const LEGACY_CATEGORY_MAP = {
   "100 BOND": "BOND",
-  "DIGITAL DIE CUT STICKER": "STICKER",
-  "DIE CUT STICKER": "STICKER",
+  "DIGITAL DIE CUT STICKER": "DIE CUT STICKER",
 };
 
 /**
@@ -31,7 +31,8 @@ export function resolvePaperCategory(paper) {
   const n = String(paper?.name || "").toLowerCase();
   if (/envelope/.test(n)) return "ENVELOPE";
   if (/\bbond\b/.test(n)) return "BOND";
-  if (/die\s*cut|diecut|\bsticker\b/.test(n)) return "STICKER";
+  if (/die\s*cut|diecut/.test(n)) return "DIE CUT STICKER";
+  if (/\bsticker\b/.test(n)) return "STICKER";
   if (/digital\s*print|printout|\bdigital\b/.test(n)) return "DIGITAL PRINTOUT";
   if (/mapl|maplitho/.test(n)) return "MAPLITHO";
   if (/art\s*paper|\bart\b/.test(n)) return "ART PAPER";

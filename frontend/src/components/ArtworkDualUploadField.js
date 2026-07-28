@@ -116,9 +116,12 @@ export default function ArtworkDualUploadField({
   return (
     <div className={`${ui.field} w-full`}>
       <label className={ui.label}>
-        Upload Front &amp; Back
+        Upload Design
         {required ? <span className="text-red-600"> *</span> : null}
       </label>
+      <p className={`${ui.small} mb-2 text-slate-600`}>
+        Front Back की दोनों फाइलें एक साथ select करें और यहाँ upload करें। (1st = Front, 2nd = Back)
+      </p>
 
       <input
         ref={inputRef}
@@ -134,9 +137,9 @@ export default function ArtworkDualUploadField({
         <FilePickButton
           inputRef={inputRef}
           multiple
-          buttonLabel="Choose Front & Back Files"
-          title="Upload artwork (Front + Back)"
-          description="Select both files together in one go — 1st = Front, 2nd = Back. PDF or JPG only."
+          buttonLabel="Choose Design Files"
+          title="Upload Design (Front + Back)"
+          description="Front Back की दोनों फाइलें एक साथ select करें और यहाँ upload करें। PDF या JPG only।"
           accept={accept}
           onChange={handleFileChange}
         />

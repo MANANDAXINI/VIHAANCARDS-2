@@ -20,7 +20,7 @@ import {
   resolvePaperCategory,
 } from "@/lib/catalog";
 import { toast } from "@/lib/toast";
-import { btnClass, chipClass, ui } from "@/lib/ui";
+import { btnClass, chipClass, paperTypeChipClass, ui } from "@/lib/ui";
 
 const OTHER_REQUIREMENT_OPTIONS = [
   "CREASING",
@@ -259,11 +259,11 @@ export default function OrderPage() {
     }
     if (requiresBackUpload) {
       if (!artworkFront || !artworkBack) {
-        toast.error("Please upload front and back artwork together (select 2 files).");
+        toast.error("Please upload front and back design together (select 2 files).");
         return;
       }
     } else if (!artworkFront) {
-      toast.error("Please upload artwork.");
+      toast.error("Please upload design.");
       return;
     }
     if (!amount) {
@@ -395,7 +395,7 @@ export default function OrderPage() {
                       key={cat}
                       type="button"
                       aria-pressed={active}
-                      className={chipClass(active)}
+                      className={paperTypeChipClass(active)}
                       onClick={() => {
                         setPaperCategory(cat);
                         const nextPapers = filterPapersByCategory(paperList, cat);
@@ -438,7 +438,7 @@ export default function OrderPage() {
                   )}
                 </div>
                 {selectedPaper ? (
-                  <p className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900">
+                  <p className="mt-2 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900">
                     Selected: {paperCategory} → {selectedPaper.name}
                   </p>
                 ) : null}
@@ -557,7 +557,7 @@ export default function OrderPage() {
                 />
               ) : (
                 <ArtworkUploadField
-                  label="Upload Artwork"
+                  label="Upload Design"
                   file={artworkFront}
                   onChange={setArtworkFront}
                   required

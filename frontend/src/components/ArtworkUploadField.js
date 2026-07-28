@@ -74,8 +74,8 @@ export default function ArtworkUploadField({
       {!file ? (
         <FilePickButton
           inputRef={inputRef}
-          buttonLabel="Choose Artwork File"
-          title="Upload artwork"
+          buttonLabel="Choose Design File"
+          title="Upload Design"
           description="PDF or JPG only — tap the button to browse files on your device."
           accept={accept}
           onChange={handleFileChange}

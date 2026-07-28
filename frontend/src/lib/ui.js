@@ -84,6 +84,14 @@ export function chipClass(active) {
   return "inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:border-blue-500 hover:bg-blue-50 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 }
 
+/** Paper Type category chips (D65) — teal, distinct from GSM blue chips */
+export function paperTypeChipClass(active) {
+  if (active) {
+    return "inline-flex items-center rounded-md border-2 border-teal-800 bg-teal-600 px-3 py-2.5 text-sm font-bold text-white shadow-md ring-2 ring-teal-300 ring-offset-1 hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700";
+  }
+  return "inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-3 py-2.5 text-sm font-medium text-teal-900 shadow-sm hover:border-teal-500 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500";
+}
+
 export function tabClass(active) {
   if (active) {
     return "inline-flex shrink-0 min-h-9 items-center whitespace-nowrap rounded-md bg-white px-3 text-sm font-semibold text-blue-700 shadow-sm ring-1 ring-slate-200 sm:px-3.5";

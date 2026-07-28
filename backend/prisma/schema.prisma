@@ -60,6 +60,8 @@ model Account {
   phone               String
   email               String        @default("")
   address             String        @default("")
+  /// Indian state (auto-filled from city when known)
+  state               String        @default("")
   courierName         String        @default("")
   courierName2        String        @default("")
   courierName3        String        @default("")
@@ -190,7 +192,7 @@ model ReceiptCounter {
 model PaperType {
   id                String      @id @default(cuid())
   name              String      @unique
-  /// Main group on Place Order: MAPLITHO | ART PAPER | DIGITAL DIE CUT STICKER | STICKER | OTHER
+  /// Main group on Place Order: MAPLITHO | ART PAPER | STICKER | BOND | ENVELOPE | DIGITAL PRINTOUT | OTHER
   category          String      @default("")
   hsnCode           String      @default("")
   /// Total GST % for invoices (e.g. 5 or 18). Split equally into CGST + SGST.

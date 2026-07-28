@@ -1,33 +1,45 @@
-/** Main Paper Type buttons on Place Order (D53). */
+/** Main Paper Type buttons on Place Order (D59 / D60). */
 export const PAPER_CATEGORIES = [
   "MAPLITHO",
   "ART PAPER",
-  "DIGITAL DIE CUT STICKER",
   "STICKER",
+  "BOND",
+  "ENVELOPE",
+  "DIGITAL PRINTOUT",
 ];
 
 export const PAPER_CATEGORY_OTHER = "OTHER";
+
+/** Older category labels → current ones. */
+const LEGACY_CATEGORY_MAP = {
+  "100 BOND": "BOND",
+  "DIGITAL DIE CUT STICKER": "STICKER",
+  "DIE CUT STICKER": "STICKER",
+};
 
 /**
  * Resolve main category for a paper GSM.
  * Uses saved `category` when set; otherwise infers from the GSM name.
  */
 export function resolvePaperCategory(paper) {
-  const stored = String(paper?.category || "").trim().toUpperCase();
+  let stored = String(paper?.category || "").trim().toUpperCase();
+  if (LEGACY_CATEGORY_MAP[stored]) stored = LEGACY_CATEGORY_MAP[stored];
   if (PAPER_CATEGORIES.includes(stored) || stored === PAPER_CATEGORY_OTHER) {
     return stored;
   }
 
   const n = String(paper?.name || "").toLowerCase();
-  if (/die\s*cut|diecut/.test(n)) return "DIGITAL DIE CUT STICKER";
-  if (/\bsticker\b/.test(n)) return "STICKER";
+  if (/envelope/.test(n)) return "ENVELOPE";
+  if (/\bbond\b/.test(n)) return "BOND";
+  if (/die\s*cut|diecut|\bsticker\b/.test(n)) return "STICKER";
+  if (/digital\s*print|printout|\bdigital\b/.test(n)) return "DIGITAL PRINTOUT";
   if (/mapl|maplitho/.test(n)) return "MAPLITHO";
   if (/art\s*paper|\bart\b/.test(n)) return "ART PAPER";
   if (/\b(250|300|350)\s*gsm/.test(n)) return "ART PAPER";
   return PAPER_CATEGORY_OTHER;
 }
 
-/** 4 main categories always; OTHER only when needed. */
+/** Main categories in fixed sequence; OTHER only when leftover papers exist. */
 export function listPaperCategories(papers = []) {
   const hasOther = papers.some((p) => resolvePaperCategory(p) === PAPER_CATEGORY_OTHER);
   return hasOther ? [...PAPER_CATEGORIES, PAPER_CATEGORY_OTHER] : [...PAPER_CATEGORIES];

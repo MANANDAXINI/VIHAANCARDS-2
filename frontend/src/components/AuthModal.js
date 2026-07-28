@@ -12,6 +12,7 @@ import {
   validateRegister,
   validateResetPassword,
 } from "@/lib/auth-validation";
+import { resolveStateFromCity } from "@/lib/india-city-state";
 import { getHomeForUser } from "@/lib/redirect";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
@@ -46,6 +47,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
     email: "",
     password: "",
     address: "",
+    state: "",
     courierName: "",
     courierName2: "",
     courierName3: "",
@@ -97,7 +99,13 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
   }
 
   function updateRegister(key, value) {
-    setRegisterForm((f) => ({ ...f, [key]: value }));
+    setRegisterForm((f) => {
+      if (key === "address") {
+        const resolved = resolveStateFromCity(value);
+        return { ...f, address: value, state: resolved || f.state };
+      }
+      return { ...f, [key]: value };
+    });
     setRegisterErrors((prev) => {
       if (!prev[key]) return prev;
       const next = { ...prev };
@@ -298,6 +306,7 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
         email: validation.email,
         password: registerForm.password,
         address: registerForm.address.trim(),
+        state: registerForm.state.trim(),
         courierName: registerForm.courierName.trim(),
         courierName2: registerForm.courierName2.trim(),
         courierName3: registerForm.courierName3.trim(),
@@ -496,7 +505,21 @@ export default function AuthModal({ open, mode = "login", onClose, onModeChange 
                 </div>
                 <div className={ui.field}>
                   <label className={ui.label}>City</label>
-                  <input className={ui.input} value={registerForm.address} onChange={(e) => updateRegister("address", e.target.value)} />
+                  <input
+                    className={ui.input}
+                    value={registerForm.address}
+                    onChange={(e) => updateRegister("address", e.target.value)}
+                    placeholder="e.g. Nagpur"
+                  />
+                </div>
+                <div className={ui.field}>
+                  <label className={ui.label}>State</label>
+                  <input
+                    className={ui.input}
+                    value={registerForm.state}
+                    onChange={(e) => updateRegister("state", e.target.value)}
+                    placeholder="Auto from city"
+                  />
                 </div>
                 <div className={ui.field}>
                   <label className={ui.label}>Courier / Garaj Name 1</label>

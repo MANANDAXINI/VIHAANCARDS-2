@@ -528,15 +528,62 @@ export function downloadOrderBillsBulk(items = []) {
   openPrintHtml(wrapBillDocument(title, sheets), title);
 }
 
-/** Resolve HSN + GST % from public catalog by matching order paperGsm. */
-export function resolveBillMetaFromCatalog(catalog, order) {
-  const paperName = String(order?.paperGsm || "").trim().toLowerCase();
-  if (!paperName || !catalog?.paperTypes?.length) {
-    return { hsnCode: "", gstRate: 18 };
+/**
+ * Normalize paper names for HSN lookup.
+ * "80 Mapl." / "80 gsm. Mapl." / "80  Mapl" → "80 mapl"
+ */
+export function normalizePaperKey(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/\bgsm\.?\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findPaperTypeInCatalog(catalog, order) {
+  const papers = catalog?.paperTypes || [];
+  if (!papers.length) return null;
+
+  const candidates = [
+    order?.paperGsm,
+    order?.product,
+  ]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+
+  // 1) Exact (case-insensitive)
+  for (const raw of candidates) {
+    const lower = raw.toLowerCase();
+    const exact = papers.find((p) => String(p.name || "").trim().toLowerCase() === lower);
+    if (exact) return exact;
   }
-  const match = catalog.paperTypes.find(
-    (p) => String(p.name || "").trim().toLowerCase() === paperName
-  );
+
+  // 2) Normalized key (strip gsm / punctuation / extra spaces)
+  for (const raw of candidates) {
+    const key = normalizePaperKey(raw);
+    if (!key) continue;
+    const soft = papers.find((p) => normalizePaperKey(p.name) === key);
+    if (soft) return soft;
+  }
+
+  // 3) Contains: order name inside catalog name or vice versa (normalized)
+  for (const raw of candidates) {
+    const key = normalizePaperKey(raw);
+    if (!key || key.length < 2) continue;
+    const partial = papers.find((p) => {
+      const pk = normalizePaperKey(p.name);
+      return pk === key || pk.includes(key) || key.includes(pk);
+    });
+    if (partial) return partial;
+  }
+
+  return null;
+}
+
+/** Resolve HSN + GST % from public catalog by matching order paperGsm / product. */
+export function resolveBillMetaFromCatalog(catalog, order) {
+  const match = findPaperTypeInCatalog(catalog, order);
   return {
     hsnCode: String(match?.hsnCode || "").trim(),
     gstRate: normalizeGstRate(match?.gstRate ?? 18),

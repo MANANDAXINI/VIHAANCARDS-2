@@ -43,10 +43,12 @@ export default function FilePickButton({
   variant = "primary",
   className = "",
   inputRef,
+  multiple = false,
 }) {
   const internalRef = useRef(null);
   const fileInputRef = inputRef || internalRef;
   const isFolder = mode === "folder";
+  const allowMultiple = Boolean(multiple) || isFolder;
   const label = buttonLabel || (isFolder ? "Choose Folder to Upload" : "Choose File to Upload");
   const Icon = isFolder ? FolderIcon : UploadIcon;
 
@@ -62,7 +64,7 @@ export default function FilePickButton({
         type="file"
         className="sr-only"
         accept={accept}
-        multiple={isFolder}
+        multiple={allowMultiple}
         {...(isFolder ? { webkitdirectory: "", directory: "" } : {})}
         onChange={onChange}
         disabled={disabled}
@@ -84,7 +86,7 @@ export default function FilePickButton({
         </div>
       ) : (
         <p className={`${ui.small} mt-3 ${ui.muted}`}>
-          {isFolder ? "No folder selected yet." : "No file selected yet."}
+          {isFolder ? "No folder selected yet." : allowMultiple ? "No files selected yet." : "No file selected yet."}
         </p>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminApi, formatRupees } from "@/lib/api";
+import { resolveStateFromCity } from "@/lib/india-city-state";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
@@ -12,6 +13,7 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
     phone: "",
     email: "",
     address: "",
+    state: "",
     courierName: "",
     courierName2: "",
     courierName3: "",
@@ -25,12 +27,14 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
 
   useEffect(() => {
     if (!account) return;
+    const city = account.address || "";
     setForm({
       name: account.name || "",
       business: account.business || "",
       phone: account.phone || "",
       email: account.email || "",
-      address: account.address || "",
+      address: city,
+      state: account.state || resolveStateFromCity(city) || "",
       courierName: account.courierName || "",
       courierName2: account.courierName2 || "",
       courierName3: account.courierName3 || "",
@@ -47,6 +51,16 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function updateCity(value) {
+    const resolved = resolveStateFromCity(value);
+    setForm((prev) => ({
+      ...prev,
+      address: value,
+      // Auto-fill when city is known; keep manual state if city unknown
+      state: resolved || prev.state,
+    }));
+  }
+
   async function handleSave(event) {
     event.preventDefault();
     setSaving(true);
@@ -59,6 +73,7 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
           phone: form.phone.replace(/\D/g, ""),
           email: form.email.trim(),
           address: form.address.trim(),
+          state: form.state.trim(),
           courierName: form.courierName.trim(),
           courierName2: form.courierName2.trim(),
           courierName3: form.courierName3.trim(),
@@ -137,7 +152,21 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
           </label>
           <label className={ui.field}>
             <span className={ui.label}>City</span>
-            <input className={ui.input} value={form.address} onChange={(e) => update("address", e.target.value)} />
+            <input
+              className={ui.input}
+              value={form.address}
+              onChange={(e) => updateCity(e.target.value)}
+              placeholder="e.g. Nagpur"
+            />
+          </label>
+          <label className={ui.field}>
+            <span className={ui.label}>State</span>
+            <input
+              className={ui.input}
+              value={form.state}
+              onChange={(e) => update("state", e.target.value)}
+              placeholder="Auto from city"
+            />
           </label>
           <label className={ui.field}>
             <span className={ui.label}>GST No.</span>
@@ -151,7 +180,7 @@ export default function AdminEditUserModal({ account, onClose, onSaved }) {
             <span className={ui.label}>Courier / Garaj Name 2</span>
             <input className={ui.input} value={form.courierName2} onChange={(e) => update("courierName2", e.target.value)} placeholder="Optional" />
           </label>
-          <label className={`${ui.field} sm:col-span-2`}>
+          <label className={ui.field}>
             <span className={ui.label}>Courier / Garaj Name 3</span>
             <input className={ui.input} value={form.courierName3} onChange={(e) => update("courierName3", e.target.value)} placeholder="Optional" />
           </label>

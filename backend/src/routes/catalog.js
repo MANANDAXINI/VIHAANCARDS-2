@@ -7,7 +7,8 @@ const router = express.Router();
 router.get("/", async (_req, res) => {
   try {
     const [paperTypes, sizes, printingSides, priceRules, qr] = await Promise.all([
-      prisma.paperType.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+      // Include inactive so tax bills can still resolve HSN/GST for older orders.
+      prisma.paperType.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
       prisma.paperSize.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
       prisma.printingSideOption.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
       prisma.priceRule.findMany(),

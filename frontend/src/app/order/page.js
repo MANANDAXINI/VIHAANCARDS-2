@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import ArtworkUploadField from "@/components/ArtworkUploadField";
+import ArtworkDualUploadField from "@/components/ArtworkDualUploadField";
 import CreditReminderModal, { isCreditReminderDue } from "@/components/CreditReminderModal";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { catalogApi, formatRupees, orderApi } from "@/lib/api";
@@ -60,11 +61,16 @@ export default function OrderPage() {
         .filter((r) => Number(r.amount) > 0)
         .map((r) => r.paperTypeId)
     );
-    return catalog.paperTypes.filter((p) => paperIds.has(p.id));
+    return catalog.paperTypes.filter(
+      (p) => p.active !== false && paperIds.has(p.id)
+    );
   }, [catalog]);
 
   const paperList = useMemo(
-    () => (pricedPapers.length ? pricedPapers : (catalog?.paperTypes || [])),
+    () => {
+      const active = (catalog?.paperTypes || []).filter((p) => p.active !== false);
+      return pricedPapers.length ? pricedPapers : active;
+    },
     [pricedPapers, catalog?.paperTypes]
   );
 
@@ -161,10 +167,14 @@ export default function OrderPage() {
         setCatalog(data);
         if (!data.paperTypes?.length) return;
 
-        const papersWithPrices = data.paperTypes.filter((p) =>
-          (data.priceRules || []).some((r) => r.paperTypeId === p.id && Number(r.amount) > 0)
+        const papersWithPrices = data.paperTypes.filter(
+          (p) =>
+            p.active !== false &&
+            (data.priceRules || []).some((r) => r.paperTypeId === p.id && Number(r.amount) > 0)
         );
-        const paperList = papersWithPrices.length ? papersWithPrices : data.paperTypes;
+        const activePapers = data.paperTypes.filter((p) => p.active !== false);
+        const paperList = papersWithPrices.length ? papersWithPrices : activePapers;
+        if (!paperList.length) return;
         const firstPaper = paperList[0];
         const firstPaperId = firstPaper.id;
         setPaperCategory(resolvePaperCategory(firstPaper));
@@ -247,12 +257,13 @@ export default function OrderPage() {
     if (isCreditReminderDue(user)) {
       setShowCreditReminder(true);
     }
-    if (!artworkFront) {
-      toast.error("Please upload front side artwork.");
-      return;
-    }
-    if (requiresBackUpload && !artworkBack) {
-      toast.error("Please upload back side artwork.");
+    if (requiresBackUpload) {
+      if (!artworkFront || !artworkBack) {
+        toast.error("Please upload front and back artwork together (select 2 files).");
+        return;
+      }
+    } else if (!artworkFront) {
+      toast.error("Please upload artwork.");
       return;
     }
     if (!amount) {
@@ -534,20 +545,24 @@ export default function OrderPage() {
             </div>
 
             <div className="grid gap-4">
-              <ArtworkUploadField
-                label="Upload Front Side"
-                file={artworkFront}
-                onChange={setArtworkFront}
-                required
-              />
               {requiresBackUpload ? (
-                <ArtworkUploadField
-                  label="Upload Back Side"
-                  file={artworkBack}
-                  onChange={setArtworkBack}
+                <ArtworkDualUploadField
+                  frontFile={artworkFront}
+                  backFile={artworkBack}
+                  onChange={({ front, back }) => {
+                    setArtworkFront(front);
+                    setArtworkBack(back);
+                  }}
                   required
                 />
-              ) : null}
+              ) : (
+                <ArtworkUploadField
+                  label="Upload Artwork"
+                  file={artworkFront}
+                  onChange={setArtworkFront}
+                  required
+                />
+              )}
             </div>
 
             <div className={ui.field}>

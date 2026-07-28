@@ -317,7 +317,7 @@ router.put("/accounts/:id", authAdmin, async (req, res) => {
   const existing = await prisma.account.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Account not found." });
 
-  const { name, business, phone, email, address, courierName, courierName2, courierName3, gstNumber } = req.body;
+  const { name, business, phone, email, address, state, courierName, courierName2, courierName3, gstNumber } = req.body;
   const cleanPhone = phone !== undefined ? String(phone).replace(/\D/g, "") : existing.phone;
   if (!/^[0-9]{10}$/.test(cleanPhone)) {
     return res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
@@ -359,6 +359,7 @@ router.put("/accounts/:id", authAdmin, async (req, res) => {
       phone: cleanPhone,
       email: cleanEmail,
       address: address !== undefined ? String(address).trim() : existing.address,
+      state: state !== undefined ? String(state).trim() : existing.state,
       courierName: courierName !== undefined ? String(courierName).trim() : existing.courierName,
       courierName2: courierName2 !== undefined ? String(courierName2).trim() : existing.courierName2,
       courierName3: courierName3 !== undefined ? String(courierName3).trim() : existing.courierName3,
@@ -1080,16 +1081,49 @@ router.get("/bills", authAdmin, async (req, res) => {
   const paperTypes = await prisma.paperType.findMany({
     select: { id: true, name: true, hsnCode: true, gstRate: true },
   });
-  const paperByName = new Map(
-    paperTypes.map((p) => [String(p.name || "").trim().toLowerCase(), p])
-  );
+
+  function normalizePaperKey(name) {
+    return String(name || "")
+      .toLowerCase()
+      .replace(/\bgsm\.?\b/g, " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function findPaperForOrder(order) {
+    const candidates = [order.paperGsm, order.product]
+      .map((v) => String(v || "").trim())
+      .filter(Boolean);
+    for (const raw of candidates) {
+      const lower = raw.toLowerCase();
+      const exact = paperTypes.find((p) => String(p.name || "").trim().toLowerCase() === lower);
+      if (exact) return exact;
+    }
+    for (const raw of candidates) {
+      const key = normalizePaperKey(raw);
+      if (!key) continue;
+      const soft = paperTypes.find((p) => normalizePaperKey(p.name) === key);
+      if (soft) return soft;
+    }
+    for (const raw of candidates) {
+      const key = normalizePaperKey(raw);
+      if (!key || key.length < 2) continue;
+      const partial = paperTypes.find((p) => {
+        const pk = normalizePaperKey(p.name);
+        return pk === key || pk.includes(key) || key.includes(pk);
+      });
+      if (partial) return partial;
+    }
+    return null;
+  }
 
   const bills = orders.map((order) => {
-    const paper = paperByName.get(String(order.paperGsm || "").trim().toLowerCase());
+    const paper = findPaperForOrder(order);
     return {
       order: secureOrder(order),
       account: publicAccount(order.account),
-      hsnCode: paper?.hsnCode || "",
+      hsnCode: String(paper?.hsnCode || "").trim(),
       gstRate: Number(paper?.gstRate) > 0 ? Number(paper.gstRate) : 18,
     };
   });

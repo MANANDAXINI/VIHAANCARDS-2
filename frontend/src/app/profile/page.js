@@ -7,6 +7,7 @@ import SiteHeader from "@/components/SiteHeader";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { authApi } from "@/lib/api";
 import { isValidIndianMobile } from "@/lib/catalog";
+import { resolveStateFromCity } from "@/lib/india-city-state";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
@@ -15,6 +16,8 @@ export default function ProfilePage() {
   const { setUser, ready } = useAuth();
   const user = useAuthUser();
   const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
 
   useEffect(() => {
     if (ready && !user) router.replace("/?auth=login");
@@ -22,8 +25,18 @@ export default function ProfilePage() {
   }, [ready, user, router]);
 
   useEffect(() => {
-    if (user) setPhone(user.phone || "");
+    if (!user) return;
+    setPhone(user.phone || "");
+    const nextCity = user.address || "";
+    setCity(nextCity);
+    setState(user.state || resolveStateFromCity(nextCity) || "");
   }, [user]);
+
+  function handleCityChange(value) {
+    setCity(value);
+    const resolved = resolveStateFromCity(value);
+    if (resolved) setState(resolved);
+  }
 
   async function saveProfile(event) {
     event.preventDefault();
@@ -41,7 +54,8 @@ export default function ProfilePage() {
         business: form.get("business"),
         phone: mobile,
         email: form.get("email"),
-        address: form.get("address"),
+        address: city.trim(),
+        state: state.trim(),
         courierName: form.get("courierName"),
         courierName2: form.get("courierName2"),
         courierName3: form.get("courierName3"),
@@ -49,6 +63,8 @@ export default function ProfilePage() {
       }, { silent: true });
       setUser(data.account);
       setPhone(data.account.phone || "");
+      setCity(data.account.address || "");
+      setState(data.account.state || "");
       toast.success("Profile saved.");
     } catch (error) {
       toast.error(error.message);
@@ -104,7 +120,23 @@ export default function ProfilePage() {
               </div>
               <div className={ui.field}>
                 <label className={ui.label}>City</label>
-                <input className={ui.input} name="address" defaultValue={user.address} />
+                <input
+                  className={ui.input}
+                  name="address"
+                  value={city}
+                  onChange={(e) => handleCityChange(e.target.value)}
+                  placeholder="e.g. Nagpur"
+                />
+              </div>
+              <div className={ui.field}>
+                <label className={ui.label}>State</label>
+                <input
+                  className={ui.input}
+                  name="state"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="Auto from city"
+                />
               </div>
               <div className={ui.field}>
                 <label className={ui.label}>Courier / Garaj Name 1</label>

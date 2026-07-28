@@ -84,12 +84,12 @@ export function chipClass(active) {
   return "inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:border-blue-500 hover:bg-blue-50 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 }
 
-/** Paper Type category chips (D65) — magenta, distinct from GSM blue chips */
+/** Paper Type category chips (D65) — brand magenta #e400f5 */
 export function paperTypeChipClass(active) {
   if (active) {
-    return "inline-flex items-center rounded-md border-2 border-fuchsia-800 bg-fuchsia-600 px-3 py-2.5 text-sm font-bold text-white shadow-md ring-2 ring-fuchsia-300 ring-offset-1 hover:bg-fuchsia-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-700";
+    return "paper-type-chip paper-type-chip--active inline-flex items-center rounded-md border-2 px-3 py-2.5 text-sm font-bold text-white shadow-md ring-2 ring-offset-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
   }
-  return "inline-flex items-center rounded-md border border-fuchsia-200 bg-fuchsia-50 px-3 py-2.5 text-sm font-medium text-fuchsia-900 shadow-sm hover:border-fuchsia-500 hover:bg-fuchsia-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-500";
+  return "paper-type-chip inline-flex items-center rounded-md border px-3 py-2.5 text-sm font-medium shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 }
 
 export function tabClass(active) {

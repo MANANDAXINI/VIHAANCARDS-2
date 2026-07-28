@@ -438,7 +438,7 @@ export default function OrderPage() {
                   )}
                 </div>
                 {selectedPaper ? (
-                  <p className="mt-2 rounded-md border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-sm font-semibold text-fuchsia-900">
+                  <p className="paper-type-selected mt-2 rounded-md border px-3 py-2 text-sm font-semibold">
                     Selected: {paperCategory} → {selectedPaper.name}
                   </p>
                 ) : null}

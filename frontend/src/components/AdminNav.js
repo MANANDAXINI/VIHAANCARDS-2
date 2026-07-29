@@ -15,11 +15,12 @@ const ADMIN_TABS = [
   { id: "customer-ledger", label: "Customer Ledger" },
   { id: "order-history", label: "Order History" },
   { id: "download-bills", label: "Download Bills" },
+  { id: "backup", label: "Auto Backup" },
   { id: "other-charges", label: "Other Charges" },
   { id: "orders", label: "Orders", countKey: "orders" },
   { id: "qr", label: "Payment QR" },
   { id: "parcel", label: "Parcel Update" },
-  { id: "job-update", label: "Job Update" },
+  { id: "job-update", label: "Order Completed" },
 ];
 
 export default function AdminNav({ active, onChange, counts = {} }) {

@@ -1486,7 +1486,7 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
         orderNumber,
         status: "skipped",
         customer: order.account?.business || order.account?.name || "—",
-        message: "Already marked printing & other process started.",
+        message: "Already ORDER COMPLETED.",
         orderStatus: order.status,
       });
       continue;
@@ -1514,7 +1514,7 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
       orderNumber: updated.orderNumber,
       status: "updated",
       customer: order.account?.business || order.account?.name || "—",
-      message: "Printing & other process started.",
+      message: "ORDER COMPLETED — visible on customer panel.",
       orderStatus: updated.status,
     });
   }

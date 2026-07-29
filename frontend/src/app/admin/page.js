@@ -18,6 +18,7 @@ import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
 import AdminCustomerOrderHistorySection from "@/components/AdminCustomerOrderHistorySection";
 import AdminDownloadBillsSection from "@/components/AdminDownloadBillsSection";
+import AdminBackupSection from "@/components/AdminBackupSection";
 import AdminEditUserModal from "@/components/AdminEditUserModal";
 import AdminOtherChargesSection from "@/components/AdminOtherChargesSection";
 import AdminOrderCatalogSection from "@/components/AdminOrderCatalogSection";
@@ -907,6 +908,8 @@ export default function AdminPage() {
           )}
 
           {activeTab === "download-bills" && <AdminDownloadBillsSection />}
+
+          {activeTab === "backup" && <AdminBackupSection />}
 
           {activeTab === "outstanding" && <AdminOutstandingSection />}
 

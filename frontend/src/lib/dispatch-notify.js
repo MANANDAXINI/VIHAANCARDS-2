@@ -16,15 +16,21 @@ export function buildDispatchWhatsAppMessage(order, overrides = {}) {
   const lrNumber = overrides.lrNumber ?? order.lrNumber;
   const transportDetails = overrides.transportDetails ?? order.transportDetails;
   const dispatchDate = overrides.dispatchDate ?? order.dispatchDate;
+  const fileName =
+    overrides.fileName ??
+    order.fileName ??
+    order.title ??
+    order.artworkName ??
+    order.artworkFrontName ??
+    "";
 
   const lines = [
     "*PIXEL DIGITAL - Dispatch Update*",
     "",
     `Order No: ${order.orderNumber || "—"}`,
     `Customer: ${order.business || order.customerName || "—"}`,
-    `Product: ${order.product || "LEAFLET / PAMPLET"}`,
     `Specs: ${formatOrderDescription(order)}`,
-    `Amount: ${formatRupees(order.amount)}`,
+    `File Name : ${fileName}`,
     "",
     `LR No: ${lrNumber || "—"}`,
     `Transport: ${transportDetails || "—"}`,

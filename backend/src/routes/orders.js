@@ -74,6 +74,7 @@ function buildOrderPayload(selection, req, orderAmount) {
 
   const payload = {
     title: req.body.title || "",
+    fileName: String(req.body.fileName || req.body.title || "").trim(),
     product: req.body.product || "LEAFLET / PAMPLET",
     paperGsm: selection.paperType.name,
     size: selection.size.name,
@@ -129,6 +130,11 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
 
     if (!frontFile) {
       return res.status(400).json({ error: "Front artwork file is required." });
+    }
+
+    const designFileName = String(req.body.fileName || "").trim();
+    if (!designFileName) {
+      return res.status(400).json({ error: "File Name is required." });
     }
 
     let selection;

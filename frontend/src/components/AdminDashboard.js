@@ -10,6 +10,7 @@ const QUICK_LINKS = [
   { id: "payments", label: "Payment Requests", desc: "Review and approve UPI payments", countKey: "payments" },
   { id: "payment", label: "Receipt", desc: "Record receipt for a customer" },
   { id: "orders", label: "Orders", desc: "Dispatch and mark orders delivered", countKey: "orders" },
+  { id: "job-update", label: "Order Completed", desc: "Select folders → mark all PD jobs ORDER COMPLETED on customer panel" },
   { id: "order-history", label: "Order History", desc: "Customer-wise order history (same as customer panel)" },
   { id: "download-bills", label: "Download Bills", desc: "Download tax invoices by date range" },
   { id: "backup", label: "Auto Backup", desc: "Daily data backup email to whatsapptogmail@gmail.com" },

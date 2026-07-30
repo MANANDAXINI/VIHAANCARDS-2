@@ -118,6 +118,8 @@ model Order {
   orderNumber      String?       @unique
   orderDate        DateTime      @default(now())
   title            String        @default("")
+  /// Customer-entered design / job file name (shown on dispatch WhatsApp)
+  fileName         String        @default("")
   product          String        @default("LEAFLET / PAMPLET")
   paperGsm         String
   size             String

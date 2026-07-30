@@ -649,6 +649,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
           accountId: account.id,
           orderNumber,
           title: data.title || "",
+          fileName: String(data.fileName || data.title || "").trim(),
           product: data.product || "LEAFLET / PAMPLET",
           paperGsm: data.paperGsm,
           size: data.size,
@@ -1480,7 +1481,7 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
       continue;
     }
 
-    if (order.status === "PRINTING_PROCESS_STARTED" || order.status === "COMPLETED") {
+    if (order.status === "PRINTING_PROCESS_STARTED") {
       skippedCount += 1;
       results.push({
         orderNumber,
@@ -1492,7 +1493,24 @@ router.post("/job-update/complete", authAdmin, async (req, res) => {
       continue;
     }
 
-    if (!["PAYMENT_VERIFIED", "IN_PRINTING", "DISPATCHED"].includes(order.status)) {
+    if (["DISPATCHED", "COMPLETED"].includes(order.status)) {
+      skippedCount += 1;
+      results.push({
+        orderNumber,
+        status: "skipped",
+        customer: order.account?.business || order.account?.name || "—",
+        message: "Already despatched / completed.",
+        orderStatus: order.status,
+      });
+      continue;
+    }
+
+    // Same allowed stages as single-order Job Completed (customer panel → ORDER COMPLETED).
+    if (
+      !["PAYMENT_VERIFIED", "IN_PRINTING", "PAYMENT_SUBMITTED", "ORDER_CREATED"].includes(
+        order.status
+      )
+    ) {
       failedCount += 1;
       results.push({
         orderNumber,

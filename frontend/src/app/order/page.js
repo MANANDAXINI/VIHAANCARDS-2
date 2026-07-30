@@ -45,6 +45,7 @@ export default function OrderPage() {
   const [quantity, setQuantity] = useState("");
   const [artworkFront, setArtworkFront] = useState(null);
   const [artworkBack, setArtworkBack] = useState(null);
+  const [designFileName, setDesignFileName] = useState("");
   const [transportDetails, setTransportDetails] = useState("");
   const [otherRequirement, setOtherRequirement] = useState("");
   const [cutting, setCutting] = useState("");
@@ -257,6 +258,10 @@ export default function OrderPage() {
     if (isCreditReminderDue(user)) {
       setShowCreditReminder(true);
     }
+    if (!designFileName.trim()) {
+      toast.error("Please enter File Name.");
+      return;
+    }
     if (requiresBackUpload) {
       if (!artworkFront || !artworkBack) {
         toast.error("Please upload front and back design together (select 2 files).");
@@ -289,6 +294,8 @@ export default function OrderPage() {
     const formData = new FormData();
     formData.append("artwork", artworkFront);
     if (artworkBack) formData.append("artworkBack", artworkBack);
+    formData.append("fileName", designFileName.trim());
+    formData.append("title", designFileName.trim());
     formData.append("paperTypeId", paperTypeId);
     formData.append("sizeId", sizeId);
     formData.append("printingSideId", printingSideId);
@@ -545,6 +552,22 @@ export default function OrderPage() {
             </div>
 
             <div className="grid gap-4">
+              <div className={ui.field}>
+                <label className={ui.label}>
+                  File Name <span className="text-red-600">*</span>
+                </label>
+                <input
+                  className={ui.input}
+                  value={designFileName}
+                  onChange={(e) => setDesignFileName(e.target.value)}
+                  placeholder="e.g. School Brochure Final"
+                  required
+                />
+                <p className={`${ui.small} ${ui.muted}`}>
+                  Ye naam parcel despatch WhatsApp message mein File Name pe aayega.
+                </p>
+              </div>
+
               {requiresBackUpload ? (
                 <ArtworkDualUploadField
                   frontFile={artworkFront}

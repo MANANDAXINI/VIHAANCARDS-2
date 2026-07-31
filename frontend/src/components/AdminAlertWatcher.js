@@ -34,10 +34,36 @@ function showBrowserNotification(title, body) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   try {
-    new Notification(title, { body, tag: "pd-admin-order-alert" });
+    new Notification(title, { body, tag: "pd-admin-alert" });
   } catch {
     // ignore notification errors
   }
+}
+
+function voiceLineForAlerts(alerts) {
+  const orders = alerts.filter((a) => a.type === "NEW_ORDER").length;
+  const payments = alerts.filter(
+    (a) => a.type === "PAYMENT_REQUEST" || a.type === "ORDER_PAYMENT_PENDING"
+  ).length;
+
+  if (orders && payments) {
+    if (orders === 1 && payments === 1) {
+      return "New order and payment request received";
+    }
+    return `${orders} new order${orders === 1 ? "" : "s"} and ${payments} payment request${
+      payments === 1 ? "" : "s"
+    } received`;
+  }
+
+  if (payments) {
+    return payments === 1
+      ? "New payment request received"
+      : `${payments} new payment requests received`;
+  }
+
+  return orders === 1
+    ? "New order received"
+    : `${orders} new orders received`;
 }
 
 export default function AdminAlertWatcher({ enabled, onNewActivity }) {
@@ -53,8 +79,8 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
   const handleEnableAudio = useCallback(() => {
     unlockAdminAlertAudio();
     setAudioReady(true);
-    speakAdminAlert("Order alerts enabled");
-    toast.success("Order voice alerts enabled.");
+    speakAdminAlert("Order and payment alerts enabled");
+    toast.success("Order & payment voice alerts enabled.");
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -63,9 +89,9 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
     setAdminAlertsMuted(next);
     if (!next) {
       unlockAdminAlertAudio();
-      toast.success("Order alert sound turned on.");
+      toast.success("Alert sound turned on.");
     } else {
-      toast.info("Order alert sound muted.");
+      toast.info("Alert sound muted.");
     }
   }, [muted]);
 
@@ -96,11 +122,7 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
         if (!fresh.length) return;
 
         markSeen(fresh.map((alert) => alert.id));
-        speakAdminAlert(
-          fresh.length === 1
-            ? "New order received"
-            : `${fresh.length} new orders received`
-        );
+        speakAdminAlert(voiceLineForAlerts(fresh));
 
         for (const alert of fresh) {
           toast.info(alert.message, { duration: 10000 });
@@ -144,7 +166,7 @@ export default function AdminAlertWatcher({ enabled, onNewActivity }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-      <span className="font-semibold">Order alerts</span>
+      <span className="font-semibold">Order & Payment alerts</span>
       {!audioReady ? (
         <button type="button" className={btnClass("amber", true)} onClick={handleEnableAudio}>
           Enable voice alerts

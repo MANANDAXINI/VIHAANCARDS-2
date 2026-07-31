@@ -211,13 +211,18 @@ router.get("/alert-feed", authAdmin, async (req, res) => {
       where: {
         createdAt: { gt: since },
         status: "PENDING",
-        type: "ORDER_PAYMENT",
       },
       include: { account: { select: { business: true, name: true, phone: true } } },
       orderBy: { createdAt: "asc" },
       take: 50,
     }),
   ]);
+
+  const paymentTypeLabel = {
+    WALLET_TOPUP: "Wallet top-up",
+    OUTSTANDING_PAYMENT: "Outstanding payment",
+    ORDER_PAYMENT: "Order payment",
+  };
 
   const alerts = [
     ...orders.map((order) => {
@@ -235,13 +240,23 @@ router.get("/alert-feed", authAdmin, async (req, res) => {
     ...paymentRequests.map((request) => {
       const customer = request.account?.business || request.account?.name || "Customer";
       const amount = Number(request.amount || 0).toLocaleString("en-IN");
-      const product = request.pendingOrderData?.product || "Order";
+      const typeLabel = paymentTypeLabel[request.type] || "Payment request";
+      if (request.type === "ORDER_PAYMENT") {
+        const product = request.pendingOrderData?.product || "Order";
+        return {
+          id: `wallet-${request.id}`,
+          type: "PAYMENT_REQUEST",
+          createdAt: request.createdAt,
+          customer,
+          message: `New payment request from ${customer} — ${product}, Rs. ${amount} (order payment pending)`,
+        };
+      }
       return {
         id: `wallet-${request.id}`,
-        type: "ORDER_PAYMENT_PENDING",
+        type: "PAYMENT_REQUEST",
         createdAt: request.createdAt,
         customer,
-        message: `New job submitted by ${customer} — ${product}, Rs. ${amount} (payment pending approval)`,
+        message: `New payment request from ${customer} — ${typeLabel}, Rs. ${amount}`,
       };
     }),
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -1450,6 +1465,96 @@ router.post("/parcel-update/single", authAdmin, async (req, res) => {
     console.error("Single parcel update error:", error);
     res.status(400).json({ error: error.message || "Could not update parcel details." });
   }
+});
+
+router.post("/job-update/printing-started", authAdmin, async (req, res) => {
+  const rawNumbers = Array.isArray(req.body?.orderNumbers) ? req.body.orderNumbers : [];
+  const orderNumbers = [...new Set(rawNumbers.map((value) => normalizeOrderNumber(value)).filter(Boolean))];
+
+  if (!orderNumbers.length) {
+    return res.status(400).json({ error: "No valid PD job IDs found to update." });
+  }
+
+  const results = [];
+  let updatedCount = 0;
+  let failedCount = 0;
+  let skippedCount = 0;
+
+  for (const orderNumber of orderNumbers) {
+    const order = await prisma.order.findFirst({
+      where: { orderNumber },
+      include: { account: true },
+    });
+
+    if (!order) {
+      failedCount += 1;
+      results.push({
+        orderNumber,
+        status: "failed",
+        message: "Order not found.",
+      });
+      continue;
+    }
+
+    if (order.status === "IN_PRINTING") {
+      skippedCount += 1;
+      results.push({
+        orderNumber,
+        status: "skipped",
+        customer: order.account?.business || order.account?.name || "—",
+        message: "Already PRINTING PROCESS STARTED.",
+        orderStatus: order.status,
+      });
+      continue;
+    }
+
+    if (["PRINTING_PROCESS_STARTED", "DISPATCHED", "COMPLETED"].includes(order.status)) {
+      skippedCount += 1;
+      results.push({
+        orderNumber,
+        status: "skipped",
+        customer: order.account?.business || order.account?.name || "—",
+        message: "Already past printing start (completed / despatched).",
+        orderStatus: order.status,
+      });
+      continue;
+    }
+
+    // Same gate as single-order Proceed to Printing.
+    if (order.status !== "PAYMENT_VERIFIED") {
+      failedCount += 1;
+      results.push({
+        orderNumber,
+        status: "failed",
+        customer: order.account?.business || order.account?.name || "—",
+        message: `Order status ${order.status} cannot start printing (payment must be verified).`,
+        orderStatus: order.status,
+      });
+      continue;
+    }
+
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: { status: "IN_PRINTING" },
+    });
+
+    updatedCount += 1;
+    results.push({
+      orderNumber: updated.orderNumber,
+      status: "updated",
+      customer: order.account?.business || order.account?.name || "—",
+      message: "PRINTING PROCESS STARTED — visible on customer panel.",
+      orderStatus: updated.status,
+    });
+  }
+
+  res.json({
+    totalJobs: orderNumbers.length,
+    updatedCount,
+    failedCount,
+    skippedCount,
+    results,
+  });
 });
 
 router.post("/job-update/complete", authAdmin, async (req, res) => {

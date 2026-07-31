@@ -158,6 +158,7 @@ export const adminApi = {
   customerAccountDetails: (accountId) => api(`/api/admin/accounts/${accountId}/details`),
   uploadParcelUpdate: (formData, options) => api("/api/admin/parcel-update/upload", { method: "POST", body: formData, ...options }),
   updateSingleParcel: (body, options) => api("/api/admin/parcel-update/single", { method: "POST", body, ...options }),
+  startPrintingFromFolder: (body, options) => api("/api/admin/job-update/printing-started", { method: "POST", body, ...options }),
   completeJobsFromFolder: (body, options) => api("/api/admin/job-update/complete", { method: "POST", body, ...options }),
 };
 

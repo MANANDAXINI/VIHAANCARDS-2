@@ -381,7 +381,7 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
     setPrintingBusy(true);
     try {
       await adminApi.proceedPrinting(order.id, { silent: true });
-      toast.success("Order proceeded to printing.");
+      toast.success("Printing Process Started.");
       await onRefresh();
     } catch (error) {
       toast.error(error.message);
@@ -550,7 +550,7 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
             </button>
           ) : proceeded ? (
             <button type="button" className={`${btnClass("teal", true)} w-full whitespace-normal leading-tight`} disabled>
-              Proceeded to Printing
+              Printing Process Started
             </button>
           ) : (
             <button
@@ -559,7 +559,7 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
               disabled={!verified || printingBusy}
               onClick={handleProceedPrinting}
             >
-              {printingBusy ? "Saving..." : "Proceed to Printing"}
+              {printingBusy ? "Saving..." : "Printing Process Started"}
             </button>
           )}
         </div>

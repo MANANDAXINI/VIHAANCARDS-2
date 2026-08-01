@@ -90,22 +90,31 @@ export default function AdminOtherChargesSection({ accounts = [], onRefresh }) {
     const reason = narration.trim();
     setSaving(true);
     try {
-      await adminApi.addOtherCharge(
+      const result = await adminApi.addOtherCharge(
         selectedId,
         { amount: chargeAmount, label: reason },
         { silent: true }
       );
 
+      // Use saved ledger values so WhatsApp amount / narration stay dynamic.
+      const savedAmount = Number(
+        result?.entry?.debit ?? result?.entry?.amount ?? chargeAmount
+      );
+      const savedNarration = String(result?.entry?.label || reason).trim();
+      const account = result?.account || selected;
+
       const { opened } = notifyCustomerOtherCharge({
-        phone: selected?.phone,
-        amount: chargeAmount,
-        narration: reason,
+        phone: account?.phone || selected?.phone,
+        business: account?.business || selected?.business,
+        customerName: account?.name || selected?.name,
+        amount: savedAmount,
+        narration: savedNarration,
       });
 
       toast.success(
         opened
-          ? `Charge added — WhatsApp opened for ${selected?.business || selected?.name || "customer"}.`
-          : `Charge of Rs. ${chargeAmount.toLocaleString("en-IN")} added. Customer phone not available for WhatsApp.`
+          ? `Charge added — WhatsApp opened for ${account?.business || account?.name || "customer"}.`
+          : `Charge added. Customer phone not available for WhatsApp.`
       );
       setNarration("");
       setAmount("");
@@ -177,7 +186,7 @@ export default function AdminOtherChargesSection({ accounts = [], onRefresh }) {
               className={ui.input}
               value={narration}
               onChange={(e) => setNarration(e.target.value)}
-              placeholder="e.g. Courier charges, Design charges, Lamination"
+              placeholder="e.g. Parcel Charges for Order No. 103"
             />
           </label>
 

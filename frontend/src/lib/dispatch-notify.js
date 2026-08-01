@@ -131,14 +131,33 @@ export function notifyCustomerReceipt({
   return { opened, message };
 }
 
-export function buildOtherChargeWhatsAppMessage({ amount, narration }) {
-  const rupees = Number(amount || 0).toLocaleString("en-IN");
-  const reason = String(narration || "").trim() || "other charges";
-  return `Narration : Rs. ${rupees} added in your ledger for ${reason}. Kindly check your ledger.`;
+export function buildOtherChargeWhatsAppMessage({
+  business,
+  customerName,
+  amount,
+  narration,
+}) {
+  const customer = String(business || customerName || "").trim() || "Customer";
+  const reason = String(narration || "").trim();
+  if (!reason) return "";
+  // Amount + narration always come from the saved charge (never hardcoded).
+  return `Dear ${customer} - ${formatRupees(amount)} added in your ledger for ${reason}. Kindly check your ledger.`;
 }
 
-export function notifyCustomerOtherCharge({ phone, amount, narration }) {
-  const message = buildOtherChargeWhatsAppMessage({ amount, narration });
+export function notifyCustomerOtherCharge({
+  phone,
+  business,
+  customerName,
+  amount,
+  narration,
+}) {
+  const message = buildOtherChargeWhatsAppMessage({
+    business,
+    customerName,
+    amount,
+    narration,
+  });
+  if (!message) return { opened: false, message: "" };
   const opened = openWhatsAppToCustomer(phone, message);
   return { opened, message };
 }

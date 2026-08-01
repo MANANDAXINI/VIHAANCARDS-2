@@ -10,6 +10,7 @@ const ADMIN_TABS = [
   { id: "rates", label: "Rates" },
   { id: "payments", label: "Payment Requests", countKey: "payments" },
   { id: "payment", label: "Receipt" },
+  { id: "payment-history", label: "Payment Received History" },
   { id: "outstanding", label: "Outstanding" },
   { id: "customer-credit", label: "Customer Credit" },
   { id: "customer-ledger", label: "Customer Ledger" },

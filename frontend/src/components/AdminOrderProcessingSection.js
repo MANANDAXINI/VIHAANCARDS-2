@@ -13,7 +13,12 @@ import {
 import { buildOrderSlipBlob, downloadOrderSlipImage } from "@/lib/order-slip-image";
 import { notifyCustomerDispatch, notifyCustomerJobCompleted } from "@/lib/dispatch-notify";
 import { filterItems, paginateItems } from "@/lib/admin-table";
-import { formatLedgerTableDate, formatOrderDescription } from "@/lib/order-display";
+import {
+  formatLedgerTableDate,
+  formatOrderDescription,
+  JOB_COMPLETED_LABEL,
+  JOB_PRINTING_LABEL,
+} from "@/lib/order-display";
 import { toast } from "@/lib/toast";
 import {
   btnClass,
@@ -381,7 +386,7 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
     setPrintingBusy(true);
     try {
       await adminApi.proceedPrinting(order.id, { silent: true });
-      toast.success("Printing Process Started.");
+      toast.success(`${JOB_PRINTING_LABEL}.`);
       await onRefresh();
     } catch (error) {
       toast.error(error.message);
@@ -546,11 +551,11 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
           {isOrderCompleted(order.status)
             || String(order.status || "").toUpperCase() === "PRINTING_PROCESS_STARTED" ? (
             <button type="button" className={`${btnClass("success", true)} w-full whitespace-normal leading-tight`} disabled>
-              Order Completed
+              {JOB_COMPLETED_LABEL}
             </button>
           ) : proceeded ? (
             <button type="button" className={`${btnClass("teal", true)} w-full whitespace-normal leading-tight`} disabled>
-              Printing Process Started
+              {JOB_PRINTING_LABEL}
             </button>
           ) : (
             <button
@@ -559,7 +564,7 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
               disabled={!verified || printingBusy}
               onClick={handleProceedPrinting}
             >
-              {printingBusy ? "Saving..." : "Printing Process Started"}
+              {printingBusy ? "Saving..." : JOB_PRINTING_LABEL}
             </button>
           )}
         </div>

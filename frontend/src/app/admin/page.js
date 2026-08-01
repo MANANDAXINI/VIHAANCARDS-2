@@ -13,6 +13,7 @@ import { AdminPagination, AdminSearchBar, useAdminTableState } from "@/component
 import BusinessPickList from "@/components/BusinessPickList";
 import AdminCustomerCreditWallet from "@/components/AdminCustomerCreditWallet";
 import AdminCustomerCreditOverview from "@/components/AdminCustomerCreditOverview";
+import AdminPaymentReceivedHistorySection from "@/components/AdminPaymentReceivedHistorySection";
 import AdminReceivePaymentSection from "@/components/AdminReceivePaymentSection";
 import AdminOutstandingSection from "@/components/AdminOutstandingSection";
 import AdminCustomerLedgerSection from "@/components/AdminCustomerLedgerSection";
@@ -54,10 +55,33 @@ function walletRequestTypeLabel(type) {
   return "Wallet Top-up";
 }
 
+function walletRequestJobAmount(req) {
+  if (req.type !== "ORDER_PAYMENT" || !req.pendingOrderData) return null;
+  const jobAmount = Number(req.pendingOrderData.amount || 0);
+  return Number.isFinite(jobAmount) && jobAmount > 0 ? jobAmount : null;
+}
+
+function walletRequestCreditUsed(req) {
+  const jobAmount = walletRequestJobAmount(req);
+  if (jobAmount == null) return null;
+  const payAmount = Number(req.amount || 0);
+  const creditUsed = Math.max(0, jobAmount - payAmount);
+  return creditUsed > 0 ? creditUsed : 0;
+}
+
 function walletRequestSummary(req) {
   if (req.type === "ORDER_PAYMENT" && req.pendingOrderData) {
     const d = req.pendingOrderData;
-    return `${d.product || "LEAFLET / PAMPLET"} - ${formatRupees(d.amount || req.amount)}`;
+    const jobAmount = walletRequestJobAmount(req);
+    const creditUsed = walletRequestCreditUsed(req);
+    const paper = d.paperGsm || d.product || "LEAFLET / PAMPLET";
+    if (jobAmount != null && creditUsed > 0) {
+      return `${paper} · Job ${formatRupees(jobAmount)} · Credit ${formatRupees(creditUsed)} · Pay now ${formatRupees(req.amount)}`;
+    }
+    if (jobAmount != null) {
+      return `${paper} · Job ${formatRupees(jobAmount)}`;
+    }
+    return `${paper} - ${formatRupees(d.amount || req.amount)}`;
   }
   return walletRequestTypeLabel(req.type);
 }
@@ -593,8 +617,11 @@ export default function AdminPage() {
             <section className={`${ui.adminCard} ${payments.length > 0 ? "border-red-200" : ""}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className={pendingSectionTitleClass(payments.length > 0)}>
-                  Wallet Top-up Requests ({payments.length} pending)
+                  Payment Requests ({payments.length} pending)
                 </h3>
+                <p className={`${ui.small} ${ui.muted} w-full basis-full`}>
+                  Order payment pe Amount = UPI pay (shortfall). Job full amount Status column mein dikhega — baaki credit se cover hota hai.
+                </p>
                 <div className="w-full sm:w-64">
                   <AdminSearchBar value={paymentsSearch} onChange={setPaymentsSearch} placeholder="Search payments..." />
                 </div>
@@ -620,7 +647,17 @@ export default function AdminPage() {
                         <tr key={p.id} className={pendingRowClass(isPending)}>
                           <td className={ui.td}>{p.account?.business || "—"}</td>
                           <td className={ui.td}>{formatPhone(p.account?.phone)}</td>
-                          <td className={`${ui.td} font-semibold`}>{formatRupees(p.amount)}</td>
+                          <td className={`${ui.td} font-semibold`}>
+                            {formatRupees(p.amount)}
+                            {p.type === "ORDER_PAYMENT" && walletRequestJobAmount(p) != null ? (
+                              <span className={`mt-1 block ${ui.small} font-normal ${ui.muted}`}>
+                                UPI pay
+                                {walletRequestCreditUsed(p) > 0
+                                  ? ` (job ${formatRupees(walletRequestJobAmount(p))})`
+                                  : ""}
+                              </span>
+                            ) : null}
+                          </td>
                           <td className={ui.td}>
                             <strong className={isPending ? "text-slate-900" : "text-emerald-700"}>
                               {isPending ? "Pending" : "Approved"}
@@ -666,6 +703,10 @@ export default function AdminPage() {
 
           {activeTab === "payment" && (
             <AdminReceivePaymentSection accounts={accounts} onRefresh={load} />
+          )}
+
+          {activeTab === "payment-history" && (
+            <AdminPaymentReceivedHistorySection />
           )}
 
           {activeTab === "customer-credit" && (
@@ -813,9 +854,9 @@ export default function AdminPage() {
 
                   <section className={`${ui.adminCard} ${payments.length > 0 ? "border-red-200" : ""}`}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className={pendingSectionTitleClass(payments.length > 0)}>Wallet Top-up Requests</h3>
+                      <h3 className={pendingSectionTitleClass(payments.length > 0)}>Payment Requests</h3>
                       <div className="w-full sm:w-64">
-                        <AdminSearchBar value={walletSearch} onChange={setWalletSearch} placeholder="Search wallet requests..." />
+                        <AdminSearchBar value={walletSearch} onChange={setWalletSearch} placeholder="Search payment requests..." />
                       </div>
                     </div>
                     <div className={ui.tableWrap}>
@@ -831,7 +872,7 @@ export default function AdminPage() {
                         </thead>
                         <tbody>
                           {walletPaged.items.length === 0 ? (
-                            <tr><td className={ui.td} colSpan="5">No wallet requests.</td></tr>
+                            <tr><td className={ui.td} colSpan="5">No payment requests.</td></tr>
                           ) : walletPaged.items.map((p) => {
                             const isPending = p.status === "PENDING";
                             const busy = walletActionId === p.id;
@@ -839,7 +880,17 @@ export default function AdminPage() {
                               <tr key={p.id} className={pendingRowClass(isPending)}>
                                 <td className={ui.td}>{p.account?.business || "—"}</td>
                                 <td className={ui.td}>{formatPhone(p.account?.phone)}</td>
-                                <td className={`${ui.td} font-semibold`}>{formatRupees(p.amount)}</td>
+                                <td className={`${ui.td} font-semibold`}>
+                                  {formatRupees(p.amount)}
+                                  {p.type === "ORDER_PAYMENT" && walletRequestJobAmount(p) != null ? (
+                                    <span className={`mt-1 block ${ui.small} font-normal ${ui.muted}`}>
+                                      UPI pay
+                                      {walletRequestCreditUsed(p) > 0
+                                        ? ` (job ${formatRupees(walletRequestJobAmount(p))})`
+                                        : ""}
+                                    </span>
+                                  ) : null}
+                                </td>
                                 <td className={ui.td}>
                                   <strong className={isPending ? "text-slate-900" : "text-emerald-700"}>
                                     {isPending ? "Pending" : p.status === "REJECTED" ? "Cancelled" : "Approved"}

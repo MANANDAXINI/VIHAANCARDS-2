@@ -658,6 +658,11 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
       }
     }
 
+    const orderAmount = Number(data.amount) || 0;
+    const payAmount = Number(request.amount) || 0;
+    // Shortfall payment: customer pays only what credit could not cover.
+    const creditUsedOnOrder = Math.max(0, orderAmount - payAmount);
+
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
@@ -672,7 +677,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
           finish: data.finish || "",
           cutting: String(data.cutting || "").trim(),
           printingSide: data.printingSide,
-          amount: Number(data.amount),
+          amount: orderAmount,
           notes: data.notes || "",
           transportDetails: String(data.transportDetails || "").trim(),
           artworkName: data.artworkName,
@@ -683,7 +688,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
           artworkBackMime: data.artworkBackMime || null,
           status: "PAYMENT_VERIFIED",
           paymentStatus: "VERIFIED",
-          paidWithCredit: false,
+          paidWithCredit: creditUsedOnOrder > 0,
         },
       });
 
@@ -697,13 +702,13 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
       let runningOutstanding = Number(account.previousOutstanding || 0);
       const openingOutstanding = runningOutstanding;
 
-      runningOutstanding += Number(order.amount);
+      runningOutstanding += orderAmount;
       await tx.ledgerEntry.create({
         data: {
           accountId: account.id,
           label: `Order ${orderNumber} - ${order.product}`,
-          amount: order.amount,
-          debit: order.amount,
+          amount: orderAmount,
+          debit: orderAmount,
           credit: 0,
           oldOutstandingBefore: openingOutstanding,
           outstandingAfter: runningOutstanding,
@@ -712,14 +717,14 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
       });
 
       const outstandingAfterJob = runningOutstanding;
-      runningOutstanding = Math.max(0, runningOutstanding - Number(request.amount));
+      runningOutstanding = Math.max(0, runningOutstanding - payAmount);
       await tx.ledgerEntry.create({
         data: {
           accountId: account.id,
           label: `Payment Received against ${orderNumber} Receipt No: ${receiptNumber}`,
-          amount: request.amount,
+          amount: payAmount,
           debit: 0,
-          credit: request.amount,
+          credit: payAmount,
           oldOutstandingBefore: outstandingAfterJob,
           outstandingAfter: runningOutstanding,
           balanceAfter: account.balance,
@@ -727,9 +732,14 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
         },
       });
 
+      const accountData = { previousOutstanding: runningOutstanding };
+      if (creditUsedOnOrder > 0 && Number(account.creditLimit) > 0) {
+        accountData.usedCredit = { increment: creditUsedOnOrder };
+      }
+
       const updatedAccount = await tx.account.update({
         where: { id: account.id },
-        data: { previousOutstanding: runningOutstanding },
+        data: accountData,
       });
 
       const updatedRequest = await tx.walletRequest.update({

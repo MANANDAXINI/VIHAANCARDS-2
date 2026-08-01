@@ -130,3 +130,15 @@ export function notifyCustomerReceipt({
   const opened = openWhatsAppToCustomer(phone, message);
   return { opened, message };
 }
+
+export function buildOtherChargeWhatsAppMessage({ amount, narration }) {
+  const rupees = Number(amount || 0).toLocaleString("en-IN");
+  const reason = String(narration || "").trim() || "other charges";
+  return `Narration : Rs. ${rupees} added in your ledger for ${reason}. Kindly check your ledger.`;
+}
+
+export function notifyCustomerOtherCharge({ phone, amount, narration }) {
+  const message = buildOtherChargeWhatsAppMessage({ amount, narration });
+  const opened = openWhatsAppToCustomer(phone, message);
+  return { opened, message };
+}

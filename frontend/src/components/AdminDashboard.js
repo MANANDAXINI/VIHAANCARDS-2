@@ -9,6 +9,7 @@ const QUICK_LINKS = [
   { id: "accounts", label: "Users & Accounts", desc: "Approve registrations and manage roles", countKey: "accounts" },
   { id: "payments", label: "Payment Requests", desc: "Review and approve UPI payments", countKey: "payments" },
   { id: "payment", label: "Receipt", desc: "Record receipt for a customer" },
+  { id: "payment-history", label: "Payment Received History", desc: "All payment / receipt entries by date" },
   { id: "orders", label: "Orders", desc: "Dispatch and mark orders delivered", countKey: "orders" },
   { id: "printing-started", label: "Printing Process Started", desc: "Select folders → mark PD jobs PRINTING PROCESS STARTED" },
   { id: "job-update", label: "Order Completed", desc: "Select folders → mark all PD jobs ORDER COMPLETED on customer panel" },

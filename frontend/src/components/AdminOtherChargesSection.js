@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { adminApi } from "@/lib/api";
+import { notifyCustomerOtherCharge } from "@/lib/dispatch-notify";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
@@ -86,14 +87,26 @@ export default function AdminOtherChargesSection({ accounts = [], onRefresh }) {
       return;
     }
 
+    const reason = narration.trim();
     setSaving(true);
     try {
       await adminApi.addOtherCharge(
         selectedId,
-        { amount: chargeAmount, label: narration.trim() },
+        { amount: chargeAmount, label: reason },
         { silent: true }
       );
-      toast.success(`Charge of Rs. ${chargeAmount} added to ${selected?.business || selected?.name || "customer"}.`);
+
+      const { opened } = notifyCustomerOtherCharge({
+        phone: selected?.phone,
+        amount: chargeAmount,
+        narration: reason,
+      });
+
+      toast.success(
+        opened
+          ? `Charge added — WhatsApp opened for ${selected?.business || selected?.name || "customer"}.`
+          : `Charge of Rs. ${chargeAmount.toLocaleString("en-IN")} added. Customer phone not available for WhatsApp.`
+      );
       setNarration("");
       setAmount("");
       await onRefresh?.();

@@ -919,8 +919,12 @@ export default function AdminPage() {
             <AdminParcelUpdateSection onRefresh={load} />
           )}
 
+          {activeTab === "printing-started" && (
+            <AdminJobUpdateSection mode="printing" onRefresh={load} />
+          )}
+
           {activeTab === "job-update" && (
-            <AdminJobUpdateSection onRefresh={load} />
+            <AdminJobUpdateSection mode="complete" onRefresh={load} />
           )}
         </div>
       </main>

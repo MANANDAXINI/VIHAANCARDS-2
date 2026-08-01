@@ -7,15 +7,25 @@ import { parseJobFolderFiles } from "@/lib/job-folder-parse";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
-export default function AdminJobUpdateSection({ onRefresh }) {
+/**
+ * Folder bulk status update.
+ * mode: "printing" → IN_PRINTING (Printing Process Started)
+ * mode: "complete" → PRINTING_PROCESS_STARTED (Order Completed)
+ */
+export default function AdminJobUpdateSection({ onRefresh, mode = "complete" }) {
+  const isPrinting = mode === "printing";
   const inputKeyRef = useRef(0);
   const [folderName, setFolderName] = useState("");
   const [parsedFiles, setParsedFiles] = useState([]);
   const [selectedFolders, setSelectedFolders] = useState([]);
-  const [submitting, setSubmitting] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState(null);
   const [results, setResults] = useState([]);
-  const [lastAction, setLastAction] = useState(null);
+
+  const title = isPrinting ? "Printing Process Started" : "Order Completed";
+  const customerLabel = isPrinting
+    ? "PRINTING AND OTHER PROCESS STARTED"
+    : "ORDER COMPLETED";
 
   const businessFolders = useMemo(() => {
     const map = new Map();
@@ -56,7 +66,6 @@ export default function AdminJobUpdateSection({ onRefresh }) {
       setSelectedFolders([]);
       setSummary(null);
       setResults([]);
-      setLastAction(null);
       return;
     }
 
@@ -72,13 +81,12 @@ export default function AdminJobUpdateSection({ onRefresh }) {
     setSelectedFolders(folders);
     setSummary(null);
     setResults([]);
-    setLastAction(null);
 
     if (!parsed.orderNumbers.length) {
       toast.error("No PD job IDs found in folder filenames.");
     } else {
       toast.success(
-        `Found ${parsed.orderNumbers.length} job(s) in ${folders.length} folder(s). Select folders, then click a button.`
+        `Found ${parsed.orderNumbers.length} job(s) in ${folders.length} folder(s). Select folders, then click ${title}.`
       );
     }
   }
@@ -97,26 +105,25 @@ export default function AdminJobUpdateSection({ onRefresh }) {
     setSelectedFolders([]);
   }
 
-  async function runFolderUpdate(action) {
+  async function handleSubmit(event) {
+    event.preventDefault();
     if (!selectedOrderNumbers.length) {
       toast.error("Select at least one folder with PD job files.");
       return;
     }
 
-    setSubmitting(action);
+    setSubmitting(true);
     try {
-      const data =
-        action === "printing"
-          ? await adminApi.startPrintingFromFolder(
-              { orderNumbers: selectedOrderNumbers },
-              { silent: true }
-            )
-          : await adminApi.completeJobsFromFolder(
-              { orderNumbers: selectedOrderNumbers },
-              { silent: true }
-            );
+      const data = isPrinting
+        ? await adminApi.startPrintingFromFolder(
+            { orderNumbers: selectedOrderNumbers },
+            { silent: true }
+          )
+        : await adminApi.completeJobsFromFolder(
+            { orderNumbers: selectedOrderNumbers },
+            { silent: true }
+          );
 
-      setLastAction(action);
       setSummary({
         totalJobs: data.totalJobs,
         updatedCount: data.updatedCount,
@@ -124,45 +131,25 @@ export default function AdminJobUpdateSection({ onRefresh }) {
         skippedCount: data.skippedCount,
       });
       setResults(data.results || []);
+      toast.success(
+        `${title} for ${data.updatedCount} job(s) — customer panel updated.`
+      );
 
-      if (action === "printing") {
-        toast.success(
-          `Printing Process Started for ${data.updatedCount} job(s) — customer panel updated.`
+      try {
+        window.dispatchEvent(
+          new CustomEvent(isPrinting ? "pd-printing-started" : "pd-job-completed", {
+            detail: { orderNumbers: selectedOrderNumbers, source: "job-update" },
+          })
         );
-        try {
-          window.dispatchEvent(
-            new CustomEvent("pd-printing-started", {
-              detail: { orderNumbers: selectedOrderNumbers, source: "job-update" },
-            })
-          );
-        } catch {
-          // ignore
-        }
-      } else {
-        toast.success(
-          `Order Completed for ${data.updatedCount} job(s) — customer panel updated.`
-        );
-        try {
-          window.dispatchEvent(
-            new CustomEvent("pd-job-completed", {
-              detail: { orderNumbers: selectedOrderNumbers, source: "job-update" },
-            })
-          );
-        } catch {
-          // ignore
-        }
+      } catch {
+        // ignore
       }
 
       onRefresh?.();
     } catch (error) {
-      toast.error(
-        error.message
-          || (action === "printing"
-            ? "Printing Process Started update failed."
-            : "Order Completed update failed.")
-      );
+      toast.error(error.message || `${title} update failed.`);
     } finally {
-      setSubmitting(null);
+      setSubmitting(false);
     }
   }
 
@@ -172,16 +159,14 @@ export default function AdminJobUpdateSection({ onRefresh }) {
   const jobLabel = `${selectedOrderNumbers.length} job${
     selectedOrderNumbers.length === 1 ? "" : "s"
   }`;
-  const busy = Boolean(submitting);
 
   return (
     <div className="grid gap-4">
       <div>
-        <h2 className={ui.adminH1}>Job Update</h2>
+        <h2 className={ui.adminH1}>{title}</h2>
         <p className={ui.muted}>
-          Folder select karo —{" "}
-          <strong>Printing Process Started</strong> ya{" "}
-          <strong>Order Completed</strong> dabao. Customer panel pe status update hoga.
+          Folder select karo — andar jitni PD files hongi, unke orders customer panel pe{" "}
+          <strong>{customerLabel}</strong> dikhenge.
         </p>
       </div>
 
@@ -196,11 +181,11 @@ export default function AdminJobUpdateSection({ onRefresh }) {
             key={inputKeyRef.current}
             mode="folder"
             buttonLabel="Choose Folders"
-            title="Select jobs folder"
+            title={`Select ${isPrinting ? "printing" : "completed"} jobs folder`}
             description="Parent folder choose karo jisme business folders + PD job files hain."
             selectedText={folderSummary || undefined}
             onChange={handleFolderSelect}
-            disabled={busy}
+            disabled={submitting}
             variant="amber"
           />
         </div>
@@ -209,7 +194,7 @@ export default function AdminJobUpdateSection({ onRefresh }) {
       {businessFolders.length > 0 ? (
         <section className={ui.adminCard}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className={ui.adminH3}>2. Choose folders, then update status</h3>
+            <h3 className={ui.adminH3}>2. Choose which folders to update</h3>
             <div className="flex flex-wrap gap-2">
               <button type="button" className={btnClass("ghost", true)} onClick={selectAllFolders}>
                 Select all
@@ -235,7 +220,7 @@ export default function AdminJobUpdateSection({ onRefresh }) {
                     className="mt-1"
                     checked={checked}
                     onChange={() => toggleFolder(group.folder)}
-                    disabled={busy}
+                    disabled={submitting}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold text-slate-900">{group.folder}</span>
@@ -249,28 +234,15 @@ export default function AdminJobUpdateSection({ onRefresh }) {
             })}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <form className="mt-4" onSubmit={handleSubmit}>
             <button
-              type="button"
-              className={`${btnClass("amber")} w-full sm:w-auto`}
-              disabled={busy || selectedOrderNumbers.length === 0}
-              onClick={() => runFolderUpdate("printing")}
+              type="submit"
+              className={`${btnClass(isPrinting ? "amber" : "success")} w-full sm:w-auto`}
+              disabled={submitting || selectedOrderNumbers.length === 0}
             >
-              {submitting === "printing"
-                ? "Updating..."
-                : `Printing Process Started (${jobLabel})`}
+              {submitting ? "Updating..." : `${title} (${jobLabel})`}
             </button>
-            <button
-              type="button"
-              className={`${btnClass("success")} w-full sm:w-auto`}
-              disabled={busy || selectedOrderNumbers.length === 0}
-              onClick={() => runFolderUpdate("complete")}
-            >
-              {submitting === "complete"
-                ? "Updating..."
-                : `Order Completed (${jobLabel})`}
-            </button>
-          </div>
+          </form>
         </section>
       ) : null}
 
@@ -309,10 +281,7 @@ export default function AdminJobUpdateSection({ onRefresh }) {
               <strong>Jobs found:</strong> {summary.totalJobs}
             </p>
             <p className="text-teal-700">
-              <strong>
-                {lastAction === "printing" ? "Printing Started:" : "Order Completed:"}
-              </strong>{" "}
-              {summary.updatedCount}
+              <strong>{title}:</strong> {summary.updatedCount}
             </p>
             <p className="text-amber-700">
               <strong>Skipped:</strong> {summary.skippedCount}

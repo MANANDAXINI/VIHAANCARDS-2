@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhone } from "@/components/AdminCatalogPanel";
 import { adminApi, formatRupees } from "@/lib/api";
 import { formatLedgerTableDate } from "@/lib/order-display";
@@ -14,6 +14,7 @@ function todayIst() {
 export default function AdminPaymentReceivedHistorySection({ showTitle = true }) {
   const [fromDate, setFromDate] = useState(todayIst);
   const [toDate, setToDate] = useState(todayIst);
+  const [search, setSearch] = useState("");
   const [loadingList, setLoadingList] = useState(true);
   const [receiptData, setReceiptData] = useState(null);
 
@@ -30,10 +31,15 @@ export default function AdminPaymentReceivedHistorySection({ showTitle = true })
     loadReceipts();
   }, [loadReceipts]);
 
-  function clearDates() {
+  function setToday() {
     const today = todayIst();
     setFromDate(today);
     setToDate(today);
+  }
+
+  function setAllDates() {
+    setFromDate("2020-01-01");
+    setToDate(todayIst());
   }
 
   const todayTotal = Number(receiptData?.todayTotal || 0);
@@ -41,6 +47,25 @@ export default function AdminPaymentReceivedHistorySection({ showTitle = true })
   const rangeTotal = Number(receiptData?.rangeTotal || 0);
   const rangeCount = Number(receiptData?.rangeCount || 0);
   const receipts = receiptData?.receipts || [];
+
+  const filteredReceipts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return receipts;
+    return receipts.filter((entry) =>
+      [
+        entry.business,
+        entry.customerName,
+        entry.phone,
+        formatPhone(entry.phone),
+        entry.receiptNumber,
+        entry.label,
+        entry.amount,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [receipts, search]);
 
   return (
     <div className="grid gap-4">
@@ -88,13 +113,14 @@ export default function AdminPaymentReceivedHistorySection({ showTitle = true })
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
           <label className={ui.field}>
             <span className={ui.label}>From Date</span>
             <input
               className={ui.input}
               type="date"
               value={fromDate}
+              max={toDate || undefined}
               onChange={(e) => setFromDate(e.target.value)}
             />
           </label>
@@ -104,13 +130,27 @@ export default function AdminPaymentReceivedHistorySection({ showTitle = true })
               className={ui.input}
               type="date"
               value={toDate}
+              min={fromDate || undefined}
               onChange={(e) => setToDate(e.target.value)}
             />
           </label>
-          <button type="button" className={btnClass("secondary")} onClick={clearDates}>
+          <button type="button" className={btnClass("secondary")} onClick={setToday}>
             Today
           </button>
+          <button type="button" className={btnClass("ghost")} onClick={setAllDates}>
+            All Dates
+          </button>
         </div>
+
+        <label className={`${ui.field} mt-3 sm:max-w-sm`}>
+          <span className={ui.label}>Search</span>
+          <input
+            className={ui.input}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Customer, phone, receipt no..."
+          />
+        </label>
 
         {loadingList ? (
           <p className={`mt-4 ${ui.muted}`}>Loading payment history...</p>
@@ -130,14 +170,14 @@ export default function AdminPaymentReceivedHistorySection({ showTitle = true })
                   </tr>
                 </thead>
                 <tbody>
-                  {receipts.length === 0 ? (
+                  {filteredReceipts.length === 0 ? (
                     <tr>
                       <td className={ui.td} colSpan="7">
                         No payments received in this date range.
                       </td>
                     </tr>
                   ) : (
-                    receipts.map((entry) => (
+                    filteredReceipts.map((entry) => (
                       <tr key={entry.id}>
                         <td className={ui.td}>{formatLedgerTableDate(entry.entryDate)}</td>
                         <td className={ui.td}>{entry.receiptNumber || "—"}</td>
@@ -154,12 +194,12 @@ export default function AdminPaymentReceivedHistorySection({ showTitle = true })
             </div>
 
             <ul className={`${ui.mobileCardList} mt-4 md:hidden`}>
-              {receipts.length === 0 ? (
+              {filteredReceipts.length === 0 ? (
                 <li className={`${ui.mobileCard} ${ui.muted}`}>
                   No payments received in this date range.
                 </li>
               ) : (
-                receipts.map((entry) => (
+                filteredReceipts.map((entry) => (
                   <li key={`m-${entry.id}`} className={ui.mobileCard}>
                     <div className={ui.mobileCardRow}>
                       <strong>{entry.business || entry.customerName || "—"}</strong>

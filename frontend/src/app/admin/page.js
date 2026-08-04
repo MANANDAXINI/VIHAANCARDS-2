@@ -35,6 +35,7 @@ import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { useLogout } from "@/hooks/useLogout";
 import { adminApi, formatRupees } from "@/lib/api";
 import { filterItems, paginateItems } from "@/lib/admin-table";
+import { formatLedgerTableDate } from "@/lib/order-display";
 import { isAdmin, roleLabel } from "@/lib/redirect";
 import { toast } from "@/lib/toast";
 import {
@@ -48,6 +49,11 @@ import {
   tabClass,
   ui,
 } from "@/lib/ui";
+
+function paymentRequestDayIst(request) {
+  if (!request?.createdAt) return "";
+  return new Date(request.createdAt).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
 
 function walletRequestTypeLabel(type) {
   if (type === "ORDER_PAYMENT") return "Order Payment";
@@ -103,6 +109,8 @@ export default function AdminPage() {
   const [pendingSearch, setPendingSearch] = useState("");
   const [accountsSearch, setAccountsSearch] = useState("");
   const [paymentsSearch, setPaymentsSearch] = useState("");
+  const [paymentsFromDate, setPaymentsFromDate] = useState("");
+  const [paymentsToDate, setPaymentsToDate] = useState("");
   const [pendingPage, setPendingPage] = useState(1);
   const [accountsPage, setAccountsPage] = useState(1);
   const [paymentsPage, setPaymentsPage] = useState(1);
@@ -427,8 +435,31 @@ export default function AdminPage() {
   const accountsFiltered = filterItems(accounts, accountsSearch, ["business", "phone", "status", "role"]);
   const accountsPaged = paginateItems(accountsFiltered, accountsPage);
 
-  const paymentsFiltered = filterItems(payments, paymentsSearch, ["account.business", "amount", "type"]);
+  let paymentsHistoryList = walletRequests;
+  if (paymentsFromDate || paymentsToDate) {
+    paymentsHistoryList = paymentsHistoryList.filter((request) => {
+      const day = paymentRequestDayIst(request);
+      if (!day) return false;
+      if (paymentsFromDate && day < paymentsFromDate) return false;
+      if (paymentsToDate && day > paymentsToDate) return false;
+      return true;
+    });
+  }
+  paymentsHistoryList = [...paymentsHistoryList].sort((a, b) => {
+    if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+    if (b.status === "PENDING" && a.status !== "PENDING") return 1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  const paymentsFiltered = filterItems(paymentsHistoryList, paymentsSearch, [
+    "account.business",
+    "account.phone",
+    "amount",
+    "type",
+    "status",
+  ]);
   const paymentsPaged = paginateItems(paymentsFiltered, paymentsPage);
+  const paymentsDateFilterActive = Boolean(paymentsFromDate || paymentsToDate);
 
   const walletFiltered = filterItems(walletRequests, walletSearch, ["account.business", "account.phone", "amount", "type", "status"]);
   const walletPaged = paginateItems(walletFiltered, walletPage);
@@ -620,16 +651,67 @@ export default function AdminPage() {
                   Payment Requests ({payments.length} pending)
                 </h3>
                 <p className={`${ui.small} ${ui.muted} w-full basis-full`}>
-                  Order payment pe Amount = UPI pay (shortfall). Job full amount Status column mein dikhega — baaki credit se cover hota hai.
+                  Date-wise payment history yahan search karo. Pending pehle dikhte hain — Order payment pe Amount = UPI shortfall.
                 </p>
-                <div className="w-full sm:w-64">
-                  <AdminSearchBar value={paymentsSearch} onChange={setPaymentsSearch} placeholder="Search payments..." />
-                </div>
               </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <label className={ui.field}>
+                  <span className={ui.label}>From Date</span>
+                  <input
+                    className={ui.input}
+                    type="date"
+                    value={paymentsFromDate}
+                    max={paymentsToDate || undefined}
+                    onChange={(e) => {
+                      setPaymentsFromDate(e.target.value);
+                      setPaymentsPage(1);
+                    }}
+                  />
+                </label>
+                <label className={ui.field}>
+                  <span className={ui.label}>To Date</span>
+                  <input
+                    className={ui.input}
+                    type="date"
+                    value={paymentsToDate}
+                    min={paymentsFromDate || undefined}
+                    onChange={(e) => {
+                      setPaymentsToDate(e.target.value);
+                      setPaymentsPage(1);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={btnClass("ghost")}
+                  disabled={!paymentsDateFilterActive}
+                  onClick={() => {
+                    setPaymentsFromDate("");
+                    setPaymentsToDate("");
+                    setPaymentsPage(1);
+                  }}
+                >
+                  Clear Dates
+                </button>
+              </div>
+
+              <div className="mt-3 w-full sm:max-w-xs">
+                <AdminSearchBar value={paymentsSearch} onChange={setPaymentsSearch} placeholder="Search payments..." />
+              </div>
+
+              <p className={`mt-2 ${ui.small} ${ui.muted}`}>
+                Showing {paymentsFiltered.length} request{paymentsFiltered.length === 1 ? "" : "s"}
+                {paymentsDateFilterActive
+                  ? ` (${paymentsFromDate || "…"} to ${paymentsToDate || "…"})`
+                  : " (all dates)"}
+              </p>
+
               <div className={ui.tableWrap}>
                 <table className={ui.table}>
                   <thead>
                     <tr>
+                      <th className={ui.th}>Date</th>
                       <th className={ui.th}>Customer</th>
                       <th className={ui.th}>Mobile</th>
                       <th className={ui.th}>Amount</th>
@@ -639,12 +721,13 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {paymentsPaged.items.length === 0 ? (
-                      <tr><td className={ui.td} colSpan="5">No pending payments</td></tr>
+                      <tr><td className={ui.td} colSpan="6">No payment requests in this range.</td></tr>
                     ) : paymentsPaged.items.map((p) => {
                       const isPending = p.status === "PENDING";
                       const busy = walletActionId === p.id;
                       return (
                         <tr key={p.id} className={pendingRowClass(isPending)}>
+                          <td className={ui.td}>{formatLedgerTableDate(p.createdAt)}</td>
                           <td className={ui.td}>{p.account?.business || "—"}</td>
                           <td className={ui.td}>{formatPhone(p.account?.phone)}</td>
                           <td className={`${ui.td} font-semibold`}>
@@ -659,8 +742,14 @@ export default function AdminPage() {
                             ) : null}
                           </td>
                           <td className={ui.td}>
-                            <strong className={isPending ? "text-slate-900" : "text-emerald-700"}>
-                              {isPending ? "Pending" : "Approved"}
+                            <strong className={
+                              isPending
+                                ? "text-slate-900"
+                                : p.status === "REJECTED"
+                                  ? "text-red-700"
+                                  : "text-emerald-700"
+                            }>
+                              {isPending ? "Pending" : p.status === "REJECTED" ? "Cancelled" : "Approved"}
                             </strong>
                             <span className={`mt-1 block ${ui.small} ${ui.muted}`}>
                               {walletRequestTypeLabel(p.type)}
@@ -688,7 +777,9 @@ export default function AdminPage() {
                                 </button>
                               </div>
                             ) : (
-                              <span className="font-semibold text-emerald-700">Approved</span>
+                              <span className={`font-semibold ${p.status === "REJECTED" ? "text-red-700" : "text-emerald-700"}`}>
+                                {p.status === "REJECTED" ? "Cancelled" : "Approved"}
+                              </span>
                             )}
                           </td>
                         </tr>

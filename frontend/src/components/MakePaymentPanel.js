@@ -7,15 +7,7 @@ import { btnClass, ui } from "@/lib/ui";
 import { BANK_TRANSFER, buildUpiQrImageUrl } from "@/lib/upi";
 
 const WHATSAPP_NUMBER = "7507543214";
-
-function WalletStat({ label, value, highlight = false }) {
-  return (
-    <div className={`flex items-baseline justify-between gap-4 border-b border-slate-200 py-3 text-sm last:border-0 ${highlight ? "bg-amber-50/80 -mx-1 px-1 rounded" : ""}`}>
-      <span className="font-semibold uppercase tracking-wide text-slate-700">{label}</span>
-      <span className={`font-bold ${highlight ? "text-lg text-amber-900" : "text-slate-900"}`}>{value}</span>
-    </div>
-  );
-}
+const GUIDE_IMAGE = "/images/payment-options-guide.png";
 
 export default function MakePaymentPanel({
   user,
@@ -66,64 +58,44 @@ export default function MakePaymentPanel({
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 sm:px-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)] lg:items-start">
-      <section className="grid gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-red-600">{eyebrow}</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <WalletStat label="Customer" value={user?.business || user?.name || "—"} />
-          <WalletStat
-            label="Remaining Outstanding"
-            value={formatRupees(totalOutstanding)}
-            highlight
-          />
-        </div>
-
-        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-4 sm:px-5">
-          <p className="text-sm font-bold uppercase tracking-wide text-amber-900">
-            {amountEditable ? "Pay Now (you choose amount)" : amountLabel}
+    <div className="mx-auto w-full max-w-4xl px-4 sm:px-5">
+      <div className="mb-5 text-center">
+        <p className="text-xs font-bold uppercase tracking-widest text-red-600">{eyebrow}</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
+        {user?.business || user?.name ? (
+          <p className={`mt-2 ${ui.small} ${ui.muted}`}>
+            Customer: <strong className="text-slate-800">{user.business || user.name}</strong>
           </p>
-          <p className="mt-1 text-3xl font-bold text-amber-950">{formatRupees(payAmount)}</p>
-          {amountEditable && payCap > payAmount ? (
-            <p className={`${ui.small} mt-1 text-amber-900`}>
-              Balance after this payment: {formatRupees(Math.max(0, payCap - payAmount))}
-            </p>
-          ) : null}
-          <p className={`${ui.small} mt-2 text-slate-700`}>{note}</p>
-        </div>
-
-        {orderSummary ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
-            <p className="mb-2 font-semibold text-slate-800">Order Summary</p>
-            {orderSummary}
-          </div>
         ) : null}
-
-        {showBack ? (
-          <Link href={backHref} className={`${btnClass("ghost")} w-fit`}>{backLabel}</Link>
-        ) : null}
-      </section>
+      </div>
 
       <form
-        className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
+        className="mx-auto grid w-full gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
         onSubmit={onSubmit}
       >
-        <div>
+        <div className="text-center">
           <h2 className="text-xl font-bold text-slate-900">Submit Payment</h2>
           <p className={`${ui.small} ${ui.muted} mt-1`}>
-            Pay by UPI QR or Account Transfer / NEFT — same amount as shown on the left.
+            Pay by UPI QR or Account Transfer / NEFT.
           </p>
+        </div>
+
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-center">
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-900">
+            Remaining Amount
+          </p>
+          <p className="mt-1 text-3xl font-bold text-amber-950">
+            {formatRupees(hasPayCap ? payCap : totalOutstanding)}
+          </p>
+          <p className={`${ui.small} mt-1 text-slate-700`}>{note}</p>
         </div>
 
         <label className={ui.field}>
           <span className={ui.label}>
-            {amountEditable ? "Enter amount to pay now" : "Amount"}
+            {amountEditable ? "Enter Amount To Pay Now" : amountLabel}
           </span>
           <input
-            className={`${ui.input} border-amber-300 bg-amber-50 font-bold text-amber-950`}
+            className={`${ui.input} border-amber-300 bg-amber-50 text-center text-lg font-bold text-amber-950`}
             type="number"
             min="1"
             max={hasPayCap ? payCap || undefined : undefined}
@@ -135,7 +107,7 @@ export default function MakePaymentPanel({
         </label>
 
         {amountEditable && hasPayCap && payCap > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <button type="button" className={btnClass("ghost", true)} onClick={payFullAmount}>
               Pay full {formatRupees(payCap)}
             </button>
@@ -144,10 +116,17 @@ export default function MakePaymentPanel({
         ) : null}
 
         {amountHint ? (
-          <p className={`${ui.small} ${ui.muted}`}>{amountHint}</p>
+          <p className={`${ui.small} text-center ${ui.muted}`}>{amountHint}</p>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(7rem,10rem)_minmax(0,1fr)] md:items-stretch">
+        {orderSummary ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <p className="mb-2 font-semibold text-slate-800">Order Summary</p>
+            {orderSummary}
+          </div>
+        ) : null}
+
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_minmax(0,1fr)] md:items-stretch">
           <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
             <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-800">
               1. UPI QR Code
@@ -164,9 +143,9 @@ export default function MakePaymentPanel({
 
           <div className="flex items-center justify-center py-1">
             <img
-              src="/images/payment-options-guide.png"
+              src={GUIDE_IMAGE}
               alt="Choose UPI QR or Account Transfer / NEFT"
-              className="mx-auto h-auto w-full max-w-[12rem] object-contain md:max-w-none"
+              className="mx-auto h-auto w-full max-w-[14rem] object-contain md:max-w-none"
             />
           </div>
 
@@ -207,7 +186,7 @@ export default function MakePaymentPanel({
         </div>
 
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-red-700">
-          Please send screenshot of payment to {WHATSAPP_NUMBER} for confirmation
+          Payment karne ke baad ye Confirmation button dabaiye
         </div>
 
         <button
@@ -215,8 +194,18 @@ export default function MakePaymentPanel({
           type="submit"
           disabled={submitting || submitDisabled || payAmount <= 0}
         >
-          {submitting ? "Submitting..." : "Submit Payment Request"}
+          {submitting ? "Submitting..." : "Confirmation"}
         </button>
+
+        <p className={`${ui.small} text-center ${ui.muted}`}>
+          Payment screenshot {WHATSAPP_NUMBER} pe bheje — admin approval ke liye.
+        </p>
+
+        {showBack ? (
+          <div className="text-center">
+            <Link href={backHref} className={`${btnClass("ghost")} w-fit`}>{backLabel}</Link>
+          </div>
+        ) : null}
       </form>
     </div>
   );

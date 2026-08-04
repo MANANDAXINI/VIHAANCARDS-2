@@ -126,8 +126,8 @@ export default function MakePaymentPanel({
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_minmax(0,1fr)] md:items-stretch">
-          <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(11rem,16rem)_minmax(0,1fr)] md:items-stretch">
+          <div className="flex min-h-[18rem] flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4 md:min-h-[22rem]">
             <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-800">
               1. UPI QR Code
             </p>
@@ -141,15 +141,15 @@ export default function MakePaymentPanel({
             </div>
           </div>
 
-          <div className="flex items-center justify-center py-1">
+          <div className="flex min-h-[18rem] items-stretch justify-center self-stretch overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 p-2 md:min-h-[22rem]">
             <img
               src={GUIDE_IMAGE}
               alt="Choose UPI QR or Account Transfer / NEFT"
-              className="mx-auto h-auto w-full max-w-[14rem] object-contain md:max-w-none"
+              className="h-full w-full object-contain object-center"
             />
           </div>
 
-          <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+          <div className="flex min-h-[18rem] flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4 md:min-h-[22rem]">
             <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-800">
               2. Account Transfer / NEFT
             </p>

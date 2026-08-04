@@ -4,7 +4,7 @@ import Link from "next/link";
 import TapToRevealQr from "@/components/TapToRevealQr";
 import { formatRupees } from "@/lib/api";
 import { btnClass, ui } from "@/lib/ui";
-import { buildUpiQrImageUrl } from "@/lib/upi";
+import { BANK_TRANSFER, buildUpiQrImageUrl } from "@/lib/upi";
 
 const WHATSAPP_NUMBER = "7507543214";
 
@@ -66,7 +66,7 @@ export default function MakePaymentPanel({
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
+    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 sm:px-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)] lg:items-start">
       <section className="grid gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-red-600">{eyebrow}</p>
@@ -114,7 +114,7 @@ export default function MakePaymentPanel({
         <div>
           <h2 className="text-xl font-bold text-slate-900">Submit Payment</h2>
           <p className={`${ui.small} ${ui.muted} mt-1`}>
-            Scan the QR code and pay the amount shown on the left.
+            Pay by UPI QR or Account Transfer / NEFT — same amount as shown on the left.
           </p>
         </div>
 
@@ -147,13 +147,63 @@ export default function MakePaymentPanel({
           <p className={`${ui.small} ${ui.muted}`}>{amountHint}</p>
         ) : null}
 
-        <div className="grid gap-3">
-          <TapToRevealQr imageUrl={qrToShow} defaultRevealed />
-          <p className={`${ui.small} text-center ${ui.muted}`}>
-            {dynamicQrUrl
-              ? `Scan and pay ${formatRupees(payAmount)} with any UPI app.`
-              : "Scan and pay with any UPI app."}
-          </p>
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(7rem,10rem)_minmax(0,1fr)] md:items-stretch">
+          <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+            <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-800">
+              1. UPI QR Code
+            </p>
+            <div className="mt-3 flex flex-1 flex-col justify-center">
+              <TapToRevealQr imageUrl={qrToShow} defaultRevealed />
+              <p className={`${ui.small} mt-1 text-center ${ui.muted}`}>
+                {dynamicQrUrl
+                  ? `Scan and pay ${formatRupees(payAmount)} with any UPI app.`
+                  : "Scan and pay with any UPI app."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center py-1">
+            <img
+              src="/images/payment-options-guide.png"
+              alt="Choose UPI QR or Account Transfer / NEFT"
+              className="mx-auto h-auto w-full max-w-[12rem] object-contain md:max-w-none"
+            />
+          </div>
+
+          <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+            <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-800">
+              2. Account Transfer / NEFT
+            </p>
+            <dl className="mt-3 flex flex-1 flex-col justify-center gap-2.5 text-sm">
+              <div>
+                <dt className={`${ui.small} ${ui.muted}`}>Account Name</dt>
+                <dd className="font-bold text-slate-900">{BANK_TRANSFER.accountName}</dd>
+              </div>
+              <div>
+                <dt className={`${ui.small} ${ui.muted}`}>Account Number</dt>
+                <dd className="font-semibold tracking-wide text-slate-900">
+                  {BANK_TRANSFER.accountNumber}
+                </dd>
+              </div>
+              <div>
+                <dt className={`${ui.small} ${ui.muted}`}>IFSC Code</dt>
+                <dd className="font-semibold tracking-wide text-slate-900">{BANK_TRANSFER.ifsc}</dd>
+              </div>
+              <div>
+                <dt className={`${ui.small} ${ui.muted}`}>Bank and Branch</dt>
+                <dd className="font-medium text-slate-900">{BANK_TRANSFER.bankAndBranch}</dd>
+              </div>
+              <div>
+                <dt className={`${ui.small} ${ui.muted}`}>City</dt>
+                <dd className="font-medium text-slate-900">{BANK_TRANSFER.city}</dd>
+              </div>
+            </dl>
+            {payAmount > 0 ? (
+              <p className={`${ui.small} mt-3 text-center text-amber-900`}>
+                Transfer {formatRupees(payAmount)} and keep the receipt / screenshot.
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-red-700">

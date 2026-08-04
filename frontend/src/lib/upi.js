@@ -4,6 +4,15 @@
 export const UPI_ID = "paytmqr67sgw9@ptys";
 export const UPI_PAYEE_NAME = "PIXEL DIGITAL";
 
+/** Bank / NEFT account transfer details (Make Payment page). */
+export const BANK_TRANSFER = {
+  accountName: "PIXEL DIGITAL",
+  accountNumber: "924020026071933",
+  ifsc: "UTIB0001044",
+  bankAndBranch: "AXIS BANK (MEDICAL SQUARE BRANCH)",
+  city: "Nagpur",
+};
+
 // Builds a UPI deep link like:
 //   upi://pay?pa=<id>&pn=PIXEL%20DIGITAL&am=45&cu=INR
 // The amount (am) is only included when it is a positive number.

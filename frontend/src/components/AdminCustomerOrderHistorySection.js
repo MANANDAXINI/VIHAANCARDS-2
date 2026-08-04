@@ -6,7 +6,7 @@ import OrderHistoryLedger from "@/components/OrderHistoryLedger";
 import { adminApi } from "@/lib/api";
 import { mergeOrderHistory } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
-import { ui } from "@/lib/ui";
+import { btnClass, ui } from "@/lib/ui";
 
 function customerLabel(account) {
   if (!account) return "";
@@ -29,9 +29,25 @@ function matchesCustomerSearch(account, query) {
   return haystack.includes(query.trim().toLowerCase());
 }
 
+function orderDayIst(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
+function orderInDateRange(order, fromDate, toDate) {
+  if (!fromDate && !toDate) return true;
+  const day = orderDayIst(order.createdAt || order.dispatchDate);
+  if (!day) return false;
+  if (fromDate && day < fromDate) return false;
+  if (toDate && day > toDate) return false;
+  return true;
+}
+
 export default function AdminCustomerOrderHistorySection({ accounts = [] }) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState([]);
   const [account, setAccount] = useState(null);
@@ -96,6 +112,18 @@ export default function AdminCustomerOrderHistorySection({ accounts = [] }) {
   const selectedCustomer = filteredCustomers.find((a) => a.id === selectedId);
   const hasCreditLimit = Number(account?.creditLimit || selectedCustomer?.creditLimit || 0) > 0;
 
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => orderInDateRange(order, fromDate, toDate)),
+    [orders, fromDate, toDate]
+  );
+
+  const dateFilterActive = Boolean(fromDate || toDate);
+
+  function clearDates() {
+    setFromDate("");
+    setToDate("");
+  }
+
   return (
     <div className="grid gap-4">
       <div>
@@ -142,12 +170,54 @@ export default function AdminCustomerOrderHistorySection({ accounts = [] }) {
           </div>
         </div>
 
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <div className={ui.field}>
+            <label className={ui.label} htmlFor="order-history-from">
+              From Date
+            </label>
+            <input
+              id="order-history-from"
+              className={ui.input}
+              type="date"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+          <div className={ui.field}>
+            <label className={ui.label} htmlFor="order-history-to">
+              To Date
+            </label>
+            <input
+              id="order-history-to"
+              className={ui.input}
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className={btnClass("ghost")}
+            onClick={clearDates}
+            disabled={!dateFilterActive}
+          >
+            Clear Dates
+          </button>
+        </div>
+
         {selectedCustomer ? (
           <p className={`mt-2 ${ui.small} ${ui.muted}`}>
             Showing orders for <strong>{selectedCustomer.business || selectedCustomer.name}</strong>
             {selectedCustomer.address ? ` · ${selectedCustomer.address}` : ""}
             {selectedCustomer.phone ? ` · ${formatPhone(selectedCustomer.phone)}` : ""}
-            {` · ${orders.length} order${orders.length === 1 ? "" : "s"}`}
+            {dateFilterActive
+              ? ` · ${filteredOrders.length} of ${orders.length} order${orders.length === 1 ? "" : "s"}`
+              : ` · ${orders.length} order${orders.length === 1 ? "" : "s"}`}
+            {fromDate || toDate
+              ? ` (${fromDate || "…"} to ${toDate || "…"})`
+              : ""}
           </p>
         ) : null}
       </section>
@@ -160,7 +230,7 @@ export default function AdminCustomerOrderHistorySection({ accounts = [] }) {
         </p>
       ) : (
         <OrderHistoryLedger
-          orders={orders}
+          orders={filteredOrders}
           activeTab="orders"
           account={account}
           hasCreditLimit={hasCreditLimit}

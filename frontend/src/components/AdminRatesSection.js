@@ -24,7 +24,7 @@ function RateActions({ rule, onEdit, onDelete, saving }) {
         disabled={saving}
         onClick={() => onEdit(rule)}
       >
-        Edit Rate
+        Edit
       </button>
       <button
         type="button"
@@ -44,6 +44,15 @@ export default function AdminRatesSection() {
   const [search, setSearch] = useState("");
   const [savingId, setSavingId] = useState(null);
   const [savingHsnId, setSavingHsnId] = useState(null);
+  const [savingPaperId, setSavingPaperId] = useState(null);
+  const [editRule, setEditRule] = useState(null);
+  const [editForm, setEditForm] = useState({
+    paperName: "",
+    sizeName: "",
+    printingSideName: "",
+    amount: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -84,27 +93,111 @@ export default function AdminRatesSection() {
     }
   }
 
-  async function editRate(rule) {
+  async function editPaperName(paper) {
+    if (!paper?.id) return;
     const next = window.prompt(
-      `New rate (Rs.) for ${rule.paperType?.name} | ${rule.size?.name} | ${rule.quantity} | ${rule.printingSide?.name}`,
-      String(rule.amount)
+      `Item / Paper name for "${paper.name || "this item"}"`,
+      String(paper.name || "")
     );
     if (next === null) return;
-
-    const amount = Number(next);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Enter a valid amount.");
+    const name = String(next).trim();
+    if (!name) {
+      toast.error("Item name cannot be empty.");
       return;
     }
 
-    setSavingId(rule.id);
+    setSavingPaperId(paper.id);
     try {
-      await adminCatalogApi.updatePriceRule(rule.id, { amount });
+      await adminCatalogApi.updatePaperType(paper.id, { name });
       await load();
-      toast.success("Rate updated.");
+      toast.success("Item name updated.");
     } catch (e) {
       toast.error(e.message);
     } finally {
+      setSavingPaperId(null);
+    }
+  }
+
+  function openEdit(rule) {
+    setEditRule(rule);
+    setEditForm({
+      paperName: rule.paperType?.name || "",
+      sizeName: rule.size?.name || "",
+      printingSideName: rule.printingSide?.name || "",
+      amount: String(rule.amount ?? ""),
+    });
+  }
+
+  function closeEdit() {
+    if (editSaving) return;
+    setEditRule(null);
+  }
+
+  async function saveEdit(event) {
+    event.preventDefault();
+    if (!editRule) return;
+
+    const paperName = editForm.paperName.trim();
+    const sizeName = editForm.sizeName.trim();
+    const printingSideName = editForm.printingSideName.trim();
+    const amount = Number(editForm.amount);
+
+    if (!paperName) {
+      toast.error("Item name is required.");
+      return;
+    }
+    if (!sizeName) {
+      toast.error("Size / option name is required.");
+      return;
+    }
+    if (!printingSideName) {
+      toast.error("Printing side name is required.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid rate amount.");
+      return;
+    }
+
+    setEditSaving(true);
+    setSavingId(editRule.id);
+    try {
+      const tasks = [];
+
+      if (editRule.paperType?.id && paperName !== (editRule.paperType?.name || "")) {
+        tasks.push(adminCatalogApi.updatePaperType(editRule.paperType.id, { name: paperName }));
+      }
+      if (editRule.size?.id && sizeName !== (editRule.size?.name || "")) {
+        tasks.push(adminCatalogApi.updateSize(editRule.size.id, { name: sizeName }));
+      }
+      if (
+        editRule.printingSide?.id
+        && printingSideName !== (editRule.printingSide?.name || "")
+      ) {
+        tasks.push(
+          adminCatalogApi.updatePrintingSide(editRule.printingSide.id, {
+            name: printingSideName,
+          })
+        );
+      }
+      if (Number(editRule.amount) !== amount) {
+        tasks.push(adminCatalogApi.updatePriceRule(editRule.id, { amount }));
+      }
+
+      if (!tasks.length) {
+        toast.info("No changes to save.");
+        setEditRule(null);
+        return;
+      }
+
+      await Promise.all(tasks);
+      await load();
+      toast.success("Item name / rate updated.");
+      setEditRule(null);
+    } catch (e) {
+      toast.error(e.message || "Could not save changes.");
+    } finally {
+      setEditSaving(false);
       setSavingId(null);
     }
   }
@@ -170,7 +263,7 @@ export default function AdminRatesSection() {
           <div>
             <h3 className={ui.adminH3}>All Saved Rates</h3>
             <p className={`${ui.muted} ${ui.small} mt-1`}>
-              Every paper GSM + size + quantity + printing side combination with a saved price.
+              Edit item name, size, printing side, and rate from here.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -225,14 +318,24 @@ export default function AdminRatesSection() {
                   {group.rules.length} combination{group.rules.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <button
-                type="button"
-                className={btnClass("secondary", true)}
-                disabled={!group.paper?.id || savingHsnId === group.paper?.id}
-                onClick={() => editHsn(group.paper)}
-              >
-                {savingHsnId === group.paper?.id ? "Saving..." : hsn ? "Update HSN" : "Add HSN CODE"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={btnClass("secondary", true)}
+                  disabled={!group.paper?.id || savingPaperId === group.paper?.id}
+                  onClick={() => editPaperName(group.paper)}
+                >
+                  {savingPaperId === group.paper?.id ? "Saving..." : "Edit Item Name"}
+                </button>
+                <button
+                  type="button"
+                  className={btnClass("secondary", true)}
+                  disabled={!group.paper?.id || savingHsnId === group.paper?.id}
+                  onClick={() => editHsn(group.paper)}
+                >
+                  {savingHsnId === group.paper?.id ? "Saving..." : hsn ? "Update HSN" : "Add HSN CODE"}
+                </button>
+              </div>
             </div>
 
             <div className={ui.tableWrap}>
@@ -264,7 +367,7 @@ export default function AdminRatesSection() {
                       <td className={ui.td}>
                         <RateActions
                           rule={rule}
-                          onEdit={editRate}
+                          onEdit={openEdit}
                           onDelete={deleteRate}
                           saving={savingId === rule.id}
                         />
@@ -300,7 +403,7 @@ export default function AdminRatesSection() {
                   </div>
                   <RateActions
                     rule={rule}
-                    onEdit={editRate}
+                    onEdit={openEdit}
                     onDelete={deleteRate}
                     saving={savingId === rule.id}
                   />
@@ -311,6 +414,86 @@ export default function AdminRatesSection() {
           );
         })
       )}
+
+      {editRule ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-3"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit rate item"
+          onClick={closeEdit}
+        >
+          <form
+            className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={saveEdit}
+          >
+            <h3 className={ui.adminH3}>Edit Item / Rate</h3>
+            <p className={`mt-1 ${ui.small} ${ui.muted}`}>
+              Qty {Number(editRule.quantity).toLocaleString("en-IN")} — item name aur rate yahan se change karo.
+            </p>
+
+            <div className="mt-4 grid gap-3">
+              <label className={ui.field}>
+                <span className={ui.label}>Item / Paper name</span>
+                <input
+                  className={ui.input}
+                  value={editForm.paperName}
+                  onChange={(e) => setEditForm((f) => ({ ...f, paperName: e.target.value }))}
+                  placeholder="e.g. 350 gsm Art Paper"
+                  required
+                />
+              </label>
+              <label className={ui.field}>
+                <span className={ui.label}>Size / Option name</span>
+                <input
+                  className={ui.input}
+                  value={editForm.sizeName}
+                  onChange={(e) => setEditForm((f) => ({ ...f, sizeName: e.target.value }))}
+                  placeholder="e.g. Matt Lamination"
+                  required
+                />
+              </label>
+              <label className={ui.field}>
+                <span className={ui.label}>Printing side</span>
+                <input
+                  className={ui.input}
+                  value={editForm.printingSideName}
+                  onChange={(e) => setEditForm((f) => ({ ...f, printingSideName: e.target.value }))}
+                  placeholder="e.g. Front Back"
+                  required
+                />
+              </label>
+              <label className={ui.field}>
+                <span className={ui.label}>Rate (Rs.)</span>
+                <input
+                  className={ui.input}
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={editForm.amount}
+                  onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
+                  required
+                />
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className={btnClass("ghost")}
+                onClick={closeEdit}
+                disabled={editSaving}
+              >
+                Cancel
+              </button>
+              <button type="submit" className={btnClass("primary")} disabled={editSaving}>
+                {editSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

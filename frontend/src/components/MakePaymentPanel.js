@@ -83,7 +83,7 @@ export default function MakePaymentPanel({
 
             <div className="relative h-full min-h-[14rem] w-full">
               <img
-                src={`${GUIDE_IMAGE}?v=2`}
+                src={`${GUIDE_IMAGE}?v=5`}
                 alt="Choose UPI QR or Account Transfer"
                 className="absolute inset-0 h-full w-full object-contain object-center"
               />

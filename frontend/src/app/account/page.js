@@ -78,7 +78,11 @@ function AccountContent() {
         const acct = data.account || user;
         setAccount(acct);
         setSummary(data.summary || {});
-        setLedgerEntries(mergeLedgerEntries(data.ledgerEntries || [], data.pendingPayments || [], acct));
+        const pendingForLedger = [
+          ...(data.pendingPayments || []),
+          ...(data.pendingOutstandingPayments || []),
+        ];
+        setLedgerEntries(mergeLedgerEntries(data.ledgerEntries || [], pendingForLedger, acct));
         setOrders(mergeOrderHistory(data.orders || [], data.pendingPayments || []));
       })
       .catch(() => {})

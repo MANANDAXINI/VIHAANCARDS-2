@@ -8,7 +8,8 @@ export function sumPendingOutstandingPayments(requests = []) {
 }
 
 export function computePayableOutstanding(account, pendingOutstandingPayments = []) {
-  const outstanding = Number(account?.previousOutstanding || 0);
+  // Negative outstanding = advance already on books; nothing payable as due.
+  const outstanding = Math.max(0, Number(account?.previousOutstanding || 0));
   const pending = sumPendingOutstandingPayments(pendingOutstandingPayments);
   return Math.max(0, outstanding - pending);
 }

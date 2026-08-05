@@ -114,10 +114,18 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
   }, [open, accountId]);
 
   const account = data?.account;
-  const ledgerEntries = useMemo(
-    () => mergeLedgerEntries(data?.ledgerEntries || [], data?.pendingPayments || [], account),
-    [data, account]
-  );
+  const ledgerEntries = useMemo(() => {
+    const pendingWallet = (data?.walletRequests || []).filter(
+      (req) =>
+        req.status === "PENDING"
+        && (req.type === "WALLET_TOPUP" || req.type === "OUTSTANDING_PAYMENT")
+    );
+    return mergeLedgerEntries(
+      data?.ledgerEntries || [],
+      [...(data?.pendingPayments || []), ...pendingWallet],
+      account
+    );
+  }, [data, account]);
   const orders = useMemo(
     () => mergeOrderHistory(data?.orders || [], data?.pendingPayments || []),
     [data]
@@ -183,7 +191,14 @@ export default function AdminOutstandingCustomerDetails({ open, accountId, accou
                 <SummaryCard label="Credit Limit" value={formatRupees(account?.creditLimit)} />
                 <SummaryCard label="Used Credit" value={formatRupees(account?.usedCredit)} />
                 <SummaryCard label="Available Credit" value={formatRupees(account?.availableCredit)} />
-                <SummaryCard label="Current Outstanding" value={formatRupees(summary.previousOutstanding)} />
+                <SummaryCard
+                  label={Number(summary.previousOutstanding) < 0 ? "Advance Balance" : "Current Outstanding"}
+                  value={
+                    Number(summary.previousOutstanding) < 0
+                      ? `Advance Rs. ${Math.abs(Number(summary.previousOutstanding)).toLocaleString("en-IN")}`
+                      : formatRupees(summary.previousOutstanding)
+                  }
+                />
                 <SummaryCard label="Pending Orders" value={formatRupees(summary.pendingOrderAmount)} />
                 <SummaryCard label="Receivable Balance" value={formatRupees(summary.receivableBalance)} />
                 <SummaryCard label="Total Billed (All Jobs)" value={formatRupees(summary.totalBilled)} />

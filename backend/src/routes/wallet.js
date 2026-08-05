@@ -7,19 +7,25 @@ const router = express.Router();
 
 router.get("/ledger", authCustomer, async (req, res) => {
   try {
+    const { syncAccountLedger } = require("../lib/ledger");
+    await syncAccountLedger(req.account.id);
+
+    const account = await prisma.account.findUnique({ where: { id: req.account.id } });
+    if (!account) return res.status(404).json({ error: "Account not found." });
+
     const entries = await prisma.ledgerEntry.findMany({
-      where: { accountId: req.account.id },
-      orderBy: { entryDate: "asc" },
+      where: { accountId: account.id },
+      orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
     });
 
     const orders = await prisma.order.findMany({
-      where: { accountId: req.account.id },
+      where: { accountId: account.id },
       orderBy: { createdAt: "desc" },
     });
 
     const pendingPayments = await prisma.walletRequest.findMany({
       where: {
-        accountId: req.account.id,
+        accountId: account.id,
         type: "ORDER_PAYMENT",
         status: "PENDING",
       },
@@ -28,14 +34,13 @@ router.get("/ledger", authCustomer, async (req, res) => {
 
     const pendingOutstandingPayments = await prisma.walletRequest.findMany({
       where: {
-        accountId: req.account.id,
-        type: "OUTSTANDING_PAYMENT",
+        accountId: account.id,
+        type: { in: ["OUTSTANDING_PAYMENT", "WALLET_TOPUP"] },
         status: "PENDING",
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const account = req.account;
     const creditLimit = Number(account.creditLimit || 0);
     const usedCredit = Number(account.usedCredit || 0);
     const summary = {

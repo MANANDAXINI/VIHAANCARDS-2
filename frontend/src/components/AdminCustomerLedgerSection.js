@@ -9,6 +9,7 @@ import {
   formatLedgerDebit,
   formatLedgerNarration,
   formatLedgerTableDate,
+  formatOutstandingOrAdvance,
 } from "@/lib/order-display";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
@@ -293,8 +294,14 @@ export default function AdminCustomerLedgerSection({ accounts = [], onDataChange
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <LedgerSummaryCard
-          label="Current Outstanding"
-          value={formatRupees(summary.previousOutstanding ?? summary.currentOutstanding)}
+          label={
+            Number(summary.previousOutstanding ?? summary.currentOutstanding) < 0
+              ? "Advance Balance"
+              : "Current Outstanding"
+          }
+          value={formatOutstandingOrAdvance(
+            summary.previousOutstanding ?? summary.currentOutstanding
+          )}
         />
         <LedgerSummaryCard
           label="Total Billed (All Jobs)"
@@ -305,8 +312,14 @@ export default function AdminCustomerLedgerSection({ accounts = [], onDataChange
           value={formatRupees(summary.totalReceived ?? summary.totalPaymentReceived)}
         />
         <LedgerSummaryCard
-          label="Ledger Balance"
-          value={formatRupees(summary.ledgerNetOutstanding ?? summary.finalBalance)}
+          label={
+            Number(summary.ledgerNetOutstanding ?? summary.finalBalance) < 0
+              ? "Ledger Advance"
+              : "Ledger Balance"
+          }
+          value={formatOutstandingOrAdvance(
+            summary.ledgerNetOutstanding ?? summary.finalBalance
+          )}
         />
       </div>
 

@@ -2,7 +2,12 @@ const express = require("express");
 const multer = require("multer");
 const crypto = require("crypto");
 const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
-const { summarizeAccountLedger } = require("../lib/ledger");
+const {
+  summarizeAccountLedger,
+  computeLedgerOpening,
+  recomputeLedgerFromOpening,
+  syncAccountLedger,
+} = require("../lib/ledger");
 const { parseParcelRowsFromWorkbook, buildDispatchUpdateData, parseExcelDate } = require("../lib/parcel-import");
 const { normalizeOrderNumber } = require("../lib/job-folder-parse");
 const { deleteUpload, saveUpload } = require("../lib/storage");
@@ -53,48 +58,6 @@ const parcelUpload = multer({
   },
 });
 
-function computeLedgerOpening(account, entries) {
-  const net = entries.reduce(
-    (sum, entry) => sum + Number(entry.debit || 0) - Number(entry.credit || 0),
-    0
-  );
-  return Number(account?.previousOutstanding || 0) - net;
-}
-
-// Recomputes running outstanding balances for every ledger entry of an account
-// (ordered by date) starting from a fixed opening balance, then syncs the
-// account's outstanding + used credit to the final running balance.
-async function recomputeLedgerFromOpening(tx, accountId, opening) {
-  const account = await tx.account.findUnique({ where: { id: accountId } });
-  if (!account) return 0;
-
-  const entries = await tx.ledgerEntry.findMany({
-    where: { accountId },
-    orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
-  });
-
-  let running = Number(opening) || 0;
-  for (const entry of entries) {
-    const before = running;
-    running += Number(entry.debit || 0) - Number(entry.credit || 0);
-    await tx.ledgerEntry.update({
-      where: { id: entry.id },
-      data: { oldOutstandingBefore: before, outstandingAfter: running },
-    });
-  }
-
-  const finalOutstanding = running;
-  const data = {
-    previousOutstanding: finalOutstanding,
-    oldOutstanding: finalOutstanding,
-  };
-  if (Number(account.creditLimit) > 0) {
-    data.usedCredit = Math.max(0, Math.min(account.creditLimit, finalOutstanding));
-  }
-  await tx.account.update({ where: { id: accountId }, data });
-  return finalOutstanding;
-}
-
 // Deletes an order and reverses its side effects inside a transaction:
 // restores paper stock, removes its billing ledger charge(s), clears any
 // wallet-request references (so the FK does not block deletion), and deletes
@@ -113,7 +76,13 @@ async function deleteOrderInTx(tx, order) {
 
   if (order.orderNumber) {
     await tx.ledgerEntry.deleteMany({
-      where: { accountId: order.accountId, label: { startsWith: `Order ${order.orderNumber}` } },
+      where: {
+        accountId: order.accountId,
+        OR: [
+          { label: { startsWith: `Order ${order.orderNumber}` } },
+          { label: { startsWith: `Payment Received against ${order.orderNumber}` } },
+        ],
+      },
     });
   }
 
@@ -482,7 +451,7 @@ router.post("/accounts/:id/outstanding", authAdmin, async (req, res) => {
         debit: amount,
         outstandingAfter: newOutstanding,
         balanceAfter: account.balance,
-        oldOutstandingBefore: account.oldOutstanding,
+        oldOutstandingBefore: Number(account.previousOutstanding || 0),
       },
     }),
   ]);
@@ -501,12 +470,14 @@ router.post("/accounts/:id/payment", authAdmin, async (req, res) => {
   if (!account) return res.status(404).json({ error: "Account not found." });
 
   const receiptNumber = await nextReceiptNumber();
-  const newOutstanding = Math.max(0, account.previousOutstanding - payment);
+  // Allow negative = advance credit on account (do not clamp to 0).
+  const newOutstanding = Number(account.previousOutstanding || 0) - payment;
   const updateData = {
     previousOutstanding: newOutstanding,
+    oldOutstanding: newOutstanding,
   };
   if (Number(account.creditLimit) > 0) {
-    updateData.usedCredit = Math.max(0, account.usedCredit - payment);
+    updateData.usedCredit = Math.max(0, Number(account.usedCredit || 0) - payment);
   }
 
   const [updated, entry] = await prisma.$transaction([
@@ -520,7 +491,7 @@ router.post("/accounts/:id/payment", authAdmin, async (req, res) => {
         label: label || "Payment Received",
         amount: payment,
         credit: payment,
-        oldOutstandingBefore: account.oldOutstanding,
+        oldOutstandingBefore: Number(account.previousOutstanding || 0),
         outstandingAfter: newOutstanding,
         balanceAfter: account.balance,
         receiptNumber,
@@ -729,7 +700,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
       });
 
       const outstandingAfterJob = runningOutstanding;
-      runningOutstanding = Math.max(0, runningOutstanding - payAmount);
+      runningOutstanding -= payAmount;
       await tx.ledgerEntry.create({
         data: {
           accountId: account.id,
@@ -770,21 +741,25 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
   }
 
   const receiptNumber = await nextReceiptNumber();
+  // Advance / overpayment reduces outstanding and may go negative (credit on books).
   const newOutstanding =
     request.type === "OUTSTANDING_PAYMENT" || request.type === "WALLET_TOPUP"
-      ? Math.max(0, account.previousOutstanding - request.amount)
-      : account.previousOutstanding;
+      ? Number(account.previousOutstanding || 0) - Number(request.amount || 0)
+      : Number(account.previousOutstanding || 0);
 
   const paymentLabel =
     request.type === "ORDER_PAYMENT"
       ? `Payment Received Receipt No: ${receiptNumber}`
       : request.type === "OUTSTANDING_PAYMENT"
         ? `Outstanding Payment Receipt No: ${receiptNumber}`
-        : `Wallet Top-up Receipt No: ${receiptNumber}`;
+        : `Advance Payment Receipt No: ${receiptNumber}`;
 
-  const accountUpdate = { previousOutstanding: newOutstanding };
+  const accountUpdate = {
+    previousOutstanding: newOutstanding,
+    oldOutstanding: newOutstanding,
+  };
   if (Number(account.creditLimit) > 0 && request.type !== "ORDER_PAYMENT") {
-    accountUpdate.usedCredit = Math.max(0, account.usedCredit - request.amount);
+    accountUpdate.usedCredit = Math.max(0, Number(account.usedCredit || 0) - Number(request.amount || 0));
   }
 
   const [updatedAccount, updatedRequest] = await prisma.$transaction([
@@ -802,7 +777,7 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
         label: paymentLabel,
         amount: request.amount,
         credit: request.amount,
-        oldOutstandingBefore: account.previousOutstanding,
+        oldOutstandingBefore: Number(account.previousOutstanding || 0),
         outstandingAfter: newOutstanding,
         balanceAfter: account.balance,
         receiptNumber,
@@ -1296,6 +1271,7 @@ router.get("/receipts", authAdmin, async (req, res) => {
 });
 
 router.get("/accounts/:id/details", authAdmin, async (req, res) => {
+  await syncAccountLedger(req.params.id).catch(() => null);
   const account = await prisma.account.findUnique({ where: { id: req.params.id } });
   if (!account) return res.status(404).json({ error: "Account not found." });
 
@@ -1335,12 +1311,14 @@ router.get("/accounts/:id/details", authAdmin, async (req, res) => {
 });
 
 router.get("/ledger/:accountId", authAdmin, async (req, res) => {
-  const account = await prisma.account.findUnique({ where: { id: req.params.accountId } });
-  if (!account) return res.status(404).json({ error: "Account not found." });
+  // Heal totals first so deleted advances / clamped payments don't leave
+  // phantom outstanding on the account.
+  const synced = await syncAccountLedger(req.params.accountId);
+  if (!synced) return res.status(404).json({ error: "Account not found." });
 
   const fromDate = String(req.query.fromDate || "").trim();
   const toDate = String(req.query.toDate || "").trim();
-  const where = { accountId: account.id };
+  const where = { accountId: synced.id };
 
   if (fromDate || toDate) {
     where.entryDate = {};
@@ -1357,10 +1335,10 @@ router.get("/ledger/:accountId", authAdmin, async (req, res) => {
     orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
   });
 
-  const summary = summarizeAccountLedger(entries, account);
+  const summary = summarizeAccountLedger(entries, synced);
 
   res.json({
-    account: publicAccount(account),
+    account: publicAccount(synced),
     ledgerEntries: entries,
     summary,
   });

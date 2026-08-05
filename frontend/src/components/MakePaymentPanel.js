@@ -122,7 +122,7 @@ export default function MakePaymentPanel({
         </div>
 
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide text-red-700">
-          PAYMENT KARNE KE BAAD CONFIRMATION BUTTON DABAYE
+          PAYMENT KARNE KE BAAD VERIFY KARNE KE LIYE NICHE DI HUI PAYMENT PAID BUTTON DABAYE
         </div>
 
         <button
@@ -130,7 +130,7 @@ export default function MakePaymentPanel({
           type="submit"
           disabled={submitting || submitDisabled || payAmount <= 0}
         >
-          {submitting ? "Submitting..." : "Confirmation"}
+          {submitting ? "Submitting..." : "PAYMENT PAID"}
         </button>
       </form>
     </div>

@@ -149,7 +149,22 @@ export function formatLedgerCredit(entry) {
 
 export function formatLedgerBalance(entry) {
   const balance = Number(entry?.outstandingAfter ?? 0);
+  if (balance < 0) {
+    return `Advance Rs. ${Math.abs(balance).toLocaleString("en-IN")}`;
+  }
   return `Rs. ${balance.toLocaleString("en-IN")}`;
+}
+
+export function formatOutstandingOrAdvance(value) {
+  const amount = Number(value || 0);
+  if (amount < 0) {
+    return `Advance ${formatRupeesSafe(Math.abs(amount))}`;
+  }
+  return formatRupeesSafe(amount);
+}
+
+function formatRupeesSafe(amount) {
+  return `Rs. ${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
 export function formatReceivableAmount(value) {
@@ -179,14 +194,15 @@ export function buildLedgerDisplayRows(entries = [], pendingRequests = [], accou
   const displayRows = sorted.map((entry) => {
     const debit = Number(entry.debit || 0);
     const credit = Number(entry.credit || 0);
-    running = Math.max(0, running + debit - credit);
+    // Allow negative running balance = advance credit on account.
+    running = running + debit - credit;
     return {
       ...entry,
       outstandingAfter: running,
     };
   });
 
-  const pendingRows = pendingRequests
+  const pendingOrderRows = pendingRequests
     .filter((req) => req.type === "ORDER_PAYMENT" && req.status === "PENDING" && req.pendingOrderData)
     .map((req) => {
       const d = req.pendingOrderData;
@@ -204,7 +220,35 @@ export function buildLedgerDisplayRows(entries = [], pendingRequests = [], accou
       };
     });
 
-  return [...displayRows, ...pendingRows].sort(sortLedgerEntries);
+  // Pending advance / outstanding payment requests (show until admin approves).
+  let pendingRunning = displayRows.length
+    ? Number(displayRows[displayRows.length - 1].outstandingAfter || 0)
+    : Number(account?.previousOutstanding || 0);
+  const pendingPaymentRows = pendingRequests
+    .filter(
+      (req) =>
+        (req.type === "WALLET_TOPUP" || req.type === "OUTSTANDING_PAYMENT")
+        && req.status === "PENDING"
+    )
+    .map((req) => {
+      const amount = Number(req.amount) || 0;
+      pendingRunning -= amount;
+      return {
+        id: `pending-payment-${req.id}`,
+        entryDate: req.createdAt,
+        createdAt: req.createdAt,
+        label:
+          req.type === "WALLET_TOPUP"
+            ? "Advance Payment (Pending Approval)"
+            : "Outstanding Payment (Pending Approval)",
+        debit: 0,
+        credit: amount,
+        outstandingAfter: pendingRunning,
+        pending: true,
+      };
+    });
+
+  return [...displayRows, ...pendingOrderRows, ...pendingPaymentRows].sort(sortLedgerEntries);
 }
 
 export function mergeLedgerEntries(entries = [], pendingRequests = [], account = null) {

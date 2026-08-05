@@ -8,6 +8,7 @@ import ArtworkDualUploadField from "@/components/ArtworkDualUploadField";
 import CreditReminderModal, { isCreditReminderDue } from "@/components/CreditReminderModal";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { catalogApi, formatRupees, orderApi } from "@/lib/api";
+import { isAllowedArtworkFile } from "@/lib/artwork-formats";
 import {
   calcOrderAmount,
   filterPapersByCategory,
@@ -194,6 +195,12 @@ export default function OrderPage() {
       })
       .catch((e) => toast.error(e.message));
   }, []);
+
+  useEffect(() => {
+    const formats = selectedPaper?.allowedFormats;
+    setArtworkFront((prev) => (prev && !isAllowedArtworkFile(prev, formats) ? null : prev));
+    setArtworkBack((prev) => (prev && !isAllowedArtworkFile(prev, formats) ? null : prev));
+  }, [selectedPaper?.id, selectedPaper?.allowedFormats]);
 
   useEffect(() => {
     if (!paperTypeId || !catalog) return;

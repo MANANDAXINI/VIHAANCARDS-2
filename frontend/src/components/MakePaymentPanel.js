@@ -81,11 +81,11 @@ export default function MakePaymentPanel({
               </div>
             </div>
 
-            <div className="flex min-h-[18rem] items-center justify-center self-stretch overflow-hidden md:min-h-0">
+            <div className="relative h-full min-h-[16rem] w-full">
               <img
                 src={GUIDE_IMAGE}
                 alt="Choose UPI QR or Account Transfer"
-                className="h-full max-h-full w-auto max-w-full object-contain object-center"
+                className="absolute inset-0 h-full w-full object-contain object-center"
               />
             </div>
 

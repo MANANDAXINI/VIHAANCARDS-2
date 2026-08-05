@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { uploadAssetUrl } from "@/lib/api";
 import { BANK_TRANSFER, buildUpiLink, buildUpiQrImageUrl } from "@/lib/upi";
 import { btnClass, ui } from "@/lib/ui";
@@ -29,6 +30,37 @@ export default function MakePaymentPanel({
   const payCap = hasPayCap ? Math.max(0, Number(maxAmount) || 0) : 0;
   const payAmount = Number(amount) || 0;
   const qrToShow = qrUrlForAmount(payAmount, qrImageUrl);
+  const leftRef = useRef(null);
+  const rightRef = useRef(null);
+  const [guideHeight, setGuideHeight] = useState(0);
+
+  useEffect(() => {
+    const left = leftRef.current;
+    const right = rightRef.current;
+    if (!left || !right || typeof ResizeObserver === "undefined") return undefined;
+
+    const sync = () => {
+      const desktop = window.matchMedia("(min-width: 768px)").matches;
+      if (!desktop) {
+        setGuideHeight((prev) => (prev === 0 ? prev : 0));
+        return;
+      }
+      const next = Math.round(
+        Math.max(left.getBoundingClientRect().height, right.getBoundingClientRect().height)
+      );
+      setGuideHeight((prev) => (prev === next ? prev : next));
+    };
+
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(left);
+    observer.observe(right);
+    window.addEventListener("resize", sync);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", sync);
+    };
+  }, [qrToShow]);
 
   function handleAmountInput(event) {
     const next = Number(event.target.value);
@@ -42,7 +74,7 @@ export default function MakePaymentPanel({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 sm:px-5">
+    <div className="mx-auto w-full max-w-5xl px-4 sm:px-5">
       <form className="mx-auto grid w-full gap-4" onSubmit={onSubmit}>
         <label className={ui.field}>
           <span className={ui.label}>Enter Amount To Pay Now</span>
@@ -64,8 +96,8 @@ export default function MakePaymentPanel({
         </p>
 
         <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)_minmax(0,1fr)] md:items-stretch">
-            <div className="flex h-full flex-col p-1 sm:p-2">
+          <div className="flex flex-col items-center gap-4 md:flex-row md:items-stretch">
+            <div ref={leftRef} className="flex w-full min-w-0 flex-1 flex-col p-1 sm:p-2">
               <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-800">
                 1. UPI QR Code
               </p>
@@ -73,7 +105,7 @@ export default function MakePaymentPanel({
                 <img
                   src={qrToShow}
                   alt="UPI payment QR"
-                  className="mx-auto w-full max-w-[260px] rounded-lg"
+                  className="mx-auto w-full max-w-[220px] rounded-lg"
                 />
                 <p className={`${ui.small} mt-2 text-center ${ui.muted}`}>
                   Scan and pay with any UPI app.
@@ -81,15 +113,19 @@ export default function MakePaymentPanel({
               </div>
             </div>
 
-            <div className="relative h-full min-h-[16rem] w-full">
+            <div className="flex shrink-0 items-center justify-center">
               <img
                 src={GUIDE_IMAGE}
                 alt="Choose UPI QR or Account Transfer"
-                className="absolute inset-0 h-full w-full object-contain object-center"
+                className="w-auto object-contain"
+                style={{
+                  height: guideHeight > 0 ? `${guideHeight}px` : "10rem",
+                  width: "auto",
+                }}
               />
             </div>
 
-            <div className="flex h-full flex-col p-1 sm:p-2">
+            <div ref={rightRef} className="flex w-full min-w-0 flex-1 flex-col p-1 sm:p-2">
               <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-800">
                 2. Account Transfer
               </p>

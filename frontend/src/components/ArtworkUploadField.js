@@ -1,19 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import FilePickButton from "@/components/FilePickButton";
+import {
+  artworkAcceptAttr,
+  artworkFormatsLabel,
+  isAllowedArtworkFile,
+  normalizeArtworkFormats,
+} from "@/lib/artwork-formats";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
-
-const ALLOWED_ARTWORK_MIMES = ["application/pdf", "image/jpeg"];
-const ALLOWED_ARTWORK_EXT = /\.(pdf|jpe?g)$/i;
-
-function isAllowedArtworkFile(file) {
-  if (!file) return false;
-  if (ALLOWED_ARTWORK_MIMES.includes(file.type)) return true;
-  // Some browsers report an empty MIME type; fall back to the extension.
-  return !file.type && ALLOWED_ARTWORK_EXT.test(file.name || "");
-}
 
 export default function ArtworkUploadField({
   label,
@@ -21,12 +17,16 @@ export default function ArtworkUploadField({
   file,
   onChange,
   required = false,
-  accept = ".pdf,.jpg,.jpeg",
+  allowedFormats = ["pdf", "jpg"],
 }) {
   const inputRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const formats = useMemo(() => normalizeArtworkFormats(allowedFormats), [allowedFormats]);
+  const accept = artworkAcceptAttr(formats);
+  const formatsText = artworkFormatsLabel(formats);
   const isImage = Boolean(file?.type?.startsWith("image/"));
   const isPdf = file?.type === "application/pdf";
+  const isCdr = /\.cdr$/i.test(file?.name || "") || String(file?.type || "").includes("cdr");
 
   useEffect(() => {
     if (!file || !isImage) {
@@ -40,8 +40,8 @@ export default function ArtworkUploadField({
 
   function handleFileChange(event) {
     const picked = event.target.files?.[0] || null;
-    if (picked && !isAllowedArtworkFile(picked)) {
-      toast.error("Uploaded file must be a PDF or JPG only.");
+    if (picked && !isAllowedArtworkFile(picked, formats)) {
+      toast.error(`Uploaded file must be ${formatsText} only.`);
       if (inputRef.current) inputRef.current.value = "";
       onChange(null);
       return;
@@ -76,7 +76,7 @@ export default function ArtworkUploadField({
           inputRef={inputRef}
           buttonLabel="Choose Design File"
           title="Upload Design"
-          description="PDF or JPG only — tap the button to browse files on your device."
+          description={`${formatsText} only — tap the button to browse files on your device.`}
           accept={accept}
           onChange={handleFileChange}
         />
@@ -102,13 +102,13 @@ export default function ArtworkUploadField({
           ) : (
             <div className="flex w-full items-start gap-3">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-bold uppercase text-red-600">
-                {isPdf ? "PDF" : "File"}
+                {isPdf ? "PDF" : isCdr ? "CDR" : "File"}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
                 <p className={`${ui.small} ${ui.muted}`}>
                   {(file.size / 1024).toFixed(0)} KB
-                  {isPdf ? " — PDF" : ""}
+                  {isPdf ? " — PDF" : isCdr ? " — CDR (preview via admin JPEG later)" : ""}
                 </p>
               </div>
             </div>

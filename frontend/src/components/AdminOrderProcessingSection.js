@@ -13,6 +13,7 @@ import {
 import { buildOrderSlipBlob, downloadOrderSlipImage } from "@/lib/order-slip-image";
 import { notifyCustomerDispatch, notifyCustomerJobCompleted } from "@/lib/dispatch-notify";
 import { filterItems, paginateItems } from "@/lib/admin-table";
+import { isCdrArtwork } from "@/lib/artwork-formats";
 import {
   formatLedgerTableDate,
   formatOrderDescription,
@@ -86,11 +87,28 @@ function SectionLabel({ children }) {
   );
 }
 
-function ArtworkFileRow({ label, url, name, mime, downloaded }) {
+function ArtworkFileRow({
+  label,
+  url,
+  name,
+  mime,
+  downloaded,
+  thumbUrl,
+  thumbMime,
+  orderId,
+  side = "front",
+  onRefresh,
+}) {
   // Defer thumbs so Dispatch typing never competes with image fetch/decode on first paint.
   const [showThumb, setShowThumb] = useState(false);
+  const [uploadingThumb, setUploadingThumb] = useState(false);
+  const thumbInputRef = useRef(null);
+  const previewUrl = thumbUrl || url;
+  const previewMime = thumbUrl ? (thumbMime || "image/jpeg") : mime;
+  const needsAdminThumb = isCdrArtwork(mime, name);
+
   useEffect(() => {
-    if (!url) return undefined;
+    if (!previewUrl) return undefined;
     let cancelled = false;
     const show = () => {
       if (!cancelled && !window.__pdAdminTyping) setShowThumb(true);
@@ -107,7 +125,26 @@ function ArtworkFileRow({ label, url, name, mime, downloaded }) {
       }
       if (timer != null) window.clearTimeout(timer);
     };
-  }, [url]);
+  }, [previewUrl]);
+
+  async function handleThumbPick(event) {
+    const file = event.target.files?.[0];
+    if (!file || !orderId) return;
+    setUploadingThumb(true);
+    try {
+      const formData = new FormData();
+      formData.append("thumb", file);
+      formData.append("side", side);
+      await adminApi.uploadArtworkThumb(orderId, formData, { silent: true });
+      toast.success(`${label} preview JPEG saved — Order History will show it.`);
+      await onRefresh?.();
+    } catch (error) {
+      toast.error(error.message || "Could not upload preview.");
+    } finally {
+      setUploadingThumb(false);
+      if (thumbInputRef.current) thumbInputRef.current.value = "";
+    }
+  }
 
   return (
     <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2">
@@ -117,11 +154,11 @@ function ArtworkFileRow({ label, url, name, mime, downloaded }) {
           {downloaded ? "Downloaded" : "Pending"}
         </span>
       </div>
-      {url ? (
+      {previewUrl ? (
         showThumb ? (
           <ArtworkThumb
-            url={url}
-            mime={mime}
+            url={previewUrl}
+            mime={previewMime}
             name={name}
             className="h-14 w-14"
             secure
@@ -134,6 +171,29 @@ function ArtworkFileRow({ label, url, name, mime, downloaded }) {
       ) : (
         <p className={`${ui.small} break-all text-slate-700`}>{name || "—"}</p>
       )}
+      {needsAdminThumb ? (
+        <div className="mt-2">
+          <input
+            ref={thumbInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+            className="sr-only"
+            onChange={handleThumbPick}
+          />
+          <button
+            type="button"
+            className={btnClass("secondary", true)}
+            disabled={uploadingThumb}
+            onClick={() => thumbInputRef.current?.click()}
+          >
+            {uploadingThumb
+              ? "Uploading..."
+              : thumbUrl
+                ? "Replace Preview JPEG"
+                : "Add Preview JPEG (for CDR)"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -606,6 +666,11 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
                   name={order.artworkName}
                   mime={order.artworkMime}
                   downloaded={order.artworkDownloaded}
+                  thumbUrl={order.artworkThumbUrl}
+                  thumbMime={order.artworkThumbMime}
+                  orderId={order.id}
+                  side="front"
+                  onRefresh={onRefresh}
                 />
               ) : null}
               {order.artworkBackUrl || order.artworkBackName ? (
@@ -615,6 +680,11 @@ const OrderProcessingCard = memo(function OrderProcessingCard({
                   name={order.artworkBackName}
                   mime={order.artworkBackMime}
                   downloaded={order.artworkBackDownloaded}
+                  thumbUrl={order.artworkBackThumbUrl}
+                  thumbMime={order.artworkBackThumbMime}
+                  orderId={order.id}
+                  side="back"
+                  onRefresh={onRefresh}
                 />
               ) : null}
             </div>

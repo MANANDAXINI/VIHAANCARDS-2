@@ -135,6 +135,11 @@ model Order {
   artworkBackName  String?
   artworkBackPath  String?
   artworkBackMime  String?
+  /// Admin-uploaded JPEG preview when customer file is CDR (or other non-previewable)
+  artworkThumbPath String?
+  artworkThumbMime String?
+  artworkBackThumbPath String?
+  artworkBackThumbMime String?
   artworkDownloaded     Boolean       @default(false)
   artworkBackDownloaded Boolean       @default(false)
   status           OrderStatus   @default(ORDER_CREATED)
@@ -199,6 +204,8 @@ model PaperType {
   hsnCode           String      @default("")
   /// Total GST % for invoices (e.g. 5 or 18). Split equally into CGST + SGST.
   gstRate           Float       @default(18)
+  /// Comma-separated artwork upload types: pdf,jpg,cdr
+  allowedFormats    String      @default("pdf,jpg")
   availableQuantity Int         @default(0)
   ratePerThousand   Float       @default(0)
   active            Boolean     @default(true)

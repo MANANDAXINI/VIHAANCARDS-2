@@ -287,8 +287,26 @@ function useSecureArtwork(url) {
   return String(url || "").includes("/api/files/");
 }
 
+function displayArtwork(order, side = "front") {
+  if (side === "back") {
+    return {
+      fileUrl: order?.artworkBackUrl,
+      thumbUrl: order?.artworkBackThumbUrl,
+      mime: order?.artworkBackThumbUrl ? (order.artworkBackThumbMime || "image/jpeg") : order?.artworkBackMime,
+      name: order?.artworkBackName,
+    };
+  }
+  return {
+    fileUrl: order?.artworkUrl,
+    thumbUrl: order?.artworkThumbUrl,
+    mime: order?.artworkThumbUrl ? (order.artworkThumbMime || "image/jpeg") : order?.artworkMime,
+    name: order?.artworkName,
+  };
+}
+
 export default function OrderArtworkThumb({ order, className = "h-16 w-16", secure = true }) {
-  const url = order?.artworkUrl;
+  const { fileUrl, thumbUrl, mime, name } = displayArtwork(order, "front");
+  const url = thumbUrl || fileUrl;
   const useSecure = secure || useSecureArtwork(url);
 
   if (!url) {
@@ -299,8 +317,8 @@ export default function OrderArtworkThumb({ order, className = "h-16 w-16", secu
     return (
       <SecureArtworkThumb
         url={url}
-        mime={order.artworkMime}
-        name={order.artworkName}
+        mime={mime}
+        name={name}
         className={className}
       />
     );
@@ -309,30 +327,32 @@ export default function OrderArtworkThumb({ order, className = "h-16 w-16", secu
   return (
     <PublicArtworkThumb
       url={url}
-      mime={order.artworkMime}
-      name={order.artworkName}
+      mime={mime}
+      name={name}
       className={className}
     />
   );
 }
 
 export function OrderArtworkCell({ order, secure = true }) {
-  const frontUrl = order?.artworkUrl;
-  const backUrl = order?.artworkBackUrl;
-  const hasBack = Boolean(backUrl || order?.artworkBackName);
+  const front = displayArtwork(order, "front");
+  const back = displayArtwork(order, "back");
+  const frontUrl = front.thumbUrl || front.fileUrl;
+  const backUrl = back.thumbUrl || back.fileUrl;
+  const hasBack = Boolean(back.fileUrl || order?.artworkBackName || back.thumbUrl);
   const useSecure = secure || useSecureArtwork(frontUrl) || useSecureArtwork(backUrl);
 
-  if (!frontUrl && !backUrl) {
+  if (!front.fileUrl && !back.fileUrl && !front.thumbUrl && !back.thumbUrl) {
     return <span className={ui.muted}>—</span>;
   }
 
   return (
     <div className="grid w-full max-w-[10rem] gap-2">
-      {frontUrl ? (
+      {frontUrl || front.fileUrl ? (
         <ArtworkThumb
-          url={frontUrl}
-          mime={order.artworkMime}
-          name={order.artworkName}
+          url={frontUrl || front.fileUrl}
+          mime={front.mime}
+          name={front.name}
           label="Front"
           className="h-14 w-14"
           secure={useSecure}
@@ -340,9 +360,9 @@ export function OrderArtworkCell({ order, secure = true }) {
       ) : null}
       {hasBack ? (
         <ArtworkThumb
-          url={backUrl}
-          mime={order.artworkBackMime}
-          name={order.artworkBackName}
+          url={backUrl || back.fileUrl}
+          mime={back.mime}
+          name={back.name}
           label="Back"
           className="h-14 w-14"
           secure={useSecure}

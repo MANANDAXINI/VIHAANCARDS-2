@@ -20,7 +20,6 @@ export default function OutstandingPaymentPage() {
   const [maxPayable, setMaxPayable] = useState(0);
   const [totalOutstanding, setTotalOutstanding] = useState(0);
   const [payAmount, setPayAmount] = useState(0);
-  const [pendingSubmitted, setPendingSubmitted] = useState(0);
 
   const hasOutstanding = maxPayable > 0;
 
@@ -45,8 +44,8 @@ export default function OutstandingPaymentPage() {
         const outstanding = Number(account?.previousOutstanding || 0);
         setTotalOutstanding(outstanding);
         setMaxPayable(payable);
-        setPayAmount(payable > 0 ? payable : 0);
-        setPendingSubmitted(Math.max(0, outstanding - payable));
+        // Match screenshot: start with empty amount field.
+        setPayAmount(0);
         setQrImageUrl(catalogData.qrImageUrl || null);
       })
       .catch((error) => {
@@ -54,7 +53,7 @@ export default function OutstandingPaymentPage() {
         const payable = computePayableOutstanding(user, []);
         setTotalOutstanding(Number(user?.previousOutstanding || 0));
         setMaxPayable(payable);
-        setPayAmount(payable > 0 ? payable : 0);
+        setPayAmount(0);
       })
       .finally(() => setLoading(false));
   }, [ready, user]);
@@ -64,7 +63,6 @@ export default function OutstandingPaymentPage() {
       setPayAmount(Math.min(Math.max(0, Number(next) || 0), maxPayable));
       return;
     }
-    // Advance / wallet top-up — no outstanding cap
     setPayAmount(Math.max(0, Number(next) || 0));
   }
 
@@ -107,7 +105,7 @@ export default function OutstandingPaymentPage() {
       }
       await refresh();
       toast.success(
-        `Payment submitted. Send screenshot to ${WHATSAPP_NUMBER}. Status will show Pending until admin approves.`
+        `Payment request submitted. Send screenshot to ${WHATSAPP_NUMBER}. Admin Payment Requests mein dikhega.`
       );
       router.push("/account?tab=ledger");
     } catch (error) {
@@ -125,36 +123,11 @@ export default function OutstandingPaymentPage() {
     <>
       <SiteHeader user={user} />
       <main className={ui.page}>
-        {pendingSubmitted > 0 && hasOutstanding ? (
-          <div className="mx-auto mb-4 max-w-5xl px-4 sm:px-5">
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              You already submitted Rs. {pendingSubmitted.toLocaleString("en-IN")} for approval.
-              Remaining payable now: Rs. {maxPayable.toLocaleString("en-IN")}.
-            </p>
-          </div>
-        ) : null}
-
         <MakePaymentPanel
-          user={user}
           amount={payAmount}
           maxAmount={hasOutstanding ? maxPayable : undefined}
-          outstandingTotal={totalOutstanding}
           amountEditable
           onAmountChange={handleAmountChange}
-          amountLabel={hasOutstanding ? "Outstanding Amount to Pay" : "Amount to Pay"}
-          eyebrow={hasOutstanding ? "Outstanding" : "Payment"}
-          title="Make Payment"
-          paymentNote={
-            hasOutstanding
-              ? `Pay any amount up to your remaining outstanding balance. Send your payment screenshot to ${WHATSAPP_NUMBER} for admin approval.`
-              : `No outstanding due right now. You can still pay any amount as advance. Send screenshot to ${WHATSAPP_NUMBER} for admin approval.`
-          }
-          amountHint={
-            hasOutstanding
-              ? "You can pay part now and the rest later."
-              : "Enter the amount you want to pay and submit for admin approval."
-          }
-          showBack={false}
           submitting={submitting}
           onSubmit={handleSubmit}
           qrImageUrl={qrImageUrl}

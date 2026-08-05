@@ -1,6 +1,12 @@
 const express = require("express");
 const multer = require("multer");
 const crypto = require("crypto");
+const {
+  fileMatchesFormats,
+  formatsLabel,
+  isPotentiallyArtworkFile,
+  normalizeFormats,
+} = require("../lib/artwork-formats");
 const { prisma, publicOrder, nextOrderNumber } = require("../lib/prisma");
 const { saveUpload } = require("../lib/storage");
 const { authCustomer } = require("../middleware/auth");
@@ -8,13 +14,11 @@ const { resolveCatalogSelection } = require("../lib/catalog");
 
 const router = express.Router();
 
-const ALLOWED_ARTWORK_MIMES = ["application/pdf", "image/jpeg"];
-
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED_ARTWORK_MIMES.includes(file.mimetype)) return cb(null, true);
+    if (isPotentiallyArtworkFile(file)) return cb(null, true);
     cb(new Error("INVALID_ARTWORK_TYPE"));
   },
 });
@@ -30,7 +34,9 @@ function handleArtworkUpload(req, res, next) {
   uploadArtworkFields(req, res, (err) => {
     if (!err) return next();
     if (err.message === "INVALID_ARTWORK_TYPE") {
-      return res.status(400).json({ error: "Uploaded file must be a PDF or JPG only." });
+      return res.status(400).json({
+        error: "Uploaded file type is not supported. Allowed: PDF, JPG, or CDR (if enabled for this paper).",
+      });
     }
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({ error: "File too large. Maximum size is 25 MB." });
@@ -146,6 +152,19 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
 
     if (needsBackUpload(selection.printingSide.name) && !req.files?.artworkBack?.[0]) {
       return res.status(400).json({ error: "Back artwork file is required for double-sided printing." });
+    }
+
+    const allowedFormats = normalizeFormats(selection.paperType?.allowedFormats);
+    const backFile = req.files?.artworkBack?.[0];
+    if (!fileMatchesFormats(frontFile, allowedFormats)) {
+      return res.status(400).json({
+        error: `This paper allows upload of ${formatsLabel(allowedFormats)} only.`,
+      });
+    }
+    if (backFile && !fileMatchesFormats(backFile, allowedFormats)) {
+      return res.status(400).json({
+        error: `This paper allows upload of ${formatsLabel(allowedFormats)} only.`,
+      });
     }
 
     await persistOrderArtwork(req.files);

@@ -1,15 +1,27 @@
 const express = require("express");
 const multer = require("multer");
+const crypto = require("crypto");
 const { prisma, publicAccount, publicOrder, nextOrderNumber, nextReceiptNumber } = require("../lib/prisma");
 const { summarizeAccountLedger } = require("../lib/ledger");
 const { parseParcelRowsFromWorkbook, buildDispatchUpdateData, parseExcelDate } = require("../lib/parcel-import");
 const { normalizeOrderNumber } = require("../lib/job-folder-parse");
-const { deleteUpload } = require("../lib/storage");
+const { deleteUpload, saveUpload } = require("../lib/storage");
 const { runDailyBackup, smtpConfigured, backupEmailTo } = require("../lib/backup");
 const { authAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 const secureOrder = (order) => publicOrder(order, { secureFiles: true });
+
+const artworkThumbUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === "image/jpeg" || file.mimetype === "image/jpg" || file.mimetype === "image/png") {
+      return cb(null, true);
+    }
+    cb(new Error("THUMB_MUST_BE_IMAGE"));
+  },
+});
 
 function adminOrderPayload(order) {
   const account = order.account;
@@ -860,6 +872,66 @@ router.put("/orders/:id/mark-artwork", authAdmin, async (req, res) => {
   });
   res.json({ order: secureOrder(order) });
 });
+
+/** Admin JPEG/PNG preview for CDR (or other) artwork — shown in Order History. */
+router.post(
+  "/orders/:id/artwork-thumb",
+  authAdmin,
+  (req, res, next) => {
+    artworkThumbUpload.single("thumb")(req, res, (err) => {
+      if (!err) return next();
+      if (err.message === "THUMB_MUST_BE_IMAGE") {
+        return res.status(400).json({ error: "Thumbnail must be a JPG or PNG image." });
+      }
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "Thumbnail too large. Max 8 MB." });
+      }
+      return res.status(400).json({ error: "Thumbnail upload failed." });
+    });
+  },
+  async (req, res) => {
+    try {
+      const side = String(req.body.side || "front").toLowerCase() === "back" ? "back" : "front";
+      if (!req.file) {
+        return res.status(400).json({ error: "Thumbnail image is required." });
+      }
+
+      const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+      if (!existing) return res.status(404).json({ error: "Order not found." });
+
+      const ext = req.file.mimetype === "image/png" ? ".png" : ".jpg";
+      const filename = `${Date.now()}_${crypto.randomBytes(4).toString("hex")}_thumb${ext}`;
+      await saveUpload({
+        buffer: req.file.buffer,
+        filename,
+        mime: req.file.mimetype,
+      });
+
+      const oldPath = side === "back" ? existing.artworkBackThumbPath : existing.artworkThumbPath;
+      const data =
+        side === "back"
+          ? { artworkBackThumbPath: filename, artworkBackThumbMime: req.file.mimetype }
+          : { artworkThumbPath: filename, artworkThumbMime: req.file.mimetype };
+
+      const order = await prisma.order.update({
+        where: { id: existing.id },
+        data,
+      });
+
+      if (oldPath && oldPath !== filename) {
+        try {
+          await deleteUpload(oldPath);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+
+      res.json({ order: secureOrder(order) });
+    } catch (error) {
+      res.status(500).json({ error: error.message || "Could not save thumbnail." });
+    }
+  }
+);
 
 router.put("/orders/:id/status", authAdmin, async (req, res) => {
   try {

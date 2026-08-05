@@ -4,7 +4,7 @@
 export const UPI_ID = "paytmqr67sgw9@ptys";
 export const UPI_PAYEE_NAME = "PIXEL DIGITAL";
 
-/** Bank / NEFT account transfer details (Make Payment page). */
+/** Bank account transfer details (Make Payment page). */
 export const BANK_TRANSFER = {
   accountName: "PIXEL DIGITAL",
   accountNumber: "924020026071933",

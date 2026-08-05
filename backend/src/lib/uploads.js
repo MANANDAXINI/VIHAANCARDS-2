@@ -61,6 +61,7 @@ function mimeFromFilename(filename) {
     ".gif": "image/gif",
     ".webp": "image/webp",
     ".pdf": "application/pdf",
+    ".cdr": "application/x-coreldraw",
   };
   return map[ext] || "application/octet-stream";
 }

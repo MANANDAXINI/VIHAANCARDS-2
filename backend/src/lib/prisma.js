@@ -96,6 +96,8 @@ function publicOrder(order, options = {}) {
     ...order,
     artworkUrl: toUrl(order.artworkPath),
     artworkBackUrl: toUrl(order.artworkBackPath),
+    artworkThumbUrl: toUrl(order.artworkThumbPath),
+    artworkBackThumbUrl: toUrl(order.artworkBackThumbPath),
   };
 }
 

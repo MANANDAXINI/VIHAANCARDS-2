@@ -1,23 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import FilePickButton from "@/components/FilePickButton";
+import {
+  artworkAcceptAttr,
+  artworkFormatsLabel,
+  isAllowedArtworkFile,
+  normalizeArtworkFormats,
+} from "@/lib/artwork-formats";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
-
-const ALLOWED_ARTWORK_MIMES = ["application/pdf", "image/jpeg"];
-const ALLOWED_ARTWORK_EXT = /\.(pdf|jpe?g)$/i;
-
-function isAllowedArtworkFile(file) {
-  if (!file) return false;
-  if (ALLOWED_ARTWORK_MIMES.includes(file.type)) return true;
-  return !file.type && ALLOWED_ARTWORK_EXT.test(file.name || "");
-}
 
 function FilePreviewRow({ label, file }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const isImage = Boolean(file?.type?.startsWith("image/"));
   const isPdf = file?.type === "application/pdf";
+  const isCdr = /\.cdr$/i.test(file?.name || "") || String(file?.type || "").includes("cdr");
 
   useEffect(() => {
     if (!file || !isImage) {
@@ -51,13 +49,13 @@ function FilePreviewRow({ label, file }) {
       ) : (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-xs font-bold uppercase text-red-600">
-            {isPdf ? "PDF" : "File"}
+            {isPdf ? "PDF" : isCdr ? "CDR" : "File"}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
             <p className={`${ui.small} ${ui.muted}`}>
               {(file.size / 1024).toFixed(0)} KB
-              {isPdf ? " — PDF" : ""}
+              {isPdf ? " — PDF" : isCdr ? " — CDR" : ""}
             </p>
           </div>
         </div>
@@ -75,10 +73,13 @@ export default function ArtworkDualUploadField({
   backFile,
   onChange,
   required = false,
-  accept = ".pdf,.jpg,.jpeg",
+  allowedFormats = ["pdf", "jpg"],
 }) {
   const inputRef = useRef(null);
   const bothReady = Boolean(frontFile && backFile);
+  const formats = useMemo(() => normalizeArtworkFormats(allowedFormats), [allowedFormats]);
+  const accept = artworkAcceptAttr(formats);
+  const formatsText = artworkFormatsLabel(formats);
 
   function applyFiles(list) {
     const files = Array.from(list || []);
@@ -88,14 +89,14 @@ export default function ArtworkDualUploadField({
     }
 
     if (files.length !== 2) {
-      toast.error("Select exactly 2 files — Front and Back (PDF or JPG).");
+      toast.error(`Select exactly 2 files — Front and Back (${formatsText}).`);
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
 
     for (const file of files) {
-      if (!isAllowedArtworkFile(file)) {
-        toast.error("Both files must be PDF or JPG only.");
+      if (!isAllowedArtworkFile(file, formats)) {
+        toast.error(`Both files must be ${formatsText} only.`);
         if (inputRef.current) inputRef.current.value = "";
         return;
       }
@@ -139,7 +140,7 @@ export default function ArtworkDualUploadField({
           multiple
           buttonLabel="Choose Design Files"
           title="Upload Design (Front + Back)"
-          description="Front Back की दोनों फाइलें एक साथ select करें और यहाँ upload करें। PDF या JPG only।"
+          description={`Front Back की दोनों फाइलें एक साथ select करें। ${formatsText} only.`}
           accept={accept}
           onChange={handleFileChange}
         />
@@ -155,7 +156,7 @@ export default function ArtworkDualUploadField({
               className={btnClass("secondary", true)}
               onClick={() => inputRef.current?.click()}
             >
-              Replace both files
+              Replace files
             </button>
             <button type="button" className={btnClass("ghost", true)} onClick={clearFiles}>
               Remove files

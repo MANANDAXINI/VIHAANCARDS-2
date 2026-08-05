@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import MakePaymentPanel, { WHATSAPP_NUMBER } from "@/components/MakePaymentPanel";
 import SiteHeader from "@/components/SiteHeader";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
-import { catalogApi, formatRupees, walletApi } from "@/lib/api";
+import { catalogApi, walletApi } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { ui } from "@/lib/ui";
 
@@ -17,7 +17,6 @@ function PaymentContent() {
   const [submitting, setSubmitting] = useState(false);
   const [qrImageUrl, setQrImageUrl] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null);
-  const [review, setReview] = useState(null);
   const [amount, setAmount] = useState(0);
   const [allowed, setAllowed] = useState(false);
 
@@ -51,7 +50,6 @@ function PaymentContent() {
         return;
       }
       setPendingOrder(pending);
-      setReview(reviewData);
       setAmount(payAmount);
       setAllowed(true);
     } catch {
@@ -68,6 +66,10 @@ function PaymentContent() {
   async function handleSubmit(event) {
     event.preventDefault();
     if (!pendingOrder) return;
+    if (amount <= 0) {
+      toast.error("Enter a valid payment amount.");
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -79,7 +81,9 @@ function PaymentContent() {
       sessionStorage.removeItem("pd_pending_order");
       sessionStorage.removeItem("pd_order_review");
       await refresh();
-      toast.success(`Payment submitted. Send screenshot to ${WHATSAPP_NUMBER}. Status will show Pending until admin approves.`);
+      toast.success(
+        `Payment request submitted. Send screenshot to ${WHATSAPP_NUMBER}. Admin Payment Requests mein dikhega.`
+      );
       router.push("/account?tab=both");
     } catch (error) {
       toast.error(error.message);
@@ -97,22 +101,12 @@ function PaymentContent() {
       <SiteHeader user={user} />
       <main className={ui.page}>
         <MakePaymentPanel
-          user={user}
           amount={amount}
-          amountLabel="Short Amount"
-          paymentNote={`Pay the amount below and send your payment screenshot to ${WHATSAPP_NUMBER} for admin approval.`}
-          amountHint="This amount is fixed for your current order."
-          backHref="/order/review"
-          backLabel="Back to Review"
+          amountEditable
+          onAmountChange={setAmount}
           submitting={submitting}
           onSubmit={handleSubmit}
           qrImageUrl={qrImageUrl}
-          orderSummary={(
-            <>
-              <p className={ui.muted}>{pendingOrder.paperGsm} · {pendingOrder.size} · Qty {pendingOrder.quantity}</p>
-              <p className="mt-1 font-semibold">Order total: {formatRupees(pendingOrder.amount || review?.orderAmount)}</p>
-            </>
-          )}
         />
       </main>
     </>

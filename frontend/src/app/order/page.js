@@ -576,6 +576,7 @@ export default function OrderPage() {
                     setArtworkFront(front);
                     setArtworkBack(back);
                   }}
+                  allowedFormats={selectedPaper?.allowedFormats}
                   required
                 />
               ) : (
@@ -583,6 +584,7 @@ export default function OrderPage() {
                   label="Upload Design"
                   file={artworkFront}
                   onChange={setArtworkFront}
+                  allowedFormats={selectedPaper?.allowedFormats}
                   required
                 />
               )}

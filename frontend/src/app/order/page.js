@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import ArtworkUploadField from "@/components/ArtworkUploadField";
-import ArtworkDualUploadField from "@/components/ArtworkDualUploadField";
 import CreditReminderModal, { isCreditReminderDue } from "@/components/CreditReminderModal";
 import { useAuth, useAuthUser } from "@/context/AuthContext";
 import { catalogApi, formatRupees, orderApi } from "@/lib/api";
@@ -17,7 +16,6 @@ import {
   getPricedSizes,
   getSuperfastCharge,
   listPaperCategories,
-  needsBackUpload,
   resolvePaperCategory,
 } from "@/lib/catalog";
 import { toast } from "@/lib/toast";
@@ -45,7 +43,6 @@ export default function OrderPage() {
   const [printingSideId, setPrintingSideId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [artworkFront, setArtworkFront] = useState(null);
-  const [artworkBack, setArtworkBack] = useState(null);
   const [designFileName, setDesignFileName] = useState("");
   const [transportDetails, setTransportDetails] = useState("");
   const [otherRequirement, setOtherRequirement] = useState("");
@@ -122,24 +119,12 @@ export default function OrderPage() {
     }
   }, [superfastEligible, superfastDelivery]);
 
-  const sideName = useMemo(
-    () => pricedSides.find((s) => s.id === printingSideId)?.name || "",
-    [pricedSides, printingSideId]
-  );
-  const requiresBackUpload = needsBackUpload(sideName);
-
   const courierOptions = useMemo(() => {
     const options = [user?.courierName, user?.courierName2, user?.courierName3]
       .map((value) => String(value || "").trim())
       .filter(Boolean);
     return [...new Set(options)];
   }, [user]);
-
-  useEffect(() => {
-    if (!requiresBackUpload) {
-      setArtworkBack(null);
-    }
-  }, [requiresBackUpload]);
 
   useEffect(() => {
     if (!courierOptions.length) {
@@ -199,7 +184,6 @@ export default function OrderPage() {
   useEffect(() => {
     const formats = selectedPaper?.allowedFormats;
     setArtworkFront((prev) => (prev && !isAllowedArtworkFile(prev, formats) ? null : prev));
-    setArtworkBack((prev) => (prev && !isAllowedArtworkFile(prev, formats) ? null : prev));
   }, [selectedPaper?.id, selectedPaper?.allowedFormats]);
 
   useEffect(() => {
@@ -269,12 +253,7 @@ export default function OrderPage() {
       toast.error("Please enter File Name.");
       return;
     }
-    if (requiresBackUpload) {
-      if (!artworkFront || !artworkBack) {
-        toast.error("Please upload front and back design together (select 2 files).");
-        return;
-      }
-    } else if (!artworkFront) {
+    if (!artworkFront) {
       toast.error("Please upload design.");
       return;
     }
@@ -300,7 +279,6 @@ export default function OrderPage() {
     setSubmitting(true);
     const formData = new FormData();
     formData.append("artwork", artworkFront);
-    if (artworkBack) formData.append("artworkBack", artworkBack);
     formData.append("fileName", designFileName.trim());
     formData.append("title", designFileName.trim());
     formData.append("paperTypeId", paperTypeId);
@@ -575,26 +553,13 @@ export default function OrderPage() {
                 </p>
               </div>
 
-              {requiresBackUpload ? (
-                <ArtworkDualUploadField
-                  frontFile={artworkFront}
-                  backFile={artworkBack}
-                  onChange={({ front, back }) => {
-                    setArtworkFront(front);
-                    setArtworkBack(back);
-                  }}
-                  allowedFormats={selectedPaper?.allowedFormats}
-                  required
-                />
-              ) : (
-                <ArtworkUploadField
-                  label="Upload Design"
-                  file={artworkFront}
-                  onChange={setArtworkFront}
-                  allowedFormats={selectedPaper?.allowedFormats}
-                  required
-                />
-              )}
+              <ArtworkUploadField
+                label="Upload Design"
+                file={artworkFront}
+                onChange={setArtworkFront}
+                allowedFormats={selectedPaper?.allowedFormats}
+                required
+              />
             </div>
 
             <div className={ui.field}>

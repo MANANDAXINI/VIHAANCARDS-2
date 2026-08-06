@@ -69,11 +69,6 @@ async function persistOrderArtwork(files) {
   if (backFile) await persistUploadedFile(backFile);
 }
 
-function needsBackUpload(sideName) {
-  const n = String(sideName || "").toLowerCase();
-  return (n.includes("front") && n.includes("back")) || n.includes("both") || n.includes("double");
-}
-
 function buildOrderPayload(selection, req, orderAmount) {
   const frontFile = req.files?.artwork?.[0] || req.file;
   const backFile = req.files?.artworkBack?.[0];
@@ -150,10 +145,7 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    if (needsBackUpload(selection.printingSide.name) && !req.files?.artworkBack?.[0]) {
-      return res.status(400).json({ error: "Back artwork file is required for double-sided printing." });
-    }
-
+    // Single design file for all items (including Front Back).
     const allowedFormats = normalizeFormats(selection.paperType?.allowedFormats);
     const backFile = req.files?.artworkBack?.[0];
     if (!fileMatchesFormats(frontFile, allowedFormats)) {

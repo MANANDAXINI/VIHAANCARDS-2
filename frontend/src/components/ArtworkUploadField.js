@@ -17,7 +17,7 @@ export default function ArtworkUploadField({
   file,
   onChange,
   required = false,
-  allowedFormats = ["pdf", "jpg"],
+  allowedFormats = ["jpg"],
 }) {
   const inputRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);

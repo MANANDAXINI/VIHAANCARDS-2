@@ -323,13 +323,26 @@ export default function AdminPage() {
     }
   }
 
-  async function cancelWalletRequest(id) {
+  async function cancelWalletRequest(id, status = "PENDING") {
     if (walletActionId) return;
-    if (!window.confirm("Cancel this payment request?")) return;
+    const undoApproved = status === "APPROVED";
+    if (
+      !window.confirm(
+        undoApproved
+          ? "Cancel this approved payment? Ledger se advance/payment credit bhi reverse ho jayega."
+          : "Cancel this payment request?"
+      )
+    ) {
+      return;
+    }
     setWalletActionId(id);
     try {
       await adminApi.rejectWallet(id);
-      toast.success("Payment request cancelled.");
+      toast.success(
+        undoApproved
+          ? "Approved payment cancelled and ledger updated."
+          : "Payment request cancelled."
+      );
       await load();
     } catch (error) {
       toast.error(error.message);
@@ -771,11 +784,21 @@ export default function AdminPage() {
                                   className={`${btnClass("ghost", true)} !text-red-600`}
                                   type="button"
                                   disabled={busy}
-                                  onClick={() => cancelWalletRequest(p.id)}
+                                  onClick={() => cancelWalletRequest(p.id, p.status)}
                                 >
                                   Cancel
                                 </button>
                               </div>
+                            ) : p.status === "APPROVED"
+                              && (p.type === "WALLET_TOPUP" || p.type === "OUTSTANDING_PAYMENT") ? (
+                              <button
+                                className={`${btnClass("ghost", true)} !text-red-600`}
+                                type="button"
+                                disabled={busy}
+                                onClick={() => cancelWalletRequest(p.id, p.status)}
+                              >
+                                {busy ? "..." : "Undo / Cancel"}
+                              </button>
                             ) : (
                               <span className={`font-semibold ${p.status === "REJECTED" ? "text-red-700" : "text-emerald-700"}`}>
                                 {p.status === "REJECTED" ? "Cancelled" : "Approved"}
@@ -1006,11 +1029,21 @@ export default function AdminPage() {
                                         className={`${btnClass("ghost", true)} !text-red-600`}
                                         type="button"
                                         disabled={busy}
-                                        onClick={() => cancelWalletRequest(p.id)}
+                                        onClick={() => cancelWalletRequest(p.id, p.status)}
                                       >
                                         Cancel
                                       </button>
                                     </div>
+                                  ) : p.status === "APPROVED"
+                                    && (p.type === "WALLET_TOPUP" || p.type === "OUTSTANDING_PAYMENT") ? (
+                                    <button
+                                      className={`${btnClass("ghost", true)} !text-red-600`}
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => cancelWalletRequest(p.id, p.status)}
+                                    >
+                                      {busy ? "..." : "Undo / Cancel"}
+                                    </button>
                                   ) : (
                                     <span className="font-semibold text-emerald-700">
                                       {p.status === "REJECTED" ? "Cancelled" : "Approved"}

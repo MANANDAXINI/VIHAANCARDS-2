@@ -73,7 +73,7 @@ export default function ArtworkDualUploadField({
   backFile,
   onChange,
   required = false,
-  allowedFormats = ["pdf", "jpg"],
+  allowedFormats = ["jpg"],
 }) {
   const inputRef = useRef(null);
   const bothReady = Boolean(frontFile && backFile);

@@ -1,7 +1,8 @@
 const path = require("path");
 
-const DEFAULT_FORMATS = ["pdf", "jpg"];
+const DEFAULT_FORMATS = ["jpg"];
 const ALL_FORMATS = ["pdf", "jpg", "cdr"];
+const PRIMARY_FORMATS = ["jpg", "cdr"];
 
 const MIME_BY_FORMAT = {
   pdf: ["application/pdf"],
@@ -90,6 +91,7 @@ function isCdrMimeOrName(mime, name) {
 module.exports = {
   DEFAULT_FORMATS,
   ALL_FORMATS,
+  PRIMARY_FORMATS,
   normalizeFormats,
   formatsToStorage,
   formatFromFile,

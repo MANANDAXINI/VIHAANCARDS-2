@@ -1,5 +1,8 @@
-export const DEFAULT_ARTWORK_FORMATS = ["pdf", "jpg"];
+/** Default Place Order upload type — JPG everywhere unless paper enables CDR. */
+export const DEFAULT_ARTWORK_FORMATS = ["jpg"];
 export const ALL_ARTWORK_FORMATS = ["pdf", "jpg", "cdr"];
+/** Admin Rates / Catalog: primary choice between JPG and CDR. */
+export const PRIMARY_ARTWORK_FORMATS = ["jpg", "cdr"];
 
 export function normalizeArtworkFormats(value) {
   const raw = Array.isArray(value)

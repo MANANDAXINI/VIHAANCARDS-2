@@ -4,8 +4,28 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminSearchBar } from "@/components/AdminTableTools";
 import { adminCatalogApi, formatRupees } from "@/lib/api";
 import { filterItems } from "@/lib/admin-table";
+import {
+  PRIMARY_ARTWORK_FORMATS,
+  normalizeArtworkFormats,
+} from "@/lib/artwork-formats";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
+
+function formatsFromPaper(paper) {
+  const formats = normalizeArtworkFormats(paper?.allowedFormats);
+  const hasJpg = formats.includes("jpg");
+  const hasCdr = formats.includes("cdr");
+  return {
+    // JPG is default when neither JPG nor CDR is stored (legacy pdf-only rows).
+    jpg: hasJpg || !hasCdr,
+    cdr: hasCdr,
+  };
+}
+
+function formatsToStorage(flags) {
+  const selected = PRIMARY_ARTWORK_FORMATS.filter((key) => flags[key]);
+  return selected.length ? selected.join(",") : "jpg";
+}
 
 function sortRules(a, b) {
   const sizeCmp = (a.size?.name || "").localeCompare(b.size?.name || "");
@@ -51,6 +71,8 @@ export default function AdminRatesSection() {
     sizeName: "",
     printingSideName: "",
     amount: "",
+    formatJpg: true,
+    formatCdr: false,
   });
   const [editSaving, setEditSaving] = useState(false);
 
@@ -119,12 +141,15 @@ export default function AdminRatesSection() {
   }
 
   function openEdit(rule) {
+    const formatFlags = formatsFromPaper(rule.paperType);
     setEditRule(rule);
     setEditForm({
       paperName: rule.paperType?.name || "",
       sizeName: rule.size?.name || "",
       printingSideName: rule.printingSide?.name || "",
       amount: String(rule.amount ?? ""),
+      formatJpg: formatFlags.jpg,
+      formatCdr: formatFlags.cdr,
     });
   }
 
@@ -158,14 +183,33 @@ export default function AdminRatesSection() {
       toast.error("Enter a valid rate amount.");
       return;
     }
+    if (!editForm.formatJpg && !editForm.formatCdr) {
+      toast.error("Select at least one file type: JPG or CDR.");
+      return;
+    }
+
+    const nextFormats = formatsToStorage({
+      jpg: editForm.formatJpg,
+      cdr: editForm.formatCdr,
+    });
+    const prevFormats = formatsToStorage(formatsFromPaper(editRule.paperType));
 
     setEditSaving(true);
     setSavingId(editRule.id);
     try {
       const tasks = [];
 
-      if (editRule.paperType?.id && paperName !== (editRule.paperType?.name || "")) {
-        tasks.push(adminCatalogApi.updatePaperType(editRule.paperType.id, { name: paperName }));
+      if (editRule.paperType?.id) {
+        const paperPatch = {};
+        if (paperName !== (editRule.paperType?.name || "")) {
+          paperPatch.name = paperName;
+        }
+        if (nextFormats !== prevFormats) {
+          paperPatch.allowedFormats = nextFormats;
+        }
+        if (Object.keys(paperPatch).length) {
+          tasks.push(adminCatalogApi.updatePaperType(editRule.paperType.id, paperPatch));
+        }
       }
       if (editRule.size?.id && sizeName !== (editRule.size?.name || "")) {
         tasks.push(adminCatalogApi.updateSize(editRule.size.id, { name: sizeName }));
@@ -192,7 +236,7 @@ export default function AdminRatesSection() {
 
       await Promise.all(tasks);
       await load();
-      toast.success("Item name / rate updated.");
+      toast.success("Item / rate / file type updated.");
       setEditRule(null);
     } catch (e) {
       toast.error(e.message || "Could not save changes.");
@@ -476,6 +520,37 @@ export default function AdminRatesSection() {
                   required
                 />
               </label>
+
+              <div className={ui.field}>
+                <span className={ui.label}>Design file type (Place Order upload)</span>
+                <p className={`${ui.small} ${ui.muted} mb-2`}>
+                  Default JPG. CDR tab select karo jab CorelDRAW file allow karni ho.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editForm.formatJpg)}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, formatJpg: e.target.checked }))
+                      }
+                      disabled={editSaving}
+                    />
+                    JPG (default)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editForm.formatCdr)}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, formatCdr: e.target.checked }))
+                      }
+                      disabled={editSaving}
+                    />
+                    CDR
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">

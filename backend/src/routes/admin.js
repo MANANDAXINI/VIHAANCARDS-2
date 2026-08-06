@@ -7,6 +7,7 @@ const {
   computeLedgerOpening,
   recomputeLedgerFromOpening,
   syncAccountLedger,
+  reverseApprovedWalletRequest,
 } = require("../lib/ledger");
 const { parseParcelRowsFromWorkbook, buildDispatchUpdateData, parseExcelDate } = require("../lib/parcel-import");
 const { normalizeOrderNumber } = require("../lib/job-folder-parse");
@@ -793,11 +794,18 @@ router.put("/wallet-requests/:id/approve", authAdmin, async (req, res) => {
 });
 
 router.put("/wallet-requests/:id/reject", authAdmin, async (req, res) => {
-  const request = await prisma.walletRequest.update({
-    where: { id: req.params.id },
-    data: { status: "REJECTED" },
-  });
-  res.json({ request });
+  try {
+    const result = await reverseApprovedWalletRequest(req.params.id);
+    if (result.error) {
+      return res.status(result.status || 400).json({ error: result.error });
+    }
+    res.json({
+      request: result.request,
+      account: result.account ? publicAccount(result.account) : undefined,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Could not cancel payment request." });
+  }
 });
 
 router.get("/orders", authAdmin, async (_req, res) => {

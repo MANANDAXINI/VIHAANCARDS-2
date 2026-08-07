@@ -182,7 +182,7 @@ export default function OrderPage() {
   }, []);
 
   useEffect(() => {
-    const formats = selectedPaper?.allowedFormats;
+    const formats = selectedPaper?.allowedFormats || ["jpg"];
     setArtworkFront((prev) => (prev && !isAllowedArtworkFile(prev, formats) ? null : prev));
   }, [selectedPaper?.id, selectedPaper?.allowedFormats]);
 
@@ -558,7 +558,7 @@ export default function OrderPage() {
                 label="Upload Design"
                 file={artworkFront}
                 onChange={setArtworkFront}
-                allowedFormats={selectedPaper?.allowedFormats}
+                allowedFormats={selectedPaper?.allowedFormats || ["jpg"]}
                 required
               />
             </div>

@@ -18,6 +18,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
+    // Accept jpg/cdr/pdf at multer; paper allowedFormats decides final validation.
     if (isPotentiallyArtworkFile(file)) return cb(null, true);
     cb(new Error("INVALID_ARTWORK_TYPE"));
   },
@@ -35,7 +36,7 @@ function handleArtworkUpload(req, res, next) {
     if (!err) return next();
     if (err.message === "INVALID_ARTWORK_TYPE") {
       return res.status(400).json({
-        error: "Uploaded file type is not supported. Allowed: PDF, JPG, or CDR (if enabled for this paper).",
+        error: "Uploaded file type is not supported. Allowed: JPG (or CDR if enabled for this paper).",
       });
     }
     if (err.code === "LIMIT_FILE_SIZE") {
@@ -145,8 +146,8 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    // Single design file for all items (including Front Back).
-    const allowedFormats = normalizeFormats(selection.paperType?.allowedFormats);
+    // JPG by default; CDR only when admin enabled it for this paper (Rates).
+    const allowedFormats = normalizeFormats(selection.paperType?.allowedFormats || "jpg");
     const backFile = req.files?.artworkBack?.[0];
     if (!fileMatchesFormats(frontFile, allowedFormats)) {
       return res.status(400).json({

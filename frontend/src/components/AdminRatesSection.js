@@ -4,27 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminSearchBar } from "@/components/AdminTableTools";
 import { adminCatalogApi, formatRupees } from "@/lib/api";
 import { filterItems } from "@/lib/admin-table";
-import {
-  PRIMARY_ARTWORK_FORMATS,
-  normalizeArtworkFormats,
-} from "@/lib/artwork-formats";
+import { normalizeArtworkFormats } from "@/lib/artwork-formats";
 import { toast } from "@/lib/toast";
 import { btnClass, ui } from "@/lib/ui";
 
-function formatsFromPaper(paper) {
-  const formats = normalizeArtworkFormats(paper?.allowedFormats);
-  const hasJpg = formats.includes("jpg");
-  const hasCdr = formats.includes("cdr");
+function paperFormatFlags(paper) {
+  const formats = normalizeArtworkFormats(paper?.allowedFormats || "jpg");
   return {
-    // JPG is default when neither JPG nor CDR is stored (legacy pdf-only rows).
-    jpg: hasJpg || !hasCdr,
-    cdr: hasCdr,
+    jpg: formats.includes("jpg") || !formats.includes("cdr"),
+    cdr: formats.includes("cdr"),
   };
 }
 
-function formatsToStorage(flags) {
-  const selected = PRIMARY_ARTWORK_FORMATS.filter((key) => flags[key]);
-  return selected.length ? selected.join(",") : "jpg";
+function formatsToStorage({ jpg, cdr }) {
+  const parts = [];
+  if (jpg) parts.push("jpg");
+  if (cdr) parts.push("cdr");
+  return parts.length ? parts.join(",") : "jpg";
 }
 
 function sortRules(a, b) {
@@ -141,15 +137,15 @@ export default function AdminRatesSection() {
   }
 
   function openEdit(rule) {
-    const formatFlags = formatsFromPaper(rule.paperType);
+    const flags = paperFormatFlags(rule.paperType);
     setEditRule(rule);
     setEditForm({
       paperName: rule.paperType?.name || "",
       sizeName: rule.size?.name || "",
       printingSideName: rule.printingSide?.name || "",
       amount: String(rule.amount ?? ""),
-      formatJpg: formatFlags.jpg,
-      formatCdr: formatFlags.cdr,
+      formatJpg: flags.jpg,
+      formatCdr: flags.cdr,
     });
   }
 
@@ -184,7 +180,7 @@ export default function AdminRatesSection() {
       return;
     }
     if (!editForm.formatJpg && !editForm.formatCdr) {
-      toast.error("Select at least one file type: JPG or CDR.");
+      toast.error("Select at least JPG or CDR.");
       return;
     }
 
@@ -192,7 +188,7 @@ export default function AdminRatesSection() {
       jpg: editForm.formatJpg,
       cdr: editForm.formatCdr,
     });
-    const prevFormats = formatsToStorage(formatsFromPaper(editRule.paperType));
+    const prevFormats = formatsToStorage(paperFormatFlags(editRule.paperType));
 
     setEditSaving(true);
     setSavingId(editRule.id);
@@ -236,7 +232,7 @@ export default function AdminRatesSection() {
 
       await Promise.all(tasks);
       await load();
-      toast.success("Item / rate / file type updated.");
+      toast.success("Item / rate / upload format updated.");
       setEditRule(null);
     } catch (e) {
       toast.error(e.message || "Could not save changes.");
@@ -522,9 +518,9 @@ export default function AdminRatesSection() {
               </label>
 
               <div className={ui.field}>
-                <span className={ui.label}>Design file type (Place Order upload)</span>
+                <span className={ui.label}>Design upload format (Place Order)</span>
                 <p className={`${ui.small} ${ui.muted} mb-2`}>
-                  Default JPG. CDR tab select karo jab CorelDRAW file allow karni ho.
+                  By default <strong>JPG</strong>. CDR tick karo tab us paper pe CDR bhi allow hoga.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-800">

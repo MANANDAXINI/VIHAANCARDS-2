@@ -2,33 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { adminCatalogApi, formatDate } from "@/lib/api";
-import {
-  PRIMARY_ARTWORK_FORMATS,
-  artworkFormatsLabel,
-  normalizeArtworkFormats,
-} from "@/lib/artwork-formats";
 import { PAPER_CATEGORIES, PAPER_CATEGORY_OTHER, resolvePaperCategory, sortPapersByGsm } from "@/lib/catalog";
 import { toast } from "@/lib/toast";
 import { btnClass, formatOrderStatus, orderStatusClass, ui } from "@/lib/ui";
 
 const CATEGORY_CHOICES = [...PAPER_CATEGORIES, PAPER_CATEGORY_OTHER];
-
-function promptAllowedFormats(current = "jpg") {
-  const currentList = normalizeArtworkFormats(current).filter((f) =>
-    PRIMARY_ARTWORK_FORMATS.includes(f)
-  );
-  const value = window.prompt(
-    "Allowed design upload formats?\nOptions: jpg, cdr (JPG is default)\nExample: jpg   or   jpg,cdr",
-    (currentList.length ? currentList : ["jpg"]).join(",")
-  );
-  if (value == null) return null;
-  const next = normalizeArtworkFormats(value).filter((f) => PRIMARY_ARTWORK_FORMATS.includes(f));
-  if (!next.length) {
-    toast.error("Select at least one format: jpg or cdr.");
-    return null;
-  }
-  return next.join(",");
-}
 
 function promptPaperCategory(current = "") {
   const currentNorm = String(current || "").trim().toUpperCase();
@@ -134,9 +112,6 @@ export default function AdminOrderCatalogSection() {
   const [comboAmount, setComboAmount] = useState("");
   const [hsnCode, setHsnCode] = useState("");
   const [gstRate, setGstRate] = useState("18");
-  const [formatFlags, setFormatFlags] = useState({ jpg: true, cdr: false });
-  const [savingFormats, setSavingFormats] = useState(false);
-
   const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [savingPaper, setSavingPaper] = useState(false);
@@ -210,17 +185,7 @@ export default function AdminOrderCatalogSection() {
     setHsnCode(selectedPaper?.hsnCode || "");
     const rate = Number(selectedPaper?.gstRate);
     setGstRate(Number.isFinite(rate) && rate > 0 ? String(rate) : "18");
-    const formats = normalizeArtworkFormats(selectedPaper?.allowedFormats);
-    setFormatFlags({
-      jpg: formats.includes("jpg") || (!formats.includes("cdr") && !formats.includes("pdf")),
-      cdr: formats.includes("cdr"),
-    });
-  }, [selectedPaper?.id, selectedPaper?.hsnCode, selectedPaper?.gstRate, selectedPaper?.allowedFormats]);
-
-  const selectedFormatsLabel = useMemo(
-    () => artworkFormatsLabel(selectedPaper?.allowedFormats),
-    [selectedPaper?.allowedFormats]
-  );
+  }, [selectedPaper?.id, selectedPaper?.hsnCode, selectedPaper?.gstRate]);
 
   async function addPaper() {
     const name = window.prompt("Paper GSM name?", "");
@@ -230,8 +195,6 @@ export default function AdminOrderCatalogSection() {
     const hsn = window.prompt("HSN CODE (optional)?", "") || "";
     const gstPrompt = window.prompt("GST RATE % (5 or 18)?", "18") || "18";
     const gst = Number(gstPrompt);
-    const allowedFormats = promptAllowedFormats("jpg");
-    if (!allowedFormats) return;
 
     setSavingPaper(true);
     try {
@@ -240,7 +203,7 @@ export default function AdminOrderCatalogSection() {
         category,
         hsnCode: hsn.trim(),
         gstRate: Number.isFinite(gst) && gst >= 0 ? gst : 18,
-        allowedFormats,
+        allowedFormats: "jpg",
         availableQuantity: 100000,
         ratePerThousand: 0,
       });
@@ -280,8 +243,6 @@ export default function AdminOrderCatalogSection() {
       String(selectedPaper.gstRate ?? 18)
     );
     const gst = Number(gstPrompt ?? selectedPaper.gstRate ?? 18);
-    const allowedFormats = promptAllowedFormats(selectedPaper.allowedFormats || "jpg");
-    if (!allowedFormats) return;
 
     setSavingPaper(true);
     try {
@@ -291,7 +252,7 @@ export default function AdminOrderCatalogSection() {
         availableQuantity,
         hsnCode: String(hsn).trim(),
         gstRate: Number.isFinite(gst) && gst >= 0 ? gst : 18,
-        allowedFormats,
+        allowedFormats: "jpg",
       });
       await loadAll();
       toast.success("Paper updated.");
@@ -299,30 +260,6 @@ export default function AdminOrderCatalogSection() {
       toast.error(e.message);
     } finally {
       setSavingPaper(false);
-    }
-  }
-
-  async function saveAllowedFormats() {
-    if (!paperTypeId) {
-      toast.error("Select a paper first.");
-      return;
-    }
-    const selected = PRIMARY_ARTWORK_FORMATS.filter((key) => formatFlags[key]);
-    if (!selected.length) {
-      toast.error("Select at least one upload format (JPG or CDR).");
-      return;
-    }
-    setSavingFormats(true);
-    try {
-      await adminCatalogApi.updatePaperType(paperTypeId, {
-        allowedFormats: selected.join(","),
-      });
-      await loadAll();
-      toast.success(`Upload formats saved: ${artworkFormatsLabel(selected)}`);
-    } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setSavingFormats(false);
     }
   }
 
@@ -551,34 +488,13 @@ export default function AdminOrderCatalogSection() {
               </div>
 
               <div className={`${ui.field} sm:col-span-2`}>
-                <label className={ui.label}>Allowed design upload formats</label>
-                <p className={`${ui.small} ${ui.muted} mb-2`}>
-                  Default JPG. CDR enable karo jab Corel file chahiye. CDR orders pe admin JPEG thumbnail add kar sakta hai.
-                  {selectedFormatsLabel ? ` Current: ${selectedFormatsLabel}` : ""}
+                <label className={ui.label}>Design upload format</label>
+                <p className={`${ui.small} ${ui.muted}`}>
+                  Default <strong>JPG</strong>. CDR allow karne ke liye Admin → <strong>Rates → Edit</strong> mein CDR tick karo.
+                  {selectedPaper?.allowedFormats
+                    ? ` Current: ${String(selectedPaper.allowedFormats).toUpperCase()}`
+                    : ""}
                 </p>
-                <div className="flex flex-wrap items-center gap-4">
-                  {PRIMARY_ARTWORK_FORMATS.map((key) => (
-                    <label key={key} className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(formatFlags[key])}
-                        onChange={(e) =>
-                          setFormatFlags((prev) => ({ ...prev, [key]: e.target.checked }))
-                        }
-                        disabled={savingFormats}
-                      />
-                      {key === "jpg" ? "JPG (default)" : "CDR"}
-                    </label>
-                  ))}
-                  <button
-                    type="button"
-                    className={btnClass("secondary", true)}
-                    disabled={savingFormats}
-                    onClick={saveAllowedFormats}
-                  >
-                    {savingFormats ? "Saving..." : "Save Formats"}
-                  </button>
-                </div>
               </div>
             </div>
           ) : null}

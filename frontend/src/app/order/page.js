@@ -338,6 +338,7 @@ export default function OrderPage() {
 
   const paperName = selectedPaper?.name || "";
   const sizeName = pricedSizes.find((s) => s.id === sizeId)?.name || "";
+  const sideName = pricedSides.find((s) => s.id === printingSideId)?.name || "";
   const hasPricedOptions = pricedSizes.length > 0;
 
   return (

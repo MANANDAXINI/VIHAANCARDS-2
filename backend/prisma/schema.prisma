@@ -267,3 +267,13 @@ model PaymentQr {
   imagePath String   @default("")
   updatedAt DateTime @updatedAt
 }
+
+/// Singleton app settings (id = 1).
+model SiteSettings {
+  id                    Int      @id @default(1)
+  /// Extra ₹ added when courier/garaj contains "Vidarbha"
+  vidarbhaParcelCharge  Float    @default(100)
+  /// Extra ₹ per 1000 qty when Other Requirements = CREASING
+  creasingPerThousand   Float    @default(100)
+  updatedAt             DateTime @updatedAt
+}

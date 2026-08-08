@@ -284,4 +284,55 @@ router.delete("/qr", authAdmin, async (_req, res) => {
   res.json({ message: "QR removed." });
 });
 
+// Site settings (Vidarbha parcel ₹, creasing ₹/1000)
+router.get("/settings", authAdmin, async (_req, res) => {
+  const settings = await prisma.siteSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
+  res.json({
+    settings: {
+      vidarbhaParcelCharge: Number(settings.vidarbhaParcelCharge),
+      creasingPerThousand: Number(settings.creasingPerThousand),
+    },
+  });
+});
+
+router.put("/settings", authAdmin, async (req, res) => {
+  const vidarbhaRaw = req.body.vidarbhaParcelCharge;
+  const creasingRaw = req.body.creasingPerThousand;
+  const data = {};
+
+  if (vidarbhaRaw !== undefined && vidarbhaRaw !== null && vidarbhaRaw !== "") {
+    const n = Number(vidarbhaRaw);
+    if (!Number.isFinite(n) || n < 0) {
+      return res.status(400).json({ error: "Vidarbha parcel charge must be a valid number ≥ 0." });
+    }
+    data.vidarbhaParcelCharge = n;
+  }
+  if (creasingRaw !== undefined && creasingRaw !== null && creasingRaw !== "") {
+    const n = Number(creasingRaw);
+    if (!Number.isFinite(n) || n < 0) {
+      return res.status(400).json({ error: "Creasing charge must be a valid number ≥ 0." });
+    }
+    data.creasingPerThousand = n;
+  }
+  if (!Object.keys(data).length) {
+    return res.status(400).json({ error: "Nothing to update." });
+  }
+
+  const settings = await prisma.siteSettings.upsert({
+    where: { id: 1 },
+    update: data,
+    create: { id: 1, ...data },
+  });
+  res.json({
+    settings: {
+      vidarbhaParcelCharge: Number(settings.vidarbhaParcelCharge),
+      creasingPerThousand: Number(settings.creasingPerThousand),
+    },
+  });
+});
+
 module.exports = router;

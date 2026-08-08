@@ -18,7 +18,7 @@ const QUICK_LINKS = [
   { id: "backup", label: "Auto Backup", desc: "Daily data backup email to whatsapptogmail@gmail.com" },
   { id: "catalog", label: "Order Catalog", desc: "Paper GSM, sizes, quantities & rates" },
   { id: "rates", label: "Rates", desc: "View all saved combination prices" },
-  { id: "qr", label: "Payment QR", desc: "UPI QR for customer payments" },
+  { id: "qr", label: "QR & Charges", desc: "UPI QR + Vidarbha / creasing charges" },
 ];
 
 export default function AdminDashboard({

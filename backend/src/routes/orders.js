@@ -11,6 +11,7 @@ const { prisma, publicOrder, nextOrderNumber } = require("../lib/prisma");
 const { saveUpload } = require("../lib/storage");
 const { authCustomer } = require("../middleware/auth");
 const { resolveCatalogSelection } = require("../lib/catalog");
+const { computeOrderTotal } = require("../lib/order-charges");
 
 const router = express.Router();
 
@@ -162,14 +163,21 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
 
     await persistOrderArtwork(req.files);
 
-    // Superfast surcharge by base amount: <2k→₹200 | 2k–5k→₹300 | >5k→₹400
+    // Superfast + CREASING (₹/1000 qty) + Vidarbha parcel (admin-editable)
     const wantSuperfast = req.body.superfastDelivery === "true" || req.body.superfastDelivery === true;
     const baseAmount = Number(selection.amount) || 0;
-    const superfastCharge =
-      baseAmount <= 0 ? 0 : baseAmount < 2000 ? 200 : baseAmount <= 5000 ? 300 : 400;
-    const superfastEligible = baseAmount > 0 && superfastCharge > 0;
-    const superfastApplied = Boolean(wantSuperfast) && superfastEligible;
-    const orderAmount = superfastApplied ? baseAmount + superfastCharge : baseAmount;
+    const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } }).catch(() => null);
+    const totals = computeOrderTotal({
+      baseAmount,
+      quantity: selection.quantity ?? req.body.quantity,
+      finish: req.body.finish || "",
+      transportDetails: req.body.transportDetails || "",
+      superfastApplied: wantSuperfast && baseAmount > 0,
+      vidarbhaParcelCharge: settings?.vidarbhaParcelCharge,
+      creasingPerThousand: settings?.creasingPerThousand,
+    });
+    const { superfastCharge, creasingCharge, parcelCharge, total: orderAmount } = totals;
+    const superfastApplied = totals.superfastCharge > 0 && wantSuperfast;
 
     const clientAmount = Number(amount);
     if (Number.isFinite(clientAmount) && Math.abs(clientAmount - orderAmount) > 1) {
@@ -185,11 +193,15 @@ router.post("/", authCustomer, handleArtworkUpload, async (req, res) => {
     const hasEnoughFunds = hasCreditFromAdmin && canUseCredit && availableCredit >= orderAmount;
 
     const orderFields = buildOrderPayload(selection, req, orderAmount);
-    if (superfastApplied) {
+    const chargeNotes = [];
+    if (superfastApplied) chargeNotes.push(`SUPERFAST DELIVERY (+₹${superfastCharge})`);
+    if (creasingCharge > 0) chargeNotes.push(`CREASING (+₹${creasingCharge})`);
+    if (parcelCharge > 0) chargeNotes.push(`VIDARBHA PARCEL (+₹${parcelCharge})`);
+    if (chargeNotes.length) {
       const note = String(orderFields.notes || "").trim();
       orderFields.notes = note
-        ? `${note} | SUPERFAST DELIVERY (+₹${superfastCharge})`
-        : `SUPERFAST DELIVERY (+₹${superfastCharge})`;
+        ? `${note} | ${chargeNotes.join(" | ")}`
+        : chargeNotes.join(" | ");
     }
 
     if (!hasEnoughFunds) {

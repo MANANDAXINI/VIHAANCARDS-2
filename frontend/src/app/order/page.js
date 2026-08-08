@@ -18,6 +18,11 @@ import {
   listPaperCategories,
   resolvePaperCategory,
 } from "@/lib/catalog";
+import {
+  DEFAULT_CREASING_PER_THOUSAND,
+  DEFAULT_VIDARBHA_PARCEL,
+  computeOrderAddons,
+} from "@/lib/order-charges";
 import { toast } from "@/lib/toast";
 import { btnClass, chipClass, paperTypeChipClass, ui } from "@/lib/ui";
 
@@ -106,12 +111,30 @@ export default function OrderPage() {
     [catalog, paperTypeId, sizeId, printingSideId, quantity]
   );
 
-  // Superfast surcharge by base amount: <2k→₹200 | 2k–5k→₹300 | >5k→₹400
+  // Superfast + CREASING (₹/1000 qty) + Vidarbha parcel (from catalog settings)
   const baseAmount = Number(quotedAmount > 0 ? quotedAmount : localAmount) || 0;
   const superfastCharge = getSuperfastCharge(baseAmount);
   const superfastEligible = baseAmount > 0 && superfastCharge > 0;
   const superfastApplied = Boolean(superfastDelivery) && superfastEligible;
-  const amount = superfastApplied ? baseAmount + superfastCharge : baseAmount;
+  const { creasingCharge, parcelCharge, addonsTotal } = useMemo(
+    () =>
+      computeOrderAddons({
+        quantity,
+        otherRequirement,
+        transportDetails,
+        vidarbhaParcelCharge: catalog?.vidarbhaParcelCharge ?? DEFAULT_VIDARBHA_PARCEL,
+        creasingPerThousand: catalog?.creasingPerThousand ?? DEFAULT_CREASING_PER_THOUSAND,
+      }),
+    [
+      quantity,
+      otherRequirement,
+      transportDetails,
+      catalog?.vidarbhaParcelCharge,
+      catalog?.creasingPerThousand,
+    ]
+  );
+  const amount =
+    (superfastApplied ? baseAmount + superfastCharge : baseAmount) + addonsTotal;
 
   useEffect(() => {
     if (!superfastEligible && superfastDelivery) {
@@ -350,10 +373,7 @@ export default function OrderPage() {
         onClose={() => setShowCreditReminder(false)}
       />
       <main className={ui.page}>
-        <div className={ui.pageNarrow}>
-          <h1 className={ui.h1}>Place Order — Leaflet / Pamphlet</h1>
-          <p className={ui.muted}>Pick paper, size, printing side, and quantity.</p>
-
+        <div className={ui.pageOrder}>
           {!catalog?.paperTypes?.length && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Catalog not set up yet. Ask admin to add paper types.
@@ -366,21 +386,10 @@ export default function OrderPage() {
             </p>
           )}
 
-          <form className={ui.card} onSubmit={handleSubmit}>
-            <p className={`${ui.small} rounded-lg border border-slate-200 bg-slate-50 px-4 py-3`}>
-              <span className={ui.muted}>Customer name: </span>
-              <strong>{user.name || "—"}</strong>
-              {user.business ? (
-                <>
-                  <span className={ui.muted}> · Business: </span>
-                  <strong>{user.business}</strong>
-                </>
-              ) : null}
-            </p>
-
+          <form className={ui.cardOrder} onSubmit={handleSubmit}>
             <div className={ui.field}>
               <label className={ui.label}>Paper Type</label>
-              <div className="flex flex-wrap gap-2.5" role="group" aria-label="Paper type">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Paper type">
                 {paperCategories.map((cat) => {
                   const active = paperCategory === cat;
                   return (
@@ -407,7 +416,7 @@ export default function OrderPage() {
               <div className={ui.field}>
                 <label className={ui.label}>GSM / Subcategory</label>
                 <div
-                  className="grid max-h-56 grid-cols-2 gap-2.5 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-3"
+                  className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
                   role="group"
                   aria-label="GSM subcategory"
                 >
@@ -438,7 +447,7 @@ export default function OrderPage() {
               </div>
             ) : null}
 
-            <div className={ui.grid2}>
+            <div className={ui.gridOrderFields}>
               <div className={ui.field}>
                 <label className={ui.label}>Size</label>
                 <select
@@ -537,7 +546,7 @@ export default function OrderPage() {
               </div>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-2 md:items-start">
               <div className={ui.field}>
                 <label className={ui.label}>
                   File Name <span className="text-red-600">*</span>
@@ -596,9 +605,12 @@ export default function OrderPage() {
               <div>
                 <span className={`${ui.muted} ${ui.small}`}>{paperName} | {sizeName} | {sideName}</span>
                 <div>Quantity: <strong>{quantity || "—"}</strong></div>
-                {superfastApplied ? (
+                {(superfastApplied || creasingCharge > 0 || parcelCharge > 0) ? (
                   <div className={`${ui.small} mt-1 text-orange-700`}>
-                    Base {formatRupees(baseAmount)} + Superfast {formatRupees(superfastCharge)}
+                    Base {formatRupees(baseAmount)}
+                    {superfastApplied ? ` + Superfast ${formatRupees(superfastCharge)}` : ""}
+                    {creasingCharge > 0 ? ` + Creasing ${formatRupees(creasingCharge)}` : ""}
+                    {parcelCharge > 0 ? ` + Vidarbha parcel ${formatRupees(parcelCharge)}` : ""}
                   </div>
                 ) : null}
                 <div>Total Price</div>

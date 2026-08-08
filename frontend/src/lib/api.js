@@ -193,6 +193,8 @@ export const adminCatalogApi = {
   qr: () => api("/api/admin/catalog/qr"),
   uploadQr: (formData) => api("/api/admin/catalog/qr", { method: "POST", body: formData }),
   deleteQr: () => api("/api/admin/catalog/qr", { method: "DELETE" }),
+  settings: () => api("/api/admin/catalog/settings"),
+  updateSettings: (body) => api("/api/admin/catalog/settings", { method: "PUT", body }),
 };
 
 export function formatRupees(value) {

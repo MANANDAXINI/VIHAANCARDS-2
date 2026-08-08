@@ -19,7 +19,7 @@ const ADMIN_TABS = [
   { id: "backup", label: "Auto Backup" },
   { id: "other-charges", label: "Other Charges" },
   { id: "orders", label: "Orders", countKey: "orders" },
-  { id: "qr", label: "Payment QR" },
+  { id: "qr", label: "QR & Charges" },
   { id: "parcel", label: "Parcel Update" },
   { id: "printing-started", label: "Printing Process Started" },
   { id: "job-update", label: "Order Completed" },

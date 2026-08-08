@@ -566,15 +566,49 @@ export function AdminQrSection() {
   const [qrFile, setQrFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [vidarbhaParcelCharge, setVidarbhaParcelCharge] = useState("100");
+  const [creasingPerThousand, setCreasingPerThousand] = useState("100");
+  const [savingSettings, setSavingSettings] = useState(false);
 
   async function load() {
-    const q = await adminCatalogApi.qr();
+    const [q, s] = await Promise.all([
+      adminCatalogApi.qr(),
+      adminCatalogApi.settings(),
+    ]);
     setQr(q.qr);
+    setVidarbhaParcelCharge(String(s.settings?.vidarbhaParcelCharge ?? 100));
+    setCreasingPerThousand(String(s.settings?.creasingPerThousand ?? 100));
   }
 
   useEffect(() => {
     load().catch((e) => toast.error(e.message));
   }, []);
+
+  async function saveParcelSettings(event) {
+    event.preventDefault();
+    const parcel = Number(vidarbhaParcelCharge);
+    const creasing = Number(creasingPerThousand);
+    if (!Number.isFinite(parcel) || parcel < 0) {
+      toast.error("Enter a valid Vidarbha parcel amount (≥ 0).");
+      return;
+    }
+    if (!Number.isFinite(creasing) || creasing < 0) {
+      toast.error("Enter a valid creasing amount (≥ 0).");
+      return;
+    }
+    setSavingSettings(true);
+    try {
+      await adminCatalogApi.updateSettings({
+        vidarbhaParcelCharge: parcel,
+        creasingPerThousand: creasing,
+      });
+      toast.success("Parcel / creasing charges saved.");
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   async function uploadQr(event) {
     event.preventDefault();
@@ -614,6 +648,54 @@ export function AdminQrSection() {
 
   return (
     <div className="grid gap-4">
+      <section className={ui.adminCard}>
+        <h3 className={ui.adminH3}>Order Extra Charges</h3>
+        <p className={`${ui.muted} ${ui.small}`}>
+          Auto-added on Place Order: Vidarbha courier/garaj, and CREASING (per 1000 qty).
+        </p>
+        <form onSubmit={saveParcelSettings} className="mt-3 grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-1">
+            <span className={`${ui.small} font-semibold text-slate-700`}>
+              Vidarbha parcel (₹)
+            </span>
+            <input
+              className={ui.inputCompact}
+              type="number"
+              min="0"
+              step="1"
+              value={vidarbhaParcelCharge}
+              onChange={(e) => setVidarbhaParcelCharge(e.target.value)}
+              disabled={savingSettings}
+            />
+            <span className={`${ui.muted} ${ui.small}`}>
+              Added when Courier / Garaj contains &quot;Vidarbha&quot;.
+            </span>
+          </label>
+          <label className="grid gap-1">
+            <span className={`${ui.small} font-semibold text-slate-700`}>
+              Creasing per 1000 qty (₹)
+            </span>
+            <input
+              className={ui.inputCompact}
+              type="number"
+              min="0"
+              step="1"
+              value={creasingPerThousand}
+              onChange={(e) => setCreasingPerThousand(e.target.value)}
+              disabled={savingSettings}
+            />
+            <span className={`${ui.muted} ${ui.small}`}>
+              e.g. qty 1000 → ₹100, qty 2000 → ₹200 (when Other Requirements = CREASING).
+            </span>
+          </label>
+          <div className="sm:col-span-2">
+            <button className={btnClass("primary")} type="submit" disabled={savingSettings}>
+              {savingSettings ? "Saving..." : "Save Charges"}
+            </button>
+          </div>
+        </form>
+      </section>
+
       <section className={ui.adminCard}>
         <h3 className={ui.adminH3}>Payment QR Image</h3>
         <p className={`${ui.muted} ${ui.small}`}>Customers see this QR on the order payment page (tap to reveal).</p>

@@ -35,7 +35,9 @@ export const ui = {
   navTabsScroll: "flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1",
   priceBox:
     "flex flex-col gap-2 rounded-lg bg-blue-50 px-4 py-3.5 font-semibold text-slate-900 sm:flex-row sm:items-center sm:justify-between",
-  pageOrder: "mx-auto w-full max-w-5xl px-4 sm:px-5",
+  pageOrder: "mx-auto grid w-full max-w-7xl gap-3 px-3 sm:px-5 lg:px-6",
+  cardOrder: "grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:gap-3.5 sm:p-4 lg:p-5",
+  gridOrderFields: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
   orderLayout:
     "grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:grid-cols-[12rem_1fr] lg:grid-cols-[14rem_1fr]",
   paperSidebar: "border-b border-slate-200 bg-slate-50 p-3 md:border-b-0 md:border-r md:p-4",

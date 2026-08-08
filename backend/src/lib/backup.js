@@ -39,6 +39,7 @@ async function collectBackupPayload() {
     quantityOptions,
     priceRules,
     paymentQrs,
+    siteSettings,
   ] = await Promise.all([
     prisma.account.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.order.findMany({ orderBy: { createdAt: "asc" } }),
@@ -54,6 +55,7 @@ async function collectBackupPayload() {
     prisma.quantityOption.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.priceRule.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.paymentQr.findMany(),
+    prisma.siteSettings.findMany().catch(() => []),
   ]);
 
   const counts = {
@@ -71,6 +73,7 @@ async function collectBackupPayload() {
     quantityOptions: quantityOptions.length,
     priceRules: priceRules.length,
     paymentQrs: paymentQrs.length,
+    siteSettings: siteSettings.length,
   };
 
   return {
@@ -96,6 +99,7 @@ async function collectBackupPayload() {
       quantityOptions,
       priceRules,
       paymentQrs,
+      siteSettings,
     },
   };
 }

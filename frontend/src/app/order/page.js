@@ -572,55 +572,57 @@ export default function OrderPage() {
               />
             </div>
 
-            <div className={ui.field}>
-              <label className={ui.label}>Delivery Speed</label>
-              <button
-                type="button"
-                className={`superfast-btn ${superfastApplied ? "superfast-btn--active" : ""} ${!superfastEligible ? "superfast-btn--disabled" : ""}`}
-                onClick={() => {
-                  if (!superfastEligible) {
-                    toast.error("Select a priced paper combination first.");
-                    return;
-                  }
-                  setSuperfastDelivery((prev) => !prev);
-                }}
-                aria-pressed={superfastApplied}
-              >
-                <span className="superfast-btn__bolt" aria-hidden>⚡</span>
-                <span className="superfast-btn__text">
-                  <strong>Superfast Delivery</strong>
-                  <span>
-                    {superfastEligible
-                      ? `+ ₹${superfastCharge}`
-                      : "Select a priced combination first"}
+            <div className="grid gap-3 sm:grid-cols-2 sm:items-stretch">
+              <div className={`${ui.field} min-w-0`}>
+                <label className={ui.label}>Delivery Speed</label>
+                <button
+                  type="button"
+                  className={`superfast-btn h-full min-h-[4.5rem] ${superfastApplied ? "superfast-btn--active" : ""} ${!superfastEligible ? "superfast-btn--disabled" : ""}`}
+                  onClick={() => {
+                    if (!superfastEligible) {
+                      toast.error("Select a priced paper combination first.");
+                      return;
+                    }
+                    setSuperfastDelivery((prev) => !prev);
+                  }}
+                  aria-pressed={superfastApplied}
+                >
+                  <span className="superfast-btn__bolt" aria-hidden>⚡</span>
+                  <span className="superfast-btn__text">
+                    <strong>Superfast Delivery</strong>
+                    <span>
+                      {superfastEligible
+                        ? `+ ₹${superfastCharge}`
+                        : "Select a priced combination first"}
+                    </span>
                   </span>
-                </span>
-                <span className="superfast-btn__badge">
-                  {superfastApplied ? "ON" : "OFF"}
-                </span>
-              </button>
-            </div>
-
-            <div className={ui.priceBox}>
-              <div>
-                <span className={`${ui.muted} ${ui.small}`}>{paperName} | {sizeName} | {sideName}</span>
-                <div>Quantity: <strong>{quantity || "—"}</strong></div>
-                {(superfastApplied || creasingCharge > 0 || parcelCharge > 0) ? (
-                  <div className={`${ui.small} mt-1 text-orange-700`}>
-                    Base {formatRupees(baseAmount)}
-                    {superfastApplied ? ` + Superfast ${formatRupees(superfastCharge)}` : ""}
-                    {creasingCharge > 0 ? ` + Creasing ${formatRupees(creasingCharge)}` : ""}
-                    {parcelCharge > 0 ? ` + Vidarbha parcel ${formatRupees(parcelCharge)}` : ""}
-                  </div>
-                ) : null}
-                <div>Total Price</div>
-                {!baseAmount && !quoteLoading && (
-                  <p className={`${ui.small} mt-1 text-amber-700`}>No rate saved for this combination.</p>
-                )}
+                  <span className="superfast-btn__badge">
+                    {superfastApplied ? "ON" : "OFF"}
+                  </span>
+                </button>
               </div>
-              <strong>
-                {quoteLoading ? "..." : amount ? formatRupees(amount) : "—"}
-              </strong>
+
+              <div className={`${ui.priceBox} h-full min-w-0 !flex-row items-center justify-between sm:self-stretch`}>
+                <div className="min-w-0">
+                  <span className={`${ui.muted} ${ui.small}`}>{paperName} | {sizeName} | {sideName}</span>
+                  <div className="text-sm">Quantity: <strong>{quantity || "—"}</strong></div>
+                  {(superfastApplied || creasingCharge > 0 || parcelCharge > 0) ? (
+                    <div className={`${ui.small} mt-0.5 text-orange-700`}>
+                      Base {formatRupees(baseAmount)}
+                      {superfastApplied ? ` + Superfast ${formatRupees(superfastCharge)}` : ""}
+                      {creasingCharge > 0 ? ` + Creasing ${formatRupees(creasingCharge)}` : ""}
+                      {parcelCharge > 0 ? ` + Vidarbha parcel ${formatRupees(parcelCharge)}` : ""}
+                    </div>
+                  ) : null}
+                  <div className="text-sm">Total Price</div>
+                  {!baseAmount && !quoteLoading && (
+                    <p className={`${ui.small} mt-1 text-amber-700`}>No rate saved for this combination.</p>
+                  )}
+                </div>
+                <strong className="shrink-0 text-lg sm:text-xl">
+                  {quoteLoading ? "..." : amount ? formatRupees(amount) : "—"}
+                </strong>
+              </div>
             </div>
 
             <button
